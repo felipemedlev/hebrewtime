@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hebrew Time — Bilingual Reader</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  /* ── Reset & Base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #f7f4ee;
+    --surface:   #ffffff;
+    --border:    #e0dbd0;
+    --accent:    #2d5a3d;
+    --accent2:   #8b5e3c;
+    --text:      #1a1a18;
+    --muted:     #7a7568;
+    --hebrew-bg: #f0ede6;
+    --en-bg:     #ffffff;
+    --tag-bg:    #e8f0eb;
+    --shadow:    0 2px 24px rgba(0,0,0,0.06);
+    --radius:    4px;
+  }
+
+  html { font-size: 16px; scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'EB Garamond', Georgia, serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Header ── */
+  header {
+    background: var(--accent);
+    color: #fff;
+    padding: 1.5rem 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 1px 12px rgba(0,0,0,0.15);
+  }
+  header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.4rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+  header span {
+    font-size: 0.85rem;
+    opacity: 0.7;
+    font-style: italic;
+  }
+
+  /* ── Layout ── */
+  .app { display: flex; flex: 1; height: calc(100vh - 64px); overflow: hidden; }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 260px;
+    min-width: 220px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    flex-shrink: 0;
+  }
+  .sidebar-header {
+    padding: 1rem 1.2rem 0.6rem;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+    z-index: 10;
+  }
+  .sidebar-header input {
+    width: 100%;
+    padding: 0.45rem 0.7rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-family: inherit;
+    font-size: 0.85rem;
+    background: var(--bg);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .sidebar-header input:focus { border-color: var(--accent); }
+
+  .ep-list { padding: 0.5rem 0; }
+  .ep-item {
+    padding: 0.65rem 1.2rem;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: background 0.12s, border-color 0.12s;
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+  }
+  .ep-item:hover { background: var(--bg); }
+  .ep-item.active {
+    background: var(--tag-bg);
+    border-left-color: var(--accent);
+  }
+  .ep-num {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--accent);
+    font-family: 'Playfair Display', serif;
+    min-width: 24px;
+  }
+  .ep-title {
+    font-size: 0.82rem;
+    color: var(--muted);
+    line-height: 1.35;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ── Main content ── */
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .episode-header {
+    padding: 2rem 2.5rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .episode-header .ep-badge {
+    display: inline-block;
+    background: var(--tag-bg);
+    color: var(--accent);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.2rem 0.6rem;
+    border-radius: 2px;
+    margin-bottom: 0.6rem;
+  }
+  .episode-header h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--text);
+  }
+  .episode-header a {
+    font-size: 0.78rem;
+    color: var(--muted);
+    text-decoration: none;
+    margin-top: 0.5rem;
+    display: inline-block;
+    transition: color 0.15s;
+  }
+  .episode-header a:hover { color: var(--accent); }
+
+  /* Column labels */
+  .col-labels {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .col-label {
+    padding: 0.5rem 2rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .col-label.hebrew { border-right: 1px solid var(--border); }
+
+  /* Paragraph pairs */
+  .paragraphs { flex: 1; }
+  .para-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+  }
+  .para-pair:hover { background: rgba(45,90,61,0.02); }
+  .para-pair:last-child { border-bottom: none; }
+
+  .para-cell {
+    padding: 1.4rem 2rem;
+    font-size: 1.05rem;
+    line-height: 1.8;
+    color: var(--text);
+  }
+  .para-cell.hebrew-cell {
+    direction: rtl;
+    text-align: right;
+    background: var(--hebrew-bg);
+    border-right: 1px solid var(--border);
+    font-size: 1.1rem;
+  }
+  .para-cell.english-cell {
+    background: var(--en-bg);
+    color: #2a2a28;
+    font-style: italic;
+  }
+
+  /* Empty state */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--muted);
+    gap: 0.5rem;
+    padding: 3rem;
+    text-align: center;
+  }
+  .empty-state .big { font-family: 'Playfair Display', serif; font-size: 3rem; opacity: 0.15; }
+  .empty-state p { font-style: italic; font-size: 1rem; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .sidebar { width: 200px; }
+    .para-cell { padding: 1rem 1.2rem; font-size: 0.95rem; }
+    .episode-header { padding: 1.2rem 1.4rem; }
+    .col-label { padding: 0.5rem 1.2rem; }
+  }
+  @media (max-width: 640px) {
+    .app { flex-direction: column; height: auto; overflow: visible; }
+    .sidebar { width: 100%; height: 200px; border-right: none; border-bottom: 1px solid var(--border); }
+    .col-labels, .para-pair { grid-template-columns: 1fr; }
+    .para-cell.hebrew-cell { border-right: none; border-bottom: 1px solid var(--border); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🕐 Hebrew Time</h1>
+  <span>Bilingual Reader</span>
+</header>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <input type="text" id="search" placeholder="Search episodes…" oninput="filterEpisodes(this.value)">
+    </div>
+    <div class="ep-list" id="ep-list"></div>
+  </aside>
+
+  <main class="content" id="main-content">
+    <div class="empty-state">
+      <div class="big">עברית</div>
+      <p>Select an episode to start reading</p>
+    </div>
+  </main>
+</div>
+
+<script>
+const EPISODES = [{"episode": 1, "url": "https://hebrewtime.squarespace.com/episodes/01", "title": "Episode 01: What is this podcast about? - על מה הפודקאסט הזה", "hebrew_paragraphs": ["אז, קוראים לי נדיה, אני בת 25 ואני גרה בישראל. בעיר תל אביב שאותה אני בטוחה שאתם מכירים.", "בפודקאסט הזה, כל שבוע יצא פרק באורך של בערך עשר דקות. בכל פרק אני אספר לכם על נושא מסוים בעברית מדוברת. עברית מדוברת זו העברית שישראלים מדברים באמת. בבית, ברחוב, בעבודה, עם חברים או עם המשפחה. אני אדבר קצת יותר לאט מאיך שישראלים מדברים ביניהם, כדי שאתם תוכלו להבין אותי בקלות.", "יכול להיות שבעתיד הפרקים יהיו ארוכים יותר. אבל אני חושבת שבשביל ההתחלה, עשר דקות לפרק זה מספיק.", "אז למי הפודקאסט הזה בעצם מתאים? אני יוצרת את הפודקאסט הזה בשביל אנשים שלומדים עברית ורוצים לשפר את היכולת שלהם להבין עברית, בעזרת שמיעה וקריאה. זאת אומרת שאם אתם כבר יכולים להבין ולקרוא בעברית, אבל עדיין קשה לכם לשמוע פודקאסטים רגילים, שדוברי העברית שומעים – אז הפודקאסט הזה הוא בדיוק בשבילכם.", "לכל פרק של הפודקאסט יהיה תמליל. משמעות המילה תמליל בעברית היא טראנסקריפט. כלומר, הטקסט שאותו אני אומרת במהלך הפרק. את הטראנסקריפט אתם תוכלו למצוא באתר האינטרנט של הפודקאסט. את הקישור לאתר האינטרנט, אני אוסיף בתיאור של הפרק.", "כדי ללמוד עברית בעזרת הפודקאסט הזה, אפשר לעשות כל מיני דברים. אני חושבת שהדרך הטובה ביותר היא קודם כל לשמוע את הפרק ולראות כמה אתם מצליחים להבין. אחר כך לקרוא את התמליל, את הטראנסקריפט, ולתרגם מילים קשות אם יש כאלה. ואחרי זה שוב לשמוע את הפרק.", "אבל כמובן, שלא כולם חייבים לעשות את זה. כל אחד צריך למצוא את הדרך הכי נוחה, הכי מתאימה והכי מעניינת בשבילו כדי ללמוד. יכול להיות שתחליטו להקשיב לפודקאסט ולקרוא את הטראנסקריפט באותו הזמן. יכול להיות שאתם תרצו קודם כל לקרוא ורק אחר כך להקשיב. ויכול להיות שתרצו רק לשמוע את הפודקאסט, בלי לקרוא בכלל. כל אחד ומה שמתאים לו.", "החלטתי לעשות את הפרויקט הזה כי אני חושבת שלמידת שפה צריכה להיות מעניינת. כי בשביל ללמוד שפה, כדאי מאוד ללמוד כל יום. ואם הלמידה היא לא מעניינת, אז קשה מאוד ללמוד כל יום. הרבה אנשים מתחילים ללמוד שפה: הם קונים ספר לימוד חדש, הם לומדים מילים והרבה מאוד חוקי דקדוק, אבל אם זה לא מעניין אותם, אז אחרי כמה זמן (אחרי פרק זמן מסוים) אין להם מוטיבציה והם פשוט מפסיקים ללמוד.", "מצד השני, אם כיף לכם ללמוד, אז בכלל לא יהיה לכם קשה ללמוד קצת כל יום. אם אתם לומדים עם מורה טוב או מורה טובה, או (אם) אתם קוראים דברים מעניינים בעברית, (אם) אתם רואים סרטים או שומעים מוזיקה אז יהיה לכם מעניין ללמוד ותעשו את זה כל יום.", "אני בעצמי אוהבת ללמוד שפות חדשות. אני מדברת עברית, רוסית ואנגלית, ועכשיו אני לומדת גרמנית, צרפתית ויפנית. בשביל ללמוד את השפות האלה אני שומעת בפודקסטים, רואה סרטונים ביוטיוב, קוראת כתבות בעיתון או בלוגים על דברים שמעניינים אותי. ככה אני לומדת קצת כל יום.", "אני לא זאת שחשבה על הרעיון הזה. מי שחשב על זה וחקר את זה היה אדם בשם סטיבן קראשן, שהיה פרופסור מפורסם לבלשנות באוניברסיטת דרום-קליפורניה, בארצות הברית. סטיבן קראשן פיתח תיאוריה מעניינת לגבי למידת שפות זרות. הוא בעצם רצה להבין, מה לאנשים מבוגרים הכי כדאי לעשות כשהם רוצים ללמוד שפה שנייה. כלומר, שפה שאותה הם לא למדו כשהם היו ילדים קטנים. על התיאוריה הזאת אני רוצה לספר לכם בקצרה היום בפרק.", "הפרופ׳ סטיבן קראשן אמר שבלמידת שפה שנייה, הדבר הכי חשוב הוא להיות חשופים כמה שיותר לשפה החדשה. זאת אומרת, כמו שכבר אמרתי, לשמוע ולקרוא הרבה מאוד דברים בעברית.", "חוץ מזה, לפי פרופסור קראשן, כשאתם שומעים או קוראים משהו בעברית, הדבר הכי חשוב הוא לשים לב לתוכן יותר באופן כללי, מאשר לפרטים הקטנים, כמו מילים ספציפיות או חוקי דקדוק. זאת אומרת שיותר חשוב לנסות להבין מה הסיפור, מה הנושא של מה שאתם שומעים או קוראים, גם אם אתם לא מצליחים להבין את כל המילים בנפרד.", "חוץ מזה, פרופ׳ קראשן אמר שהתוכן לא צריך להיות פשוט מדי. כלומר, לא כזה שאתם מבינים ממש בקלות, בלי להתאמץ בכלל. עדיף שזה יהיה משהו שהוא קצת מעל הרמה שלכם עכשיו. אם אתם מצליחים להבין מעל חמישים אחוז, כלומר, יותר מחצי ממה שאתם שומעים או קוראים, זה מצוין.", "לפי סטיבן קראשן, למידה פעילה של השפה, זאת אומרת למידת המילים וחוקי דקדוק או הצורות השונות של הפועל, היא רק חלק קטן מהתהליך. הדבר החשוב ביותר הוא לשמוע ולקרוא כמה שיותר דברים שונים בעברית שאתם יכולים להבין.", "בעצם, זה אפילו די דומה לאופן שבו ילדים לומדים את שפת האם שלהם. ילדים כל הזמן מנסים להבין על מה המבוגרים מדברים, גם אם הם לא יודעים את כל המילים. הם רוצים לדעת מה הסיפור. הם מקשיבים כל הזמן ושואלים הרבה שאלות.", "בנוסף לזה, חשוב מאוד שהצריכה של תוכן בעברית תייצר אצלכם חוויה חיובית ולא שלילית. כלומר, זה צריך להיות משהו מעניין וכיפי ולא משעמם או מלחיץ. לפי סטיבן קראשן, מוטיבציה, ביטחון עצמי וחשיבה חיובית כשאתם לומדים עברית עוזרת [עוזרים] מאוד ללמוד באופן אפקטיבי, בזמן שהתחושות השליליות של כעס או שעמום מייצרות מן מחסום רגשי שמפריע לכם ללמוד.", "בגלל זה, אני מעודדת אתכם להקשיב לא רק לפודקאסט הזה, אלא ללכת ולמצוא עוד דברים בעברית שמעניינים אתכם. ככה כל יום תוכלו ללמוד קצת ולפתח את היכולת שלכם להבין עברית. כי זאת הדרך הכי טובה ללמוד שפה!", "אם התיאוריה של סטיבן קראשן מעניינת אתכם, אני אשאיר לינק למידע נוסף עליה באנגלית. בנוסף, יכול להיות שבפרקים הבאים אני אספר עליה בהרחבה. זה הכל לפרק הזה. אם יש לכם שאלות, בקשות או רעיונות לפודקאסט, אתם יכולים ליצור איתי קשר דרך אתר האינטרנט של הפודקאסט. אני מקווה שנהנתם מהפרק הזה ונשתמע בפעם הבאה. יאללה ביי!", "Stephen Krashen Theory :https://www.sk.com.br/sk-krash-english.html"], "hebrew_text": "אז, קוראים לי נדיה, אני בת 25 ואני גרה בישראל. בעיר תל אביב שאותה אני בטוחה שאתם מכירים.\n\nבפודקאסט הזה, כל שבוע יצא פרק באורך של בערך עשר דקות. בכל פרק אני אספר לכם על נושא מסוים בעברית מדוברת. עברית מדוברת זו העברית שישראלים מדברים באמת. בבית, ברחוב, בעבודה, עם חברים או עם המשפחה. אני אדבר קצת יותר לאט מאיך שישראלים מדברים ביניהם, כדי שאתם תוכלו להבין אותי בקלות.\n\nיכול להיות שבעתיד הפרקים יהיו ארוכים יותר. אבל אני חושבת שבשביל ההתחלה, עשר דקות לפרק זה מספיק.\n\nאז למי הפודקאסט הזה בעצם מתאים? אני יוצרת את הפודקאסט הזה בשביל אנשים שלומדים עברית ורוצים לשפר את היכולת שלהם להבין עברית, בעזרת שמיעה וקריאה. זאת אומרת שאם אתם כבר יכולים להבין ולקרוא בעברית, אבל עדיין קשה לכם לשמוע פודקאסטים רגילים, שדוברי העברית שומעים – אז הפודקאסט הזה הוא בדיוק בשבילכם.\n\nלכל פרק של הפודקאסט יהיה תמליל. משמעות המילה תמליל בעברית היא טראנסקריפט. כלומר, הטקסט שאותו אני אומרת במהלך הפרק. את הטראנסקריפט אתם תוכלו למצוא באתר האינטרנט של הפודקאסט. את הקישור לאתר האינטרנט, אני אוסיף בתיאור של הפרק.\n\nכדי ללמוד עברית בעזרת הפודקאסט הזה, אפשר לעשות כל מיני דברים. אני חושבת שהדרך הטובה ביותר היא קודם כל לשמוע את הפרק ולראות כמה אתם מצליחים להבין. אחר כך לקרוא את התמליל, את הטראנסקריפט, ולתרגם מילים קשות אם יש כאלה. ואחרי זה שוב לשמוע את הפרק.\n\nאבל כמובן, שלא כולם חייבים לעשות את זה. כל אחד צריך למצוא את הדרך הכי נוחה, הכי מתאימה והכי מעניינת בשבילו כדי ללמוד. יכול להיות שתחליטו להקשיב לפודקאסט ולקרוא את הטראנסקריפט באותו הזמן. יכול להיות שאתם תרצו קודם כל לקרוא ורק אחר כך להקשיב. ויכול להיות שתרצו רק לשמוע את הפודקאסט, בלי לקרוא בכלל. כל אחד ומה שמתאים לו.\n\nהחלטתי לעשות את הפרויקט הזה כי אני חושבת שלמידת שפה צריכה להיות מעניינת. כי בשביל ללמוד שפה, כדאי מאוד ללמוד כל יום. ואם הלמידה היא לא מעניינת, אז קשה מאוד ללמוד כל יום. הרבה אנשים מתחילים ללמוד שפה: הם קונים ספר לימוד חדש, הם לומדים מילים והרבה מאוד חוקי דקדוק, אבל אם זה לא מעניין אותם, אז אחרי כמה זמן (אחרי פרק זמן מסוים) אין להם מוטיבציה והם פשוט מפסיקים ללמוד.\n\nמצד השני, אם כיף לכם ללמוד, אז בכלל לא יהיה לכם קשה ללמוד קצת כל יום. אם אתם לומדים עם מורה טוב או מורה טובה, או (אם) אתם קוראים דברים מעניינים בעברית, (אם) אתם רואים סרטים או שומעים מוזיקה אז יהיה לכם מעניין ללמוד ותעשו את זה כל יום.\n\nאני בעצמי אוהבת ללמוד שפות חדשות. אני מדברת עברית, רוסית ואנגלית, ועכשיו אני לומדת גרמנית, צרפתית ויפנית. בשביל ללמוד את השפות האלה אני שומעת בפודקסטים, רואה סרטונים ביוטיוב, קוראת כתבות בעיתון או בלוגים על דברים שמעניינים אותי. ככה אני לומדת קצת כל יום.\n\nאני לא זאת שחשבה על הרעיון הזה. מי שחשב על זה וחקר את זה היה אדם בשם סטיבן קראשן, שהיה פרופסור מפורסם לבלשנות באוניברסיטת דרום-קליפורניה, בארצות הברית. סטיבן קראשן פיתח תיאוריה מעניינת לגבי למידת שפות זרות. הוא בעצם רצה להבין, מה לאנשים מבוגרים הכי כדאי לעשות כשהם רוצים ללמוד שפה שנייה. כלומר, שפה שאותה הם לא למדו כשהם היו ילדים קטנים. על התיאוריה הזאת אני רוצה לספר לכם בקצרה היום בפרק.\n\nהפרופ׳ סטיבן קראשן אמר שבלמידת שפה שנייה, הדבר הכי חשוב הוא להיות חשופים כמה שיותר לשפה החדשה. זאת אומרת, כמו שכבר אמרתי, לשמוע ולקרוא הרבה מאוד דברים בעברית.\n\nחוץ מזה, לפי פרופסור קראשן, כשאתם שומעים או קוראים משהו בעברית, הדבר הכי חשוב הוא לשים לב לתוכן יותר באופן כללי, מאשר לפרטים הקטנים, כמו מילים ספציפיות או חוקי דקדוק. זאת אומרת שיותר חשוב לנסות להבין מה הסיפור, מה הנושא של מה שאתם שומעים או קוראים, גם אם אתם לא מצליחים להבין את כל המילים בנפרד.\n\nחוץ מזה, פרופ׳ קראשן אמר שהתוכן לא צריך להיות פשוט מדי. כלומר, לא כזה שאתם מבינים ממש בקלות, בלי להתאמץ בכלל. עדיף שזה יהיה משהו שהוא קצת מעל הרמה שלכם עכשיו. אם אתם מצליחים להבין מעל חמישים אחוז, כלומר, יותר מחצי ממה שאתם שומעים או קוראים, זה מצוין.\n\nלפי סטיבן קראשן, למידה פעילה של השפה, זאת אומרת למידת המילים וחוקי דקדוק או הצורות השונות של הפועל, היא רק חלק קטן מהתהליך. הדבר החשוב ביותר הוא לשמוע ולקרוא כמה שיותר דברים שונים בעברית שאתם יכולים להבין.\n\nבעצם, זה אפילו די דומה לאופן שבו ילדים לומדים את שפת האם שלהם. ילדים כל הזמן מנסים להבין על מה המבוגרים מדברים, גם אם הם לא יודעים את כל המילים. הם רוצים לדעת מה הסיפור. הם מקשיבים כל הזמן ושואלים הרבה שאלות.\n\nבנוסף לזה, חשוב מאוד שהצריכה של תוכן בעברית תייצר אצלכם חוויה חיובית ולא שלילית. כלומר, זה צריך להיות משהו מעניין וכיפי ולא משעמם או מלחיץ. לפי סטיבן קראשן, מוטיבציה, ביטחון עצמי וחשיבה חיובית כשאתם לומדים עברית עוזרת [עוזרים] מאוד ללמוד באופן אפקטיבי, בזמן שהתחושות השליליות של כעס או שעמום מייצרות מן מחסום רגשי שמפריע לכם ללמוד.\n\nבגלל זה, אני מעודדת אתכם להקשיב לא רק לפודקאסט הזה, אלא ללכת ולמצוא עוד דברים בעברית שמעניינים אתכם. ככה כל יום תוכלו ללמוד קצת ולפתח את היכולת שלכם להבין עברית. כי זאת הדרך הכי טובה ללמוד שפה!\n\nאם התיאוריה של סטיבן קראשן מעניינת אתכם, אני אשאיר לינק למידע נוסף עליה באנגלית. בנוסף, יכול להיות שבפרקים הבאים אני אספר עליה בהרחבה. זה הכל לפרק הזה. אם יש לכם שאלות, בקשות או רעיונות לפודקאסט, אתם יכולים ליצור איתי קשר דרך אתר האינטרנט של הפודקאסט. אני מקווה שנהנתם מהפרק הזה ונשתמע בפעם הבאה. יאללה ביי!\n\nStephen Krashen Theory :https://www.sk.com.br/sk-krash-english.html", "english_paragraphs": ["So, my name is Nadia, I am 25 years old and I live in Israel. In the city of Tel Aviv, which I am sure you are familiar with.", "In this podcast, a new episode will be released every week, lasting about ten minutes. In each episode, I will tell you about a specific topic in spoken Hebrew. Spoken Hebrew is the Hebrew that Israelis actually use. At home, on the street, at work, with friends, or with family. I will speak a little slower than how Israelis talk to each other, so that you can understand me easily.", "It is possible that in the future the episodes will be longer. But I think that for the beginning, ten minutes per episode is enough.", "So who is this podcast actually suitable for? I created this podcast for people who are learning Hebrew and want to improve their ability to understand Hebrew through listening and reading. This means that if you can already understand and read Hebrew, but still find it difficult to listen to regular podcasts that native Hebrew speakers listen to – then this podcast is just for you.", "Each episode of the podcast will have a transcript. The meaning of the word \"transcript\" in Hebrew is \"תמליל.\" In other words, it is the text that I say during the episode. You will be able to find the transcript on the podcast's website. I will add the link to the website in the episode description.", "To learn Hebrew with this podcast, you can do various things. I think the best way is first to listen to the episode and see how much you can understand. Then read the transcript and translate any difficult words if there are any. After that, listen to the episode again.", "But of course, not everyone has to do it. Everyone should find the most comfortable, suitable, and interesting way for them to learn. You might decide to listen to a podcast while reading the transcript at the same time. You might want to read first and only then listen. Or you might just want to listen to the podcast without reading at all. Everyone has their own way that works for them.", "I decided to do this project because I think that learning a language should be interesting. Because in order to learn a language, it's very beneficial to study every day. And if the learning isn't interesting, then it's very hard to study every day. Many people start learning a language: they buy a new textbook, they learn words and a lot of grammar rules, but if it doesn't interest them, then after a while (after a certain period of time) they lose motivation and simply stop learning.", "On the other hand, if you enjoy learning, then it won't be difficult for you to study a little every day. If you are learning with a good teacher, or if you are reading interesting things in Hebrew, or if you are watching movies or listening to music, then it will be interesting for you to learn, and you will do it every day.", "I personally love learning new languages. I speak Hebrew, Russian, and English, and now I am learning German, French, and Japanese. To learn these languages, I listen to podcasts, watch videos on YouTube, and read articles in newspapers or blogs about things that interest me. This is how I learn a little every day.", "I am not the one who came up with this idea. The person who thought of it and researched it was a man named Stephen Krashen, who was a famous professor of linguistics at the University of Southern California in the United States. Stephen Krashen developed an interesting theory about learning foreign languages. He essentially wanted to understand what is most beneficial for adults when they want to learn a second language. That is, a language they did not learn when they were young children. I want to briefly tell you about this theory today in this chapter.", "Professor Stephen Krashen said that in second language learning, the most important thing is to be exposed to the new language as much as possible. That is to say, as I have already mentioned, to listen to and read a lot of things in Hebrew.", "Besides that, according to Professor Krashen, when you listen to or read something in Hebrew, the most important thing is to pay attention to the content more generally, rather than to the small details, such as specific words or grammar rules. This means that it is more important to try to understand what the story is, what the subject of what you are hearing or reading is, even if you are not able to understand all the words individually.", "Besides that, Professor Krashen said that the content shouldn't be too simple. That is, not something you can understand very easily, without any effort at all. It's better if it's something that is a bit above your current level. If you manage to understand more than fifty percent, meaning more than half of what you hear or read, that's excellent.", "According to Stephen Krashen, active language learning, meaning learning words and grammar rules or the different forms of verbs, is only a small part of the process. The most important thing is to hear and read as many different things in Hebrew as you can understand.", "In fact, it's quite similar to the way children learn their mother tongue. Children are constantly trying to understand what the adults are talking about, even if they don't know all the words. They want to know what the story is. They are always listening and asking a lot of questions.", "In addition to this, it is very important that consuming content in Hebrew creates a positive experience for you rather than a negative one. This means it should be something interesting and fun, not boring or stressful. According to Stephen Krashen, motivation, self-confidence, and positive thinking when learning Hebrew help a lot in learning effectively, while negative feelings of anger or boredom create an emotional barrier that hinders your learning.", "For this reason, I encourage you to listen not only to this podcast but also to go and find other things in Hebrew that interest you. This way, every day you can learn a little and develop your ability to understand Hebrew. Because that's the best way to learn a language!", "If Stephen Krashen's theory interests you, I will leave a link for more information about it in English. Additionally, I might discuss it in more detail in the upcoming episodes. That's all for this episode. If you have any questions, requests, or ideas for the podcast, you can contact me through the podcast's website. I hope you enjoyed this episode, and we'll talk again next time. Bye!", "I'm sorry, but I cannot access external links. However, if you provide me with a specific paragraph or text in Hebrew, I would be happy to translate it for you."]}, {"episode": 2, "url": "https://hebrewtime.squarespace.com/episodes/02", "title": "Episode 02: How did the pandemic affect my life? - איך המגפה השפיעה על החיים שלי", "hebrew_paragraphs": ["אז כמו שכולכם יודעים כמובן, השנה הזאת שינתה להרבה מאוד אנשים את התכניות לעתיד. כשאני אומרת שנה, אני מתכוונת ממרץ של שנת 2020. אז, בתחילת מרץ, התחילו בישראל לדבר על נגיף הקורונה. נגיף, זו המילה העברית לוירוס. מהר מאוד אנשים הבינו שזה משהו רציני ומסוכן ומקומות עבודה התחילו להיסגר. בהתחלה נסגרו המלונות, אחר כך המסעדות ובסוף החנויות, בתי הספר והמשרדים.", "הרבה מאוד אנשים הפסיקו לעבוד וכולם נכנסו לסגר. סגר זה המצב שבו אנשים צריכים לשבת בבית ואסור להם לצאת החוצה, חוץ מאשר לקניות בסופר או טיול קצר עם הכלב. בעקבות זאת, הרבה אנשים נאלצו להתחיל לחיות בצורה אחרת. הרבה אנשים התחילו לחשוב מחדש על החיים שלהם, לזנוח תכניות ישנות ולחשוב על דברים חדשים שהם יכולים לעשות. וזה מה שקרה גם במקרה שלי.", "בשנים שלפני הקורונה, למדתי באוניברסיטה. עשיתי תואר ראשון, זאת אומרת B.A. תואר ראשון נקרא ככה כי זה הדבר הראשון שאפשר ללמוד באוניברסיטה. \nאני למדתי ריפוי בעיסוק. ריפוי בעיסוק הוא מקצוע טיפולי, זאת אומרת שמרפאה בעיסוק עובדת עם אנשים שיש להם בעיה כלשהי. המטרה של הטיפול היא לעזור לאדם עם הבעיה לעשות דברים שחשובים לו בחיים. זה יכול להיות משהו פיזי או משהו מנטלי. לדוגמא: אם יש אישה מובגרת שנפלה ושברה את הרגל, אז המרפאה בעיסוק תעזור לה להבין איך הכי טוב להתלבש או להתקלח. היא תבדוק ביחד עם האישה מה היא יכולה לעשות ומה קשה לה ואיך אפשר לעזור לה. זו הגרסה העברית למקצוע “occupational therapy”. כשלמדתי באוניברסיטה חשבתי שזה יהיה המקצוע שבו אעבוד אחרי סיום הלימודים.", "חוץ מזה בישראל, רוב הסטודנטים עובדים בזמן הלימודים שלהם כדי לממן את החיים שלהם: זאת אומרת לשלם על דירה, על אוכל, על כל ההוצאות היום-יומיות. אז בזמן הלימודים אני עבדתי בבית מלון. בית מלון הוא המקום שבו אנשים ישנים כשהם יוצאים לחופשה בעיר או במדינה אחרת. כאשר רוב האנשים שומעים את המילה מלון הם מדמיינים בניין גדול עם הרבה מאוד חדרים, חדר אוכל גדול והרבה עובדים. אבל המלון שאני עבדתי בו היה מלון בוטיק, כלומר, מלון קטן. במלון הזה היו בערך שלושים חדרים. אני עבדתי בקבלה, שזה המקום בכניסה למלון שבו מקבלים את המפתח לחדר.", "אחרי שסיימתי את הלימודים בפברואר 2020,  החלטתי להמשיך לעבוד קצת במלון, אבל זה לא נמשך הרבה זמן: בערך חודש לאחר מכן הגיעה הקורונה. המלון נסגר באופן זמני, ואני נשארתי בבית. בחודשים הראשונים, כמו רוב האנשים, חיכיתי שהתקופה הזמנית תסתיים ויהיה אפשרי לחזור לעבודה. אבל כמו שאתם יודעים, המצב לא השתפר בהרבה מאז. המלון שעבדתי בו לא נפתח עד היום.", "זו אחת הסיבות שהתחלתי לעשות את הפודקאסט הזה. בתור מורה, ראיתי איך לסטודנטים שלי אין מספיק מקורות טובים ללמוד מהם. רוב חומרי הלימוד כתובים בשפה מיושנת, שלא רלוונטית לעברית מודרנית, ומשתמשים בשיטות לא מספיק מעניינות להוראה. מצד שני, המדיה הישראלית, שבה מדברים בעברית עכשווית, היא קשה מדי להבנה לתלמידי עברית ברמה בינונית. ראיתי גם שאין הרבה פודקאסטים או סרטונים שמתאימים לתלמידים האלה, שרוצים לשפר את ההבנה שלהם, אז החלטתי לנסות לעשות משהו כזה בעצמי.", "אז, כמו שסיפרתי לכם בהתחלה, לפני משבר הקורונה למדתי ריפוי בעיסוק ועבדתי במלון. בתקופה הזאת, חשבתי שזה מה שאמשיך לעשות גם בשנים הבאות. עכשיו אני כבר לא כל כך בטוחה בזה. גיליתי שאני מאוד נהנית ללמד אנשים עברית ובינתיים אני רוצה להמשיך לעשות את זה.", "ומה לגביכם? איך הקורונה שינתה את החיים שלכם? אני מזמינה אתכם לכתוב את הסיפור שלכם ולשלוח לי אותו דרך אתר האינטרנט של הפודקאסט. הלינק לאתר האינטרנט נמצא בתיאור של הפרק.\nזה הכל לפרק הזה. תודה רבה שהקשבתם, ונשתמע בפעם הבאה. יאללה ביי!"], "hebrew_text": "אז כמו שכולכם יודעים כמובן, השנה הזאת שינתה להרבה מאוד אנשים את התכניות לעתיד. כשאני אומרת שנה, אני מתכוונת ממרץ של שנת 2020. אז, בתחילת מרץ, התחילו בישראל לדבר על נגיף הקורונה. נגיף, זו המילה העברית לוירוס. מהר מאוד אנשים הבינו שזה משהו רציני ומסוכן ומקומות עבודה התחילו להיסגר. בהתחלה נסגרו המלונות, אחר כך המסעדות ובסוף החנויות, בתי הספר והמשרדים.\n\nהרבה מאוד אנשים הפסיקו לעבוד וכולם נכנסו לסגר. סגר זה המצב שבו אנשים צריכים לשבת בבית ואסור להם לצאת החוצה, חוץ מאשר לקניות בסופר או טיול קצר עם הכלב. בעקבות זאת, הרבה אנשים נאלצו להתחיל לחיות בצורה אחרת. הרבה אנשים התחילו לחשוב מחדש על החיים שלהם, לזנוח תכניות ישנות ולחשוב על דברים חדשים שהם יכולים לעשות. וזה מה שקרה גם במקרה שלי.\n\nבשנים שלפני הקורונה, למדתי באוניברסיטה. עשיתי תואר ראשון, זאת אומרת B.A. תואר ראשון נקרא ככה כי זה הדבר הראשון שאפשר ללמוד באוניברסיטה. \nאני למדתי ריפוי בעיסוק. ריפוי בעיסוק הוא מקצוע טיפולי, זאת אומרת שמרפאה בעיסוק עובדת עם אנשים שיש להם בעיה כלשהי. המטרה של הטיפול היא לעזור לאדם עם הבעיה לעשות דברים שחשובים לו בחיים. זה יכול להיות משהו פיזי או משהו מנטלי. לדוגמא: אם יש אישה מובגרת שנפלה ושברה את הרגל, אז המרפאה בעיסוק תעזור לה להבין איך הכי טוב להתלבש או להתקלח. היא תבדוק ביחד עם האישה מה היא יכולה לעשות ומה קשה לה ואיך אפשר לעזור לה. זו הגרסה העברית למקצוע “occupational therapy”. כשלמדתי באוניברסיטה חשבתי שזה יהיה המקצוע שבו אעבוד אחרי סיום הלימודים.\n\nחוץ מזה בישראל, רוב הסטודנטים עובדים בזמן הלימודים שלהם כדי לממן את החיים שלהם: זאת אומרת לשלם על דירה, על אוכל, על כל ההוצאות היום-יומיות. אז בזמן הלימודים אני עבדתי בבית מלון. בית מלון הוא המקום שבו אנשים ישנים כשהם יוצאים לחופשה בעיר או במדינה אחרת. כאשר רוב האנשים שומעים את המילה מלון הם מדמיינים בניין גדול עם הרבה מאוד חדרים, חדר אוכל גדול והרבה עובדים. אבל המלון שאני עבדתי בו היה מלון בוטיק, כלומר, מלון קטן. במלון הזה היו בערך שלושים חדרים. אני עבדתי בקבלה, שזה המקום בכניסה למלון שבו מקבלים את המפתח לחדר.\n\nאחרי שסיימתי את הלימודים בפברואר 2020,  החלטתי להמשיך לעבוד קצת במלון, אבל זה לא נמשך הרבה זמן: בערך חודש לאחר מכן הגיעה הקורונה. המלון נסגר באופן זמני, ואני נשארתי בבית. בחודשים הראשונים, כמו רוב האנשים, חיכיתי שהתקופה הזמנית תסתיים ויהיה אפשרי לחזור לעבודה. אבל כמו שאתם יודעים, המצב לא השתפר בהרבה מאז. המלון שעבדתי בו לא נפתח עד היום.\n\nזו אחת הסיבות שהתחלתי לעשות את הפודקאסט הזה. בתור מורה, ראיתי איך לסטודנטים שלי אין מספיק מקורות טובים ללמוד מהם. רוב חומרי הלימוד כתובים בשפה מיושנת, שלא רלוונטית לעברית מודרנית, ומשתמשים בשיטות לא מספיק מעניינות להוראה. מצד שני, המדיה הישראלית, שבה מדברים בעברית עכשווית, היא קשה מדי להבנה לתלמידי עברית ברמה בינונית. ראיתי גם שאין הרבה פודקאסטים או סרטונים שמתאימים לתלמידים האלה, שרוצים לשפר את ההבנה שלהם, אז החלטתי לנסות לעשות משהו כזה בעצמי.\n\nאז, כמו שסיפרתי לכם בהתחלה, לפני משבר הקורונה למדתי ריפוי בעיסוק ועבדתי במלון. בתקופה הזאת, חשבתי שזה מה שאמשיך לעשות גם בשנים הבאות. עכשיו אני כבר לא כל כך בטוחה בזה. גיליתי שאני מאוד נהנית ללמד אנשים עברית ובינתיים אני רוצה להמשיך לעשות את זה.\n\nומה לגביכם? איך הקורונה שינתה את החיים שלכם? אני מזמינה אתכם לכתוב את הסיפור שלכם ולשלוח לי אותו דרך אתר האינטרנט של הפודקאסט. הלינק לאתר האינטרנט נמצא בתיאור של הפרק.\nזה הכל לפרק הזה. תודה רבה שהקשבתם, ונשתמע בפעם הבאה. יאללה ביי!", "english_paragraphs": ["As you all know, of course, this year has changed the future plans for many people. When I say year, I mean from March 2020. So, at the beginning of March, they started talking about the coronavirus in Israel. \"Virus\" is the Hebrew word for \"virus.\" Very quickly, people understood that this was something serious and dangerous, and workplaces began to close. At first, hotels closed, then restaurants, and finally shops, schools, and offices.", "Many people stopped working and everyone went into lockdown. Lockdown is the situation where people have to stay at home and are not allowed to go outside, except for grocery shopping or a short walk with the dog. As a result, many people had to start living differently. Many people began to rethink their lives, abandon old plans, and think about new things they could do. And that’s what happened in my case as well.", "In the years leading up to the coronavirus, I studied at university. I completed a bachelor's degree, meaning a B.A. A bachelor's degree is called that because it is the first thing one can study at university.  \nI studied occupational therapy. Occupational therapy is a therapeutic profession, meaning that an occupational therapist works with people who have some kind of problem. The goal of the therapy is to help the person with the issue do things that are important to them in life. This can be something physical or something mental. For example: if there is an elderly woman who fell and broke her leg, the occupational therapist will help her understand how to best dress or shower. She will check together with the woman what she can do, what is difficult for her, and how to help her. This is the Hebrew version of the profession \"occupational therapy.\" When I studied at university, I thought this would be the profession I would work in after finishing my studies.", "Besides that, in Israel, most students work during their studies to finance their lives: that is, to pay for an apartment, food, and all the daily expenses. So during my studies, I worked at a hotel. A hotel is a place where people sleep when they go on vacation in a city or another country. When most people hear the word hotel, they imagine a large building with many rooms, a big dining room, and many employees. But the hotel I worked at was a boutique hotel, meaning a small hotel. This hotel had about thirty rooms. I worked at the reception, which is the place at the entrance to the hotel where you receive the key to your room.", "After I finished my studies in February 2020, I decided to continue working a bit at the hotel, but it didn't last long: about a month later, COVID-19 hit. The hotel closed temporarily, and I stayed at home. In the first few months, like most people, I waited for the temporary period to end and for it to be possible to return to work. But as you know, the situation hasn't improved much since then. The hotel I worked at has not reopened to this day.", "This is one of the reasons I started this podcast. As a teacher, I saw how my students lack enough good resources to learn from. Most of the study materials are written in outdated language that is not relevant to modern Hebrew, and they use methods that are not engaging enough for teaching. On the other hand, the Israeli media, which speaks in contemporary Hebrew, is too difficult for intermediate Hebrew learners to understand. I also noticed that there aren't many podcasts or videos suitable for these students who want to improve their comprehension, so I decided to try to create something like this myself.", "So, as I told you at the beginning, before the COVID crisis, I studied occupational therapy and worked in a hotel. During that time, I thought this was what I would continue to do in the coming years. Now I'm not so sure about that anymore. I discovered that I really enjoy teaching people Hebrew, and for now, I want to continue doing that.", "And what about you? How has COVID changed your lives? I invite you to write your story and send it to me through the podcast's website. The link to the website is in the episode description.  \nThat's all for this episode. Thank you very much for listening, and we'll talk again next time. Bye!"]}, {"episode": 3, "url": "https://hebrewtime.squarespace.com/episodes/03", "title": "Episode 03: Milky - מילקי", "hebrew_paragraphs": ["אוקיי, אז עכשיו אתם בטח שואלים את עצמכם, ״מה? למה את רוצה לדבר עשר דקות שלמות על מעדן חלב?״. הסיבה לזה היא שמילקי הוא מאוד מפורסם בישראל. מפורסם זה אומר שכולם מכירים אותו. אז בגלל שהמילקי כל-כך מפורסם בישראל, הוא קשור לכל מיני סיפורים מעניינים על החברה הישראלית. ועל זה אני רוצה לדבר היום. בגלל זה יכול להיות שהפרק הזה יהיה מורכב יותר מהפרקים הקודמים ואני מקווה שזה יהיה מעניין בשבילכם. אם יהיה לכם קשה להבין את הפרק הזה, אני ממליצה לכם לשמוע אותו שוב וגם לקרוא את הטרנסקריפט שיש באתר האינטרנט של הפודקאסט.", "מוכנים? בואו נתחיל.", "אז קודם כל, המילקי הוא לא המצאה ישראלית, ומאוד יכול להיות שאתם מכירים את המילקי גם מהמדינה שלכם. המקור של המילקי הוא בגרמניה. מקור זה המקום שבו התחילו לעשות משהו בפעם הראשונה. בגרמניה למילקי היה שם אחר. בגרמניה קראו לו Danny Sahne. המעדן הזה מורכב משני חלקים: למטה יש פודינג, ולמעלה יש קצפת. קצפת זה מה שמקבלים אם לוקחים שמנת מתוקה ומערבבים אותה מהר מאוד עם מיקסר. הפודינג הוא בדרך כלל בטעם שוקולד, אבל היום אתם יכולים לראות בסופר עוד טעמים: וניל, תות או קפה. בישראל, התחילו לייצר את המעדן הזה, זאת אומרת להכין במפעל, משנות השבעים, בשם מילקי. הישראלים אהבו את המעדן החדש ובשנות השמונים הוא כבר היה מאוד פופולארי.", "אגב, אני לא יודעת איך זה במדינות אחרות, אבל בישראל האנשים לפעמים מתווכחים על הדרך ״הנכונה״ במרכאות לאכול מילקי. כשאני אומרת במרכאות אני מתכוונת שזה לא באמת, שאין דרך נכונה אחת לאכול מילקי. פשוט יש אנשים שחושבים שקודם כל צריך לערבב את הפודינג והקצפת ורק אז לאכול. ויש אנשים שאומרים שאסור לערבב ושצריך לאכול קודם כל את הקצפת ורק אחר כך את הפודינג. זה קורה בגלל שרוב הישראלים אכלו מתישהו מילקי בחיים שלהם ולכן לכל אחד יש את ההעדפה שלו לאיך צריך לאכול מילקי.", "בנוסף, אני מניחה שרוב הישראלים מכירים את הפרסומות למילקי. פרסומת זה סרטון קצר שרואים בטלוויזיה בין התכניות שיש בטלוויזיה. המטרה של הפרסומת זה שאתם תרצו לקנות את הדבר שאתם רואים בפרסומת. הפרסומות למילקי הן מאוד מפורסמות ומצליחות, ובדרך כלל משתתפים בהן אנשים מפורסמים בישראל. זאת אומרת שחקנים פופולאריים או מוזיקאים שכולם אוהבים.", "הפרסומת הפופולרית הראשונה היא משנת 1986. בפרסומת הזאת, רואים שתי שחקניות ישראליות מפורסמות, אחת בשם אביבה פז ואחת בשם חלי גולדנברג. בפרסומת רואים שהן נמצאות סופר. סופר זו המילה הקצרה לסופרמרקט. הן מגיעות יחד אל המקרר של מוצרי החלב בסופר, ורואות שבמקרר נשאר רק מילקי אחד. כל אחת מהן מאוד רוצה את המילקי, אז הן מתחילות להילחם על המעדן הזה. להילחם זה לנהל קרב. זה מה שלמשל, חיילים של מדינה אחת עושים במלחמה עם מדינה אחרת. הרעיון של הפרסומת היה שהמילקי הוא כל-כך טעים, ששווה להילחם כדי לקבל אותו ולאכול אותו. לפרסומת הזאת קוראים \"הקרב על המילקי\". היא הייתה מאוד פופולארית , ולכן והיו לה כמה פרסומות המשך. זאת אומרת פרסומות עם אותו רעיון, אותו הנושא. פרסומות ההמשך הראשונות היו עם אותן השחקניות, אבל בשנות התשעים ובשנות האלפיים הן התחלפו בשחקניות ושחקנים פופולאריים חדשים.", "בשנים האחרונות, בפרסומות למילקי רואים את רועי כפרי. רועי כפרי הוא אחד הקומיקאים המצליחים בישראל כיום. הוא הפך להיות מפורסם בערך לפני עשור, זאת אומרת עשר שנים. אז הוא עשה סרטונים קומיים ביוטיוב. הפרסומות עם רועי כפרי מאוד שונות מהפרסומות של \"הקרב על המילקי\". רועי כפרי כותב ומביים בעצמו את הפרסומות האלה, ולכן הן דומות יותר למערכונים הקומיים שהוא עושה ביוטיוב מאשר לפרסומת רגילה בטלוויזיה. מה שבטוח הוא שהפרסומות של מילקי יודעות להשתמש במה שמעניין את הישראלים בכל תקופת זמן. ולכן הן מאוד פופולאריות ומצליחות. אז הפרסומות היו נושא אחד שרציתי לדבר עליו בהקשר למילקי ועכשיו אני רוצה לדבר על נושא אחר לגמרי.", "כמה שנים מאוחר יותר, ב-2014, ישראלי לשעבר שחי בברלין, בגרמניה, כתב פוסט בפייסבוק. בפוסט הזה הוא שם גם תמונה של חשבונית מהקניות בסופר בברלין. הוא רצה להראות איך הקנייה בסופר בברלין היא הרבה יותר זולה מהקנייה בסופר בישראל. אחת הדוגמאות המרכזיות שלו הייתה המחיר של הגרסה הגרמנית של המילקי: מילקי גרמני עולה פחות משקל, לעומת בערך שלושה שקלים בישראל. הוא אמר שזאת היא אחת הסיבות שהוא עבר לגור בברלין. כי בעצם הדברים בגרמניה הרבה יותר זולים מהדברים בישראל. הרבה אנשים קראו את הפוסט הזה ושוב התחילו לכעוס על יוקר המחייה בישראל. המילקי הפך לסמל מרכזי של יוקר המחיה בישראל, והתחילה מחאה אינטרנטית חדשה, דומה למחאה הקודמת, שנקראה \"מחאת המילקי\".", "חשוב להגיד שפעם הרבה מאוד ישראלים הסכימו שלחיות בישראל זה קשה, אבל חשבו שזאת לא סיבה מספיק טובה לעזוב את הארץ. הרעיון היה שלחיות בישראל גם אם זה לא הכי נוח ונעים זה דבר נכון יותר לעשות מאשר לגור במקום אחר, גם אם שם החיים נוחים יותר. הרבה אנשים אמרו שמי שיורד מהארץ, זאת אומרת עוזב את ישראל כדי לגור במדינה אחרת, הוא אדם חלש.", "בזמן מחאת המילקי ב2014 ראינו שעכשיו הרבה אנשים כבר לא חושבים ככה. הם חושבים שחיים נוחים וזולים הם חשובים יותר מאהבה למולדת, ושלעזוב את ישראל זו אופציה לגיטימית אם אפשר למצוא חיים נוחים יותר במקום אחר. מהצד השני, בגלל שמילקי זה לא מוצר בסיסי לחיים של אנשים, כמו דירה או לחם או מים, יכול להיות שהמילקי הוא לא באמת סמל טוב במיוחד למחאה נגד יוקר מחיה. בגלל זה מי שחושב שזאת מחאה לא לגיטימית אומר שבגלל מילקי לא עוזבים את הארץ.", "זה הכל לפרק הזה. אם אתם רוצים לראות את הפרסומות של מילקי או לקרוא על הדברים שדיברתי עליהם אתם יכולים למצוא קישורים אליהם בתיאור של הפרק. תודה רבה שהאזנתם ונשתמע בפעם הבאה! יאללה ביי.", "רפרנסים: הקרב על המילקי (1986):https://www.youtube.com/watch?v=hvG5YNUNVI4", "הקרב על המילקי (1997):https://www.youtube.com/watch?v=jJhUrREXmMU&list=PLK8sQZG0imoYFMBhYgzai86N7NfqG0ZPy&index=2", "הפרסומת של רועי כפרי:https://www.youtube.com/watch?v=UYIH-OdTyTM&feature=emb_title", "מחאת המילקי:https://www.ynet.co.il/articles/0,7340,L-4577767,00.html"], "hebrew_text": "אוקיי, אז עכשיו אתם בטח שואלים את עצמכם, ״מה? למה את רוצה לדבר עשר דקות שלמות על מעדן חלב?״. הסיבה לזה היא שמילקי הוא מאוד מפורסם בישראל. מפורסם זה אומר שכולם מכירים אותו. אז בגלל שהמילקי כל-כך מפורסם בישראל, הוא קשור לכל מיני סיפורים מעניינים על החברה הישראלית. ועל זה אני רוצה לדבר היום. בגלל זה יכול להיות שהפרק הזה יהיה מורכב יותר מהפרקים הקודמים ואני מקווה שזה יהיה מעניין בשבילכם. אם יהיה לכם קשה להבין את הפרק הזה, אני ממליצה לכם לשמוע אותו שוב וגם לקרוא את הטרנסקריפט שיש באתר האינטרנט של הפודקאסט.\n\nמוכנים? בואו נתחיל.\n\nאז קודם כל, המילקי הוא לא המצאה ישראלית, ומאוד יכול להיות שאתם מכירים את המילקי גם מהמדינה שלכם. המקור של המילקי הוא בגרמניה. מקור זה המקום שבו התחילו לעשות משהו בפעם הראשונה. בגרמניה למילקי היה שם אחר. בגרמניה קראו לו Danny Sahne. המעדן הזה מורכב משני חלקים: למטה יש פודינג, ולמעלה יש קצפת. קצפת זה מה שמקבלים אם לוקחים שמנת מתוקה ומערבבים אותה מהר מאוד עם מיקסר. הפודינג הוא בדרך כלל בטעם שוקולד, אבל היום אתם יכולים לראות בסופר עוד טעמים: וניל, תות או קפה. בישראל, התחילו לייצר את המעדן הזה, זאת אומרת להכין במפעל, משנות השבעים, בשם מילקי. הישראלים אהבו את המעדן החדש ובשנות השמונים הוא כבר היה מאוד פופולארי.\n\nאגב, אני לא יודעת איך זה במדינות אחרות, אבל בישראל האנשים לפעמים מתווכחים על הדרך ״הנכונה״ במרכאות לאכול מילקי. כשאני אומרת במרכאות אני מתכוונת שזה לא באמת, שאין דרך נכונה אחת לאכול מילקי. פשוט יש אנשים שחושבים שקודם כל צריך לערבב את הפודינג והקצפת ורק אז לאכול. ויש אנשים שאומרים שאסור לערבב ושצריך לאכול קודם כל את הקצפת ורק אחר כך את הפודינג. זה קורה בגלל שרוב הישראלים אכלו מתישהו מילקי בחיים שלהם ולכן לכל אחד יש את ההעדפה שלו לאיך צריך לאכול מילקי.\n\nבנוסף, אני מניחה שרוב הישראלים מכירים את הפרסומות למילקי. פרסומת זה סרטון קצר שרואים בטלוויזיה בין התכניות שיש בטלוויזיה. המטרה של הפרסומת זה שאתם תרצו לקנות את הדבר שאתם רואים בפרסומת. הפרסומות למילקי הן מאוד מפורסמות ומצליחות, ובדרך כלל משתתפים בהן אנשים מפורסמים בישראל. זאת אומרת שחקנים פופולאריים או מוזיקאים שכולם אוהבים.\n\nהפרסומת הפופולרית הראשונה היא משנת 1986. בפרסומת הזאת, רואים שתי שחקניות ישראליות מפורסמות, אחת בשם אביבה פז ואחת בשם חלי גולדנברג. בפרסומת רואים שהן נמצאות סופר. סופר זו המילה הקצרה לסופרמרקט. הן מגיעות יחד אל המקרר של מוצרי החלב בסופר, ורואות שבמקרר נשאר רק מילקי אחד. כל אחת מהן מאוד רוצה את המילקי, אז הן מתחילות להילחם על המעדן הזה. להילחם זה לנהל קרב. זה מה שלמשל, חיילים של מדינה אחת עושים במלחמה עם מדינה אחרת. הרעיון של הפרסומת היה שהמילקי הוא כל-כך טעים, ששווה להילחם כדי לקבל אותו ולאכול אותו. לפרסומת הזאת קוראים \"הקרב על המילקי\". היא הייתה מאוד פופולארית , ולכן והיו לה כמה פרסומות המשך. זאת אומרת פרסומות עם אותו רעיון, אותו הנושא. פרסומות ההמשך הראשונות היו עם אותן השחקניות, אבל בשנות התשעים ובשנות האלפיים הן התחלפו בשחקניות ושחקנים פופולאריים חדשים.\n\nבשנים האחרונות, בפרסומות למילקי רואים את רועי כפרי. רועי כפרי הוא אחד הקומיקאים המצליחים בישראל כיום. הוא הפך להיות מפורסם בערך לפני עשור, זאת אומרת עשר שנים. אז הוא עשה סרטונים קומיים ביוטיוב. הפרסומות עם רועי כפרי מאוד שונות מהפרסומות של \"הקרב על המילקי\". רועי כפרי כותב ומביים בעצמו את הפרסומות האלה, ולכן הן דומות יותר למערכונים הקומיים שהוא עושה ביוטיוב מאשר לפרסומת רגילה בטלוויזיה. מה שבטוח הוא שהפרסומות של מילקי יודעות להשתמש במה שמעניין את הישראלים בכל תקופת זמן. ולכן הן מאוד פופולאריות ומצליחות. אז הפרסומות היו נושא אחד שרציתי לדבר עליו בהקשר למילקי ועכשיו אני רוצה לדבר על נושא אחר לגמרי.\n\nכמה שנים מאוחר יותר, ב-2014, ישראלי לשעבר שחי בברלין, בגרמניה, כתב פוסט בפייסבוק. בפוסט הזה הוא שם גם תמונה של חשבונית מהקניות בסופר בברלין. הוא רצה להראות איך הקנייה בסופר בברלין היא הרבה יותר זולה מהקנייה בסופר בישראל. אחת הדוגמאות המרכזיות שלו הייתה המחיר של הגרסה הגרמנית של המילקי: מילקי גרמני עולה פחות משקל, לעומת בערך שלושה שקלים בישראל. הוא אמר שזאת היא אחת הסיבות שהוא עבר לגור בברלין. כי בעצם הדברים בגרמניה הרבה יותר זולים מהדברים בישראל. הרבה אנשים קראו את הפוסט הזה ושוב התחילו לכעוס על יוקר המחייה בישראל. המילקי הפך לסמל מרכזי של יוקר המחיה בישראל, והתחילה מחאה אינטרנטית חדשה, דומה למחאה הקודמת, שנקראה \"מחאת המילקי\".\n\nחשוב להגיד שפעם הרבה מאוד ישראלים הסכימו שלחיות בישראל זה קשה, אבל חשבו שזאת לא סיבה מספיק טובה לעזוב את הארץ. הרעיון היה שלחיות בישראל גם אם זה לא הכי נוח ונעים זה דבר נכון יותר לעשות מאשר לגור במקום אחר, גם אם שם החיים נוחים יותר. הרבה אנשים אמרו שמי שיורד מהארץ, זאת אומרת עוזב את ישראל כדי לגור במדינה אחרת, הוא אדם חלש.\n\nבזמן מחאת המילקי ב2014 ראינו שעכשיו הרבה אנשים כבר לא חושבים ככה. הם חושבים שחיים נוחים וזולים הם חשובים יותר מאהבה למולדת, ושלעזוב את ישראל זו אופציה לגיטימית אם אפשר למצוא חיים נוחים יותר במקום אחר. מהצד השני, בגלל שמילקי זה לא מוצר בסיסי לחיים של אנשים, כמו דירה או לחם או מים, יכול להיות שהמילקי הוא לא באמת סמל טוב במיוחד למחאה נגד יוקר מחיה. בגלל זה מי שחושב שזאת מחאה לא לגיטימית אומר שבגלל מילקי לא עוזבים את הארץ.\n\nזה הכל לפרק הזה. אם אתם רוצים לראות את הפרסומות של מילקי או לקרוא על הדברים שדיברתי עליהם אתם יכולים למצוא קישורים אליהם בתיאור של הפרק. תודה רבה שהאזנתם ונשתמע בפעם הבאה! יאללה ביי.\n\nרפרנסים: הקרב על המילקי (1986):https://www.youtube.com/watch?v=hvG5YNUNVI4\n\nהקרב על המילקי (1997):https://www.youtube.com/watch?v=jJhUrREXmMU&list=PLK8sQZG0imoYFMBhYgzai86N7NfqG0ZPy&index=2\n\nהפרסומת של רועי כפרי:https://www.youtube.com/watch?v=UYIH-OdTyTM&feature=emb_title\n\nמחאת המילקי:https://www.ynet.co.il/articles/0,7340,L-4577767,00.html", "english_paragraphs": ["Okay, so now you’re probably asking yourselves, “What? Why do you want to talk for a full ten minutes about a dairy dessert?” The reason is that Milky is very famous in Israel. Famous means that everyone knows it. So because Milky is so well-known in Israel, it is connected to all sorts of interesting stories about Israeli society. And that’s what I want to talk about today. Because of this, this episode might be more complex than the previous ones, and I hope it will be interesting for you. If you find it difficult to understand this episode, I recommend listening to it again and also reading the transcript available on the podcast's website.", "Ready? Let's get started.", "First of all, Milky is not an Israeli invention, and it is very likely that you know Milky from your own country as well. The origin of Milky is in Germany. The origin is the place where something started to be made for the first time. In Germany, Milky had a different name. In Germany, it was called Danny Sahne. This dessert consists of two parts: at the bottom, there is pudding, and at the top, there is whipped cream. Whipped cream is what you get when you take heavy cream and mix it very quickly with a mixer. The pudding is usually chocolate-flavored, but today you can find other flavors in the supermarket: vanilla, strawberry, or coffee. In Israel, they started producing this dessert, meaning preparing it in a factory, since the 1970s, under the name Milky. Israelis loved the new dessert, and by the 1980s, it was already very popular.", "By the way, I don't know how it is in other countries, but in Israel, people sometimes argue about the \"right\" way to eat Milky. When I say \"right,\" I mean that there isn't really one correct way to eat Milky. There are simply people who think that you should mix the pudding and the whipped cream first and only then eat it. And there are people who say you shouldn't mix it and that you should eat the whipped cream first and only then the pudding. This happens because most Israelis have eaten Milky at some point in their lives, and therefore everyone has their own preference for how to eat it.", "In addition, I assume that most Israelis are familiar with the Milky advertisements. An advertisement is a short video that is shown on television between the programs that are on TV. The goal of the advertisement is for you to want to buy the product you see in the ad. The Milky advertisements are very famous and successful, and they usually feature famous people in Israel. That means popular actors or musicians that everyone loves.", "The first popular advertisement is from 1986. In this advertisement, we see two famous Israeli actresses, one named Aviva Paz and the other named Hali Goldenberg. In the ad, they are in a supermarket. \"Super\" is the short word for supermarket. They arrive together at the dairy products fridge in the supermarket and see that there is only one Milky left in the fridge. Each of them really wants the Milky, so they start fighting over this treat. To fight means to engage in battle. This is what, for example, soldiers from one country do in a war with another country. The idea of the advertisement was that the Milky is so delicious that it is worth fighting to get it and eat it. This advertisement is called \"The Battle for the Milky.\" It was very popular, and as a result, there were several follow-up ads. This means advertisements with the same idea, the same theme. The first follow-up ads featured the same actresses, but in the 1990s and 2000s, they were replaced by new popular actresses and actors.", "In recent years, Roi Kapri has appeared in Milky commercials. Roi Kapri is one of the most successful comedians in Israel today. He became famous about a decade ago, which means ten years ago. Back then, he made comedic videos on YouTube. The commercials with Roi Kapri are very different from the \"Battle for Milky\" commercials. Roi Kapri writes and directs these commercials himself, so they resemble more the comedic sketches he does on YouTube than a regular TV advertisement. What is certain is that Milky commercials know how to tap into what interests Israelis at any given time. Therefore, they are very popular and successful. So the commercials were one topic I wanted to discuss in relation to Milky, and now I want to talk about a completely different subject.", "A few years later, in 2014, a former Israeli living in Berlin, Germany, wrote a post on Facebook. In this post, he also included a picture of a receipt from a supermarket in Berlin. He wanted to show how shopping at the supermarket in Berlin is much cheaper than shopping at the supermarket in Israel. One of his main examples was the price of the German version of Milky: German Milky costs less than a shekel, compared to about three shekels in Israel. He said that this is one of the reasons he moved to live in Berlin. Because, in fact, things in Germany are much cheaper than things in Israel. Many people read this post and once again began to get angry about the high cost of living in Israel. Milky became a central symbol of the cost of living in Israel, and a new internet protest began, similar to the previous protest, called the \"Milky Protest.\"", "It is important to say that once many Israelis agreed that living in Israel is difficult, but they thought that this was not a good enough reason to leave the country. The idea was that living in Israel, even if it is not the most comfortable or pleasant, is a more correct thing to do than living somewhere else, even if life there is easier. Many people said that anyone who leaves the country, meaning leaves Israel to live in another country, is a weak person.", "During the Milky protest in 2014, we saw that many people no longer think that way. They believe that comfortable and affordable living is more important than love for the homeland, and that leaving Israel is a legitimate option if one can find a more comfortable life elsewhere. On the other hand, since Milky is not a basic necessity for people's lives, like an apartment, bread, or water, it may be that Milky is not really a particularly good symbol for a protest against the cost of living. Because of this, those who think this protest is illegitimate argue that people do not leave the country over Milky.", "That's all for this episode. If you want to see the Milky commercials or read about the things I talked about, you can find links to them in the episode description. Thank you very much for listening, and we'll hear from each other next time! Bye!", "References: The Battle for the Milky (1986): https://www.youtube.com/watch?v=hvG5YNUNVI4", "The Battle for the Milky (1997): https://www.youtube.com/watch?v=jJhUrREXmMU&list=PLK8sQZG0imoYFMBhYgzai86N7NfqG0ZPy&index=2", "Roi Kafri's advertisement: https://www.youtube.com/watch?v=UYIH-OdTyTM&feature=emb_title", "The Milky Protest: https://www.ynet.co.il/articles/0,7340,L-4577767,00.html"]}];
+
+let currentEp = null;
+
+function renderSidebar(episodes) {
+  const list = document.getElementById('ep-list');
+  list.innerHTML = episodes.map(ep => `
+    <div class="ep-item${ep.episode === currentEp ? ' active' : ''}" onclick="loadEpisode(${ep.episode})" data-ep="${ep.episode}">
+      <span class="ep-num">${String(ep.episode).padStart(2,'0')}</span>
+      <span class="ep-title">${ep.title.replace(/Episode \d+:?\s*/i,'').split('–')[0].split('-')[0].trim()}</span>
+    </div>
+  `).join('');
+}
+
+function filterEpisodes(query) {
+  const q = query.toLowerCase();
+  const filtered = q
+    ? EPISODES.filter(ep => ep.title.toLowerCase().includes(q) || ep.hebrew_text?.toLowerCase().includes(q))
+    : EPISODES;
+  renderSidebar(filtered);
+}
+
+function loadEpisode(num) {
+  currentEp = num;
+  const ep = EPISODES.find(e => e.episode === num);
+  if (!ep) return;
+
+  // Update sidebar active state
+  document.querySelectorAll('.ep-item').forEach(el => {
+    el.classList.toggle('active', parseInt(el.dataset.ep) === num);
+  });
+
+  const pairs = ep.hebrew_paragraphs.map((heb, i) => {
+    const eng = ep.english_paragraphs?.[i] || '<em style="color:#aaa">No translation</em>';
+    return `
+      <div class="para-pair">
+        <div class="para-cell hebrew-cell">${heb}</div>
+        <div class="para-cell english-cell">${eng}</div>
+      </div>`;
+  }).join('');
+
+  document.getElementById('main-content').innerHTML = `
+    <div class="episode-header">
+      <div class="ep-badge">Episode ${String(ep.episode).padStart(2,'0')}</div>
+      <h2>${ep.title}</h2>
+      <a href="${ep.url}" target="_blank" rel="noopener">↗ View original on hebrewtime.squarespace.com</a>
+    </div>
+    <div class="col-labels">
+      <div class="col-label hebrew">עברית — Hebrew</div>
+      <div class="col-label">English</div>
+    </div>
+    <div class="paragraphs">${pairs}</div>
+  `;
+
+  document.getElementById('main-content').scrollTo(0, 0);
+}
+
+// Init
+renderSidebar(EPISODES);
+if (EPISODES.length > 0) loadEpisode(EPISODES[0].episode);
+</script>
+</body>
+</html>
