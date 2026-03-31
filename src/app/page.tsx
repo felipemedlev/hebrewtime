@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
-import { Search, ExternalLink, ChevronLeft, ChevronRight, BookOpen } from "lucide-react";
-// @ts-ignore - Assuming episodes_checkpoint.json is present after scraping
+import { Search, ExternalLink, ChevronLeft, ChevronRight, BookOpen, PanelLeftClose, PanelLeft, X } from "lucide-react";
+// @ts-ignore
 import episodesData from "../../episodes_checkpoint.json";
 
 type Episode = {
@@ -14,13 +14,11 @@ type Episode = {
   english_paragraphs: string[];
 };
 
-// Ensure episodes are unique, sorted, and IDs are strictly numbers.
 const rawEpisodes = (episodesData || []) as any[];
 const episodesMap = new Map<number, Episode>();
 rawEpisodes.forEach((ep) => {
   const epNum = Number(ep.episode);
   if (!isNaN(epNum)) {
-    // Normalize format like "[20] Title" to "Episode 20: Title"
     let normalizedTitle = ep.title;
     const bracketMatch = normalizedTitle.match(/^\[(\d+)\]\s*(.*)/);
     if (bracketMatch) {
@@ -41,7 +39,38 @@ export default function Home() {
     episodes.length > 0 ? episodes[0].episode : null
   );
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // Responsive sidebar control
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  // Check window size on mount
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth <= 800;
+      setIsMobile(mobile);
+      if (mobile) setIsSidebarOpen(false); // Default closed on mobile initially
+      else setIsSidebarOpen(true);
+    };
+    
+    // Initial check
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // Top nav blur effect on scroll
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el) return;
+    const handleScroll = () => {
+      setIsScrolled(el.scrollTop > 10);
+    };
+    el.addEventListener("scroll", handleScroll);
+    return () => el.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const filteredEpisodes = useMemo(() => {
     const q = searchQuery.toLowerCase();
@@ -56,21 +85,11 @@ export default function Home() {
   const currentIndex = episodes.findIndex((e) => e.episode === currentEpNum);
   const currentEp = currentIndex !== -1 ? episodes[currentIndex] : null;
 
-  const handleNext = () => {
-    if (currentIndex > -1 && currentIndex < episodes.length - 1) {
-      setCurrentEpNum(episodes[currentIndex + 1].episode);
-    }
-  };
-
-  const handlePrev = () => {
-    if (currentIndex > 0) {
-      setCurrentEpNum(episodes[currentIndex - 1].episode);
-    }
-  };
-
-  const setEpisode = (num: number) => {
+  const navigateToEpisode = (num: number) => {
     setCurrentEpNum(num);
-    // Use timeout to ensure DOM update is flushed before scrolling
+    if (isMobile) {
+      setIsSidebarOpen(false);
+    }
     setTimeout(() => {
       if (mainRef.current) {
         mainRef.current.scrollTo({ top: 0, behavior: "smooth" });
@@ -78,15 +97,41 @@ export default function Home() {
     }, 50);
   };
 
+  const handleNext = () => {
+    if (currentIndex > -1 && currentIndex < episodes.length - 1) {
+      navigateToEpisode(episodes[currentIndex + 1].episode);
+    }
+  };
+
+  const handlePrev = () => {
+    if (currentIndex > 0) {
+      navigateToEpisode(episodes[currentIndex - 1].episode);
+    }
+  };
+
   return (
     <div className="app-container">
+      {/* Mobile Overlay */}
+      <div 
+        className={`sidebar-overlay ${!isSidebarOpen ? "closed" : ""}`}
+        onClick={() => setIsSidebarOpen(false)}
+      />
+
       {/* Sidebar */}
-      <aside className="sidebar">
+      <aside className={`sidebar ${!isSidebarOpen ? "closed" : ""}`}>
         <div className="sidebar-header">
-          <h1 className="sidebar-title">
-            <BookOpen size={18} />
-            Hebrew Time
-          </h1>
+          <div className="sidebar-title">
+            <div className="sidebar-title-left">
+              <BookOpen size={18} className="text-gray-700" />
+              <span>Hebrew Time</span>
+            </div>
+            <button 
+              className="close-mobile-btn"
+              onClick={() => setIsSidebarOpen(false)}
+            >
+              <X size={18} />
+            </button>
+          </div>
           <div className="relative w-full">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
@@ -104,7 +149,7 @@ export default function Home() {
             <button
               key={ep.episode}
               className={`ep-item ${ep.episode === currentEpNum ? "active" : ""}`}
-              onClick={() => setEpisode(ep.episode)}
+              onClick={() => navigateToEpisode(ep.episode)}
             >
               <span className="ep-num">
                 {String(ep.episode).padStart(2, "0")}
@@ -122,11 +167,21 @@ export default function Home() {
         </div>
       </aside>
 
-      {/* Main Content container needed key block! */}
+      {/* Main Content */}
       <main className="main-content" ref={mainRef}>
+        <div className={`top-nav ${isScrolled ? "scrolled" : ""}`}>
+          <button 
+            className="toggle-sidebar-btn" 
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            title={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
+          >
+            {isSidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeft size={20} />}
+          </button>
+        </div>
+
         {!currentEp ? (
           <div className="empty-state">
-            <BookOpen size={64} strokeWidth={1} />
+            <BookOpen size={48} strokeWidth={1} />
             <p>Select an episode from the sidebar to start reading.</p>
           </div>
         ) : (
