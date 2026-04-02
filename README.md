@@ -8,7 +8,7 @@ The application allows intermediate Hebrew learners to read podcast transcripts 
 
 - **Bilingual Interface**: Smooth side-by-side Hebrew and English paragraphs.
 - **Contextual AI Translation**: Click any Hebrew word to translate it within the context of the sentence using OpenAI (GPT-4o-mini). Includes complete Nekudot vocalization.
-- **Vocabulary Manager**: Save translated words to a personal vocabulary bank stored in your browser (`localStorage`), with reference to the original episode context.
+- **Vocabulary Manager & Auth**: Users can create an account via Supabase Email Auth. Translated words are securely synced to a Supabase PostgreSQL database, ensuring vocabulary is preserved across devices with reference to the original episode context.
 - **Native Audio Player**: Persistent bottom audio player utilizing HTML5 `<audio>` for seamless listening, scrubbing, and pausing (supports both direct `.mp3` files and Google Drive fallbacks).
 - **Responsive Design**: Elegant slide-out sidebar for mobile devices.
 - **Automated Scraping**: Python script to scrape episode transcripts from Squarespace and auto-translate missing English sections via OpenAI.
@@ -21,6 +21,7 @@ This project is built with **Next.js 16** (App Router) and **React 19**, focusin
 - **Framework**: Next.js 16
 - **Styling**: Vanilla CSS (`globals.css`) for a clean, dependency-free aesthetic.
 - **Icons**: `lucide-react`
+- **Database & Auth**: Supabase (PostgreSQL) and `@supabase/supabase-js`.
 - **Data Fetching/AI**: OpenAI API for on-the-fly contextual word translations.
 - **Scraper**: Python 3 (`requests`, `beautifulsoup4`, `openai`).
 
@@ -35,19 +36,45 @@ Following a recent refactor, the app utilizes Next.js Server Components and dyna
   - `EpisodeViewer.tsx`: Bilingual reading experience and word-click handling.
   - `VocabularyView.tsx`: Displays saved words in a grid.
   - `TranslationModal.tsx`: The AI translation popup.
-- **Custom Hooks (`src/hooks/useVocabulary.ts`)**: Manages the extraction and persistence of vocabulary to `localStorage`.
+  - `AuthModal.tsx`: The Supabase authentication UI for login and sign up.
+- **Custom Hooks (`src/hooks/`)**: 
+  - `useVocabulary.ts`: Manages syncing vocabulary to Supabase based on the user's login state.
+  - `useUser.ts`: Subscribes to Supabase auth events to track logged-in users.
 
 ## 🛠 Setup & Local Development
 
 ### 1. Environment Variables
 
-Create a `.env` file in the root directory. You need an OpenAI API key for both the Python scraper (to translate paragraphs) and the Next.js app (for the clickable word translation dictionary).
+Create a `.env` file in the root directory. You need an OpenAI API key for translations, and Supabase keys for authentication and database support.
 
 ```env
 OPENAI_API_KEY=sk-your-openai-api-key-here
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-### 2. Updating Episodes (Python Scraper)
+### 2. Supabase Database Setup
+
+For vocabulary saving to work, navigate to your Supabase SQL Editor and execute the following snippet to create the table and its Row Level Security policies:
+
+```sql
+CREATE TABLE IF NOT EXISTS public.vocabulary (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  word TEXT NOT NULL,
+  word_with_nekudot TEXT,
+  translation TEXT NOT NULL,
+  episode_title TEXT,
+  episode_url TEXT,
+  saved_at BIGINT
+);
+ALTER TABLE public.vocabulary ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users view own vocabulary" ON public.vocabulary FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users insert own vocabulary" ON public.vocabulary FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users delete own vocabulary" ON public.vocabulary FOR DELETE USING (auth.uid() = user_id);
+```
+
+### 3. Updating Episodes (Python Scraper)
 
 To fetch the latest podcast transcripts and auto-translate them to English:
 
@@ -58,7 +85,7 @@ python scraper.py
 ```
 This generates/updates `episodes.json` and `episodes_checkpoint.json` which the Next.js app consumes.
 
-### 3. Running the Next.js App
+### 4. Running the Next.js App
 
 Install dependencies and start the development server:
 
