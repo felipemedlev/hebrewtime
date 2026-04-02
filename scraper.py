@@ -82,10 +82,15 @@ def fetch_episode(episode_num: int) -> dict | None:
     hebrew_text = "\n\n".join(paragraphs)
     print(f"  Episode {episode_num:02d}: ✓ scraped ({len(paragraphs)} paragraphs)")
 
+    # ── Audio URL ─────────────────────────────────────────────────────────────
+    audio_match = re.search(r"\"(https://[^\"]+\.mp3[^\"]*)\"", resp.text)
+    audio_url = audio_match.group(1) if audio_match else None
+
     return {
         "episode": episode_num,
         "url": url,
         "title": title,
+        "audio_url": audio_url,
         "hebrew_paragraphs": paragraphs,
         "hebrew_text": hebrew_text,
         "english_paragraphs": [],   # filled in next step

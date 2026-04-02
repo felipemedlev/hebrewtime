@@ -1,9 +1,9 @@
 "use server";
 
-export async function translateWord(word: string, hebrewContext: string, englishContext: string): Promise<string> {
+export async function translateWord(word: string, hebrewContext: string, englishContext: string) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    return "Translation unavailable (No API Key)";
+    return { translation: "Translation unavailable (No API Key)", wordWithNekudot: word };
   }
 
   const prompt = `You are a helpful dictionary assistant. 
@@ -12,7 +12,9 @@ You are given the sentence where it appears to understand the exact context:
 Hebrew sentence: "${hebrewContext}"
 English meaning of the sentence: "${englishContext}"
 
-Return ONLY the English translation of the specific word "${word}", no punctuation, no extra text, just the direct translation of the word itself.`;
+Return a JSON object with exactly two keys:
+1. "translation": The English translation of the specific word "${word}", no punctuation, no extra text, just the direct translation.
+2. "wordWithNekudot": The exact Hebrew word "${word}" but fully vocalized with Nekudot (Hebrew vowels) as it is pronounced in this context.`;
 
   try {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -24,22 +26,24 @@ Return ONLY the English translation of the specific word "${word}", no punctuati
       body: JSON.stringify({
         model: "gpt-4o-mini",
         messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
         temperature: 0.2,
       }),
     });
 
     if (!res.ok) {
       console.error("OpenAI Error:", await res.text());
-      return "Translation error";
+      return { translation: "Translation error", wordWithNekudot: word };
     }
 
     const data = await res.json();
-    let translation = data.choices[0].message.content.trim();
-    // remove any surrounding quotes if they exist
-    translation = translation.replace(/^["'](.*)["']$/, '$1');
-    return translation;
+    const result = JSON.parse(data.choices[0].message.content.trim());
+    return {
+      translation: result.translation || "Translation error",
+      wordWithNekudot: result.wordWithNekudot || word
+    };
   } catch (err) {
     console.error("Fetch Error:", err);
-    return "Translation error";
+    return { translation: "Translation error", wordWithNekudot: word };
   }
 }
