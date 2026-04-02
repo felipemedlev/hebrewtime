@@ -2,55 +2,115 @@
 
 import { useState, useEffect, useCallback } from "react";
 import type { VocabWord } from "@/lib/types";
-
-const STORAGE_KEY = "hebrewTimeVocab";
+import { supabase } from "@/lib/supabase";
+import { useUser } from "./useUser";
 
 export function useVocabulary() {
   const [vocabWords, setVocabWords] = useState<VocabWord[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const { user } = useUser();
 
-  // Load from localStorage on mount
+  // Load from Supabase on mount or when user changes
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        setVocabWords(JSON.parse(saved));
-      }
-    } catch {
-      // Ignore parse errors
+    if (!user) {
+      setVocabWords([]);
+      setIsLoaded(true);
+      return;
     }
-    setIsLoaded(true);
-  }, []);
 
-  const persist = useCallback((words: VocabWord[]) => {
-    setVocabWords(words);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(words));
-  }, []);
+    setIsLoaded(false);
+    supabase
+      .from("vocabulary")
+      .select("*")
+      .order("saved_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (!error && data) {
+          setVocabWords(
+            data.map((d) => ({
+              id: d.id,
+              word: d.word,
+              wordWithNekudot: d.word_with_nekudot,
+              translation: d.translation,
+              episodeTitle: d.episode_title,
+              episodeUrl: d.episode_url,
+              savedAt: d.saved_at,
+            }))
+          );
+        }
+        setIsLoaded(true);
+      });
+  }, [user]);
 
   const addWord = useCallback(
-    (word: Omit<VocabWord, "id" | "savedAt">): { added: boolean; message: string } => {
-      // Check for exact duplicate (same word + same translation)
-      if (vocabWords.some((v) => v.word === word.word && v.translation === word.translation)) {
-        return { added: false, message: "This exact meaning is already saved!" };
+    async (word: Omit<VocabWord, "id" | "savedAt">): Promise<{ added: boolean; message: string; type?: "auth_required" | "duplicate" | "success" | "error" }> => {
+      if (!user) {
+        return { added: false, message: "Please log in to save vocabulary.", type: "auth_required" };
       }
 
+      // Check for exact duplicate locally
+      if (vocabWords.some((v) => v.word === word.word && v.translation === word.translation)) {
+        return { added: false, message: "This exact meaning is already saved!", type: "duplicate" };
+      }
+
+      const tempId = Date.now().toString() + Math.random().toString();
       const newWord: VocabWord = {
         ...word,
-        id: Date.now().toString() + Math.random().toString(),
+        id: tempId, // We use this until real id returns, but actually UUID is generated on server.
+                    // For optimistic UI, it's fine.
         savedAt: Date.now(),
       };
 
-      persist([newWord, ...vocabWords]);
-      return { added: true, message: `Saved "${word.word}" to vocabulary!` };
+      setVocabWords((prev) => [newWord, ...prev]);
+
+      const { data, error } = await supabase
+        .from("vocabulary")
+        .insert({
+          user_id: user.id,
+          word: word.word,
+          word_with_nekudot: word.wordWithNekudot || null,
+          translation: word.translation,
+          episode_title: word.episodeTitle,
+          episode_url: word.episodeUrl,
+          saved_at: newWord.savedAt,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        setVocabWords((prev) => prev.filter((v) => v.id !== tempId));
+        return { added: false, message: "Error saving word: " + error.message, type: "error" };
+      }
+
+      // Replace temp id with real id
+      if (data) {
+        setVocabWords((prev) =>
+          prev.map((v) => (v.id === tempId ? { ...v, id: data.id } : v))
+        );
+      }
+
+      return { added: true, message: `Saved "${word.word}" to vocabulary!`, type: "success" };
     },
-    [vocabWords, persist]
+    [vocabWords, user]
   );
 
   const deleteWord = useCallback(
-    (id: string) => {
-      persist(vocabWords.filter((v) => v.id !== id));
+    async (id: string) => {
+      if (!user) return;
+      
+      // Optimistic delete
+      setVocabWords((prev) => prev.filter((v) => v.id !== id));
+      
+      const { error } = await supabase
+        .from("vocabulary")
+        .delete()
+        .eq("id", id)
+        .eq("user_id", user.id);
+
+      if (error) {
+        console.error("Failed to delete word:", error);
+      }
     },
-    [vocabWords, persist]
+    [user]
   );
 
   return { vocabWords, isLoaded, addWord, deleteWord };

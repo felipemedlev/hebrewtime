@@ -17,7 +17,7 @@ type EpisodeViewerProps = {
     translation: string;
     episodeTitle: string;
     episodeUrl: string;
-  }) => { added: boolean; message: string };
+  }) => Promise<{ added: boolean; message: string; type?: string }>;
   onToast: (msg: string) => void;
 };
 
@@ -87,10 +87,10 @@ export default function EpisodeViewer({
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!modal.translation) return;
 
-    const result = onWordSaved({
+    const result = await onWordSaved({
       word: modal.word,
       wordWithNekudot: modal.wordWithNekudot || modal.word,
       translation: modal.translation,
@@ -98,8 +98,9 @@ export default function EpisodeViewer({
       episodeUrl: episode.url,
     });
 
-    onToast(result.message);
-    setModal((prev) => ({ ...prev, isOpen: false }));
+    if (result.type !== "auth_required") {
+      setModal((prev) => ({ ...prev, isOpen: false }));
+    }
   };
 
   return (

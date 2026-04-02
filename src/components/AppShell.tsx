@@ -7,7 +7,10 @@ import Sidebar from "./Sidebar";
 import EpisodeViewer from "./EpisodeViewer";
 import VocabularyView from "./VocabularyView";
 import MediaPlayer from "./MediaPlayer";
+import AuthModal from "./AuthModal";
 import { useVocabulary } from "@/hooks/useVocabulary";
+import { useUser } from "@/hooks/useUser";
+import { supabase } from "@/lib/supabase";
 
 type AppShellProps = {
   episodeList: EpisodeListItem[];
@@ -24,9 +27,11 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
   const [isMobile, setIsMobile] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   const mainRef = useRef<HTMLElement>(null);
   const { vocabWords, addWord, deleteWord } = useVocabulary();
+  const { user } = useUser();
 
   // Responsive
   useEffect(() => {
@@ -54,6 +59,19 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
     setToast(msg);
     setTimeout(() => setToast(null), 2500);
   }, []);
+
+  const handleWordSaved = useCallback(
+    async (word: any) => {
+      const res = await addWord(word);
+      if (res.type === "auth_required") {
+        setIsAuthModalOpen(true);
+      } else {
+        showToast(res.message);
+      }
+      return res;
+    },
+    [addWord, showToast]
+  );
 
   const navigateToEpisode = useCallback(
     async (num: number) => {
@@ -103,6 +121,7 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
         onSelectEpisode={navigateToEpisode}
         onChangeViewMode={setViewMode}
         onClose={() => setIsSidebarOpen(false)}
+        onOpenAuthModal={() => setIsAuthModalOpen(true)}
       />
 
       <main className="main-content" ref={mainRef}>
@@ -118,6 +137,49 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
               <PanelLeft size={20} />
             )}
           </button>
+
+          <div style={{ marginLeft: "auto" }}>
+            {!user ? (
+              <button
+                onClick={() => setIsAuthModalOpen(true)}
+                style={{
+                  background: "var(--text-main)",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "6px",
+                  padding: "6px 12px",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                  cursor: "pointer",
+                }}
+              >
+                Log In
+              </button>
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                <span style={{ fontSize: "13px", color: "var(--text-muted)", fontWeight: 500 }}>
+                  {user.email}
+                </span>
+                <button
+                  onClick={() => supabase.auth.signOut()}
+                  style={{
+                    background: "transparent",
+                    color: "var(--text-muted)",
+                    border: "1px solid var(--border)",
+                    borderRadius: "6px",
+                    padding: "4px 10px",
+                    fontSize: "12px",
+                    fontWeight: 500,
+                    cursor: "pointer",
+                  }}
+                  onMouseOver={(e) => { e.currentTarget.style.color = "var(--text-main)"; e.currentTarget.style.borderColor = "#ccc"; }}
+                  onMouseOut={(e) => { e.currentTarget.style.color = "var(--text-muted)"; e.currentTarget.style.borderColor = "var(--border)"; }}
+                >
+                  Sign Out
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {viewMode === "vocabulary" ? (
@@ -140,7 +202,7 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
                 currentIndex < episodeList.length - 1
               }
               onNavigate={handleNavigate}
-              onWordSaved={addWord}
+              onWordSaved={handleWordSaved}
               onToast={showToast}
             />
           </div>
@@ -156,6 +218,8 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
         episodeTitle={episode?.title ?? null}
         episodeNum={episode?.episode ?? null}
       />
+
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
     </div>
   );
 }

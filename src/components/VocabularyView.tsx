@@ -1,7 +1,8 @@
 "use client";
 
-import { Bookmark, Trash2 } from "lucide-react";
+import { Bookmark, Trash2, LogIn } from "lucide-react";
 import type { VocabWord } from "@/lib/types";
+import { useUser } from "@/hooks/useUser";
 
 type VocabularyViewProps = {
   vocabWords: VocabWord[];
@@ -12,6 +13,8 @@ export default function VocabularyView({
   vocabWords,
   onDeleteWord,
 }: VocabularyViewProps) {
+  const { user } = useUser();
+
   return (
     <div className="vocabulary-view">
       <div className="main-header">
@@ -22,15 +25,31 @@ export default function VocabularyView({
       </div>
       {vocabWords.length === 0 ? (
         <div className="empty-state" style={{ marginTop: "40px" }}>
-          <Bookmark
-            size={48}
-            strokeWidth={1}
-            style={{ marginBottom: "16px", opacity: 0.5 }}
-          />
-          <p>You haven&apos;t saved any words yet.</p>
-          <p style={{ fontSize: "14px", marginTop: "8px" }}>
-            Click on any Hebrew word while reading an episode to save it here!
-          </p>
+          {!user ? (
+            <>
+              <LogIn
+                size={48}
+                strokeWidth={1}
+                style={{ marginBottom: "16px", opacity: 0.5 }}
+              />
+              <p>You need to log in to save vocabulary.</p>
+              <p style={{ fontSize: "14px", marginTop: "8px" }}>
+                Click on any Hebrew word to get started!
+              </p>
+            </>
+          ) : (
+            <>
+              <Bookmark
+                size={48}
+                strokeWidth={1}
+                style={{ marginBottom: "16px", opacity: 0.5 }}
+              />
+              <p>You haven&apos;t saved any words yet.</p>
+              <p style={{ fontSize: "14px", marginTop: "8px" }}>
+                Click on any Hebrew word while reading an episode to save it here!
+              </p>
+            </>
+          )}
         </div>
       ) : (
         <div className="vocab-grid">
