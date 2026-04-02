@@ -9,6 +9,7 @@ The application allows intermediate Hebrew learners to read podcast transcripts 
 - **Bilingual Interface**: Smooth side-by-side Hebrew and English paragraphs.
 - **Contextual AI Translation**: Click any Hebrew word to translate it within the context of the sentence using OpenAI (GPT-4o-mini). Includes complete Nekudot vocalization.
 - **Vocabulary Manager**: Save translated words to a personal vocabulary bank stored in your browser (`localStorage`), with reference to the original episode context.
+- **Native Audio Player**: Persistent bottom audio player utilizing HTML5 `<audio>` for seamless listening, scrubbing, and pausing (available on episodes with direct `.mp3` links).
 - **Responsive Design**: Elegant slide-out sidebar for mobile devices.
 - **Automated Scraping**: Python script to scrape episode transcripts from Squarespace and auto-translate missing English sections via OpenAI.
 
@@ -74,4 +75,5 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 - `/episodes.json` - The generated dataset used by the web application.
 - `/src/app/page.tsx` - The main server-rendered entrypoint.
 - `/src/app/actions.ts` - Server action `translateWord` communicating securely with OpenAI.
+- `/src/components/MediaPlayer.tsx` - Sticky native HTML5 audio bar.
 - `/src/app/globals.css` - The design system defining colors, typography, layout, and animations.
