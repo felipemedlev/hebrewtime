@@ -84,7 +84,16 @@ def fetch_episode(episode_num: int) -> dict | None:
 
     # ── Audio URL ─────────────────────────────────────────────────────────────
     audio_match = re.search(r"\"(https://[^\"]+\.mp3[^\"]*)\"", resp.text)
-    audio_url = audio_match.group(1) if audio_match else None
+    if audio_match:
+        audio_url = audio_match.group(1)
+    else:
+        # Fallback to Google Drive links (e.g. episodic 12, 13)
+        drive_match = re.search(r"href=\"https://drive\.google\.com/file/d/([^/]+)/view[^\"]*\"", resp.text)
+        if drive_match:
+            file_id = drive_match.group(1)
+            audio_url = f"https://drive.google.com/uc?export=download&id={file_id}"
+        else:
+            audio_url = None
 
     return {
         "episode": episode_num,

@@ -62,7 +62,7 @@ export default function MediaPlayer({
           <audio
             ref={audioRef}
             key={audioUrl}
-            src={audioUrl}
+            src={audioUrl.includes("drive.google.com") ? `/api/audio?url=${encodeURIComponent(audioUrl)}` : audioUrl}
             controls
             className="media-audio"
             preload="metadata"
