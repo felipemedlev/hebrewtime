@@ -2,8 +2,14 @@ import json
 import re
 import requests
 import time
+import os
 
-with open("episodes_checkpoint.json", "r", encoding="utf-8") as f:
+checkpoint_path = "episodes_checkpoint.json"
+episodes_path = "episodes.json"
+
+source_path = checkpoint_path if os.path.exists(checkpoint_path) else episodes_path
+
+with open(source_path, "r", encoding="utf-8") as f:
     episodes = json.load(f)
 
 updated = False
@@ -35,8 +41,8 @@ for ep in episodes:
             print(f"Failed to fetch {url}: {e}")
 
 if updated:
-    with open("episodes_checkpoint.json", "w", encoding="utf-8") as f:
+    with open(source_path, "w", encoding="utf-8") as f:
         json.dump(episodes, f, ensure_ascii=False, indent=2)
-    print("episodes_checkpoint.json updated!")
+    print(f"{source_path} updated!")
 else:
     print("No updates needed.")
