@@ -2,13 +2,14 @@
 
 HebrewTime is a beautiful, bilingual web-based reader for the Hebrew Time podcast. It provides an elegant Notion/Apple-like reading experience with side-by-side Hebrew and English paragraphs.
 
-The application allows intermediate Hebrew learners to read podcast transcripts and click on any word to get a contextual, AI-powered translation (complete with Nekudot) and save it to their personal vocabulary list.
+The application allows intermediate Hebrew learners to read podcast transcripts and click on any word to get a contextual, AI-powered translation (complete with Nekudot) and save it to their personal vocabulary list. Since word translation uses OpenAI credits, translation + vocabulary access are now gated behind a premium flag.
 
 ## 🚀 Key Features
 
 - **Bilingual Interface**: Smooth side-by-side Hebrew and English paragraphs.
-- **Contextual AI Translation**: Click any Hebrew word to translate it within the context of the sentence using OpenAI (GPT-4o-mini). Includes complete Nekudot vocalization.
-- **Vocabulary Manager & Auth**: Users can create an account via Supabase Email Auth, including “Forgot password” recovery. Translated words are securely synced to a Supabase PostgreSQL database, ensuring vocabulary is preserved across devices with reference to the original episode context.
+- **Premium-gated AI Translation**: Click any Hebrew word to translate it within the context of the sentence using OpenAI (GPT-4o-mini). Includes complete Nekudot vocalization. This is available only to premium users.
+- **Premium Vocabulary Manager & Auth**: Users can create an account via Supabase Email Auth (including “Forgot password” recovery). Premium users can save synced vocabulary in Supabase PostgreSQL across devices.
+- **Admin Premium Controls (No Payments Yet)**: Admin users can grant/revoke premium access by email from an in-app admin modal, so you can manage subscriptions manually.
 - **Native Audio Player**: Persistent bottom audio player utilizing HTML5 `<audio>` for seamless listening, scrubbing, and pausing (supports both direct `.mp3` files and Google Drive fallbacks).
 - **Responsive Design**: Elegant slide-out sidebar for mobile devices.
 - **Automated Scraping**: Python script to scrape episode transcripts from Squarespace and auto-translate missing English sections via OpenAI.
@@ -22,7 +23,7 @@ This project is built with **Next.js 16** (App Router) and **React 19**, focusin
 - **Styling**: Vanilla CSS (`globals.css`) for a clean, dependency-free aesthetic.
 - **Icons**: `lucide-react`
 - **Database & Auth**: Supabase (PostgreSQL) and `@supabase/supabase-js`.
-- **Data Fetching/AI**: OpenAI API for on-the-fly contextual word translations.
+- **Data Fetching/AI**: OpenAI API for on-the-fly contextual word translations (premium-only).
 - **Scraper**: Python 3 (`requests`, `beautifulsoup4`, `openai`).
 
 ### Core Architecture
@@ -51,11 +52,17 @@ Create a `.env` file in the root directory. You need an OpenAI API key for trans
 OPENAI_API_KEY=sk-your-openai-api-key-here
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+ADMIN_EMAILS=admin1@example.com,admin2@example.com
 ```
+
+Notes:
+- `SUPABASE_SERVICE_ROLE_KEY` is required for secure server-side premium checks and admin premium management.
+- `ADMIN_EMAILS` is a comma-separated list of emails allowed to open the in-app Premium Users admin modal.
 
 ### 2. Supabase Database Setup
 
-For vocabulary saving to work, navigate to your Supabase SQL Editor and execute the following snippet to create the table and its Row Level Security policies:
+For vocabulary saving + premium management to work, navigate to your Supabase SQL Editor and execute the following snippet:
 
 ```sql
 CREATE TABLE IF NOT EXISTS public.vocabulary (
@@ -72,9 +79,51 @@ ALTER TABLE public.vocabulary ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users view own vocabulary" ON public.vocabulary FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users insert own vocabulary" ON public.vocabulary FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users delete own vocabulary" ON public.vocabulary FOR DELETE USING (auth.uid() = user_id);
+
+CREATE TABLE IF NOT EXISTS public.premium_users (
+  email TEXT PRIMARY KEY,
+  is_premium BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+ALTER TABLE public.premium_users ENABLE ROW LEVEL SECURITY;
+
+-- Only service-role writes are used by the app for this table.
+CREATE POLICY "Authenticated users can read premium rows"
+ON public.premium_users
+FOR SELECT
+TO authenticated
+USING (true);
 ```
 
-### 3. Updating Episodes (Python Scraper)
+Optional helper trigger (keeps `updated_at` current on updates):
+
+```sql
+CREATE OR REPLACE FUNCTION public.set_updated_at()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS premium_users_set_updated_at ON public.premium_users;
+CREATE TRIGGER premium_users_set_updated_at
+BEFORE UPDATE ON public.premium_users
+FOR EACH ROW
+EXECUTE FUNCTION public.set_updated_at();
+```
+
+### 3. Premium Access Rules
+
+- **Non-authenticated users**: cannot use word translation or vocabulary.
+- **Authenticated non-premium users**: can read episodes, but translation and vocabulary are blocked.
+- **Premium users**: can translate words (OpenAI usage) and access vocabulary normally.
+- **Admin users** (`ADMIN_EMAILS`): can open the admin modal and grant/revoke premium by email.
+
+### 4. Updating Episodes (Python Scraper)
 
 To fetch the latest podcast transcripts and auto-translate them to English:
 
@@ -99,7 +148,7 @@ The script:
 - updates `hebrew_paragraphs`, `english_paragraphs`, and `hebrew_text`
 - creates a backup at `episodes.json.bak.<timestamp>`
 
-### 4. Password Recovery (Forgot Password)
+### 5. Password Recovery (Forgot Password)
 Password reset is implemented using Supabase Email Auth:
 
 - The “Forgot password?” button in `AuthModal` calls `supabase.auth.resetPasswordForEmail(...)`.
@@ -110,7 +159,7 @@ Make sure your Supabase Auth settings allow redirects back to your site, especia
 
 Note: in this repo’s current `@supabase/supabase-js`/`@supabase/auth-js` version, the typed `verifyOtp({ type: 'recovery' ... })` flow requires an `email`, so we rely on the recovery redirect session initialization instead.
 
-### 5. Running the Next.js App
+### 6. Running the Next.js App
 
 Install dependencies and start the development server:
 
@@ -127,8 +176,9 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 - `patch_missing_transcripts.py` - Efficiently patch an existing `episodes.json` (translating only missing paragraph(s)).
 - `/episodes.json` - The generated dataset used by the web application.
 - `/src/app/page.tsx` - The main server-rendered entrypoint.
-- `/src/app/actions.ts` - Server action `translateWord` communicating securely with OpenAI.
+- `/src/app/actions.ts` - Server actions for premium checks, admin premium management, and `translateWord` communication with OpenAI.
 - `/src/app/update-password/page.tsx` - Password reset callback (verify OTP + update password).
 - `/src/app/api/audio/route.ts` - Internal proxy to bypass Google Drive's audio streaming restrictions.
 - `/src/components/MediaPlayer.tsx` - Sticky native HTML5 audio bar.
+- `/src/components/AdminPremiumModal.tsx` - Admin-only UI to grant/revoke premium by email.
 - `/src/app/globals.css` - The design system defining colors, typography, layout, and animations.

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { PanelLeftClose, PanelLeft, BookOpen } from "lucide-react";
-import type { Episode, EpisodeListItem } from "@/lib/types";
+import type { Episode, EpisodeListItem, VocabWord } from "@/lib/types";
 import Sidebar from "./Sidebar";
 import EpisodeViewer from "./EpisodeViewer";
 import VocabularyView from "./VocabularyView";
@@ -10,7 +10,9 @@ import MediaPlayer from "./MediaPlayer";
 import AuthModal from "./AuthModal";
 import { useVocabulary } from "@/hooks/useVocabulary";
 import { useUser } from "@/hooks/useUser";
+import { useEntitlements } from "@/hooks/useEntitlements";
 import { supabase } from "@/lib/supabase";
+import AdminPremiumModal from "./AdminPremiumModal";
 
 type AppShellProps = {
   episodeList: EpisodeListItem[];
@@ -28,10 +30,12 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
   const [isScrolled, setIsScrolled] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
 
   const mainRef = useRef<HTMLElement>(null);
   const { vocabWords, addWord, deleteWord } = useVocabulary();
   const { user } = useUser();
+  const { entitlements, refresh: refreshEntitlements } = useEntitlements();
 
   // Responsive
   useEffect(() => {
@@ -61,7 +65,7 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
   }, []);
 
   const handleWordSaved = useCallback(
-    async (word: any) => {
+    async (word: Omit<VocabWord, "id" | "savedAt">) => {
       const res = await addWord(word);
       if (res.type === "auth_required") {
         setIsAuthModalOpen(true);
@@ -72,6 +76,26 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
     },
     [addWord, showToast]
   );
+
+  const handleChangeViewMode = useCallback(
+    (mode: "episodes" | "vocabulary") => {
+      if (mode === "vocabulary" && !entitlements.isPremium) {
+        showToast(
+          entitlements.isAuthenticated
+            ? "Vocabulary is a premium feature."
+            : "Log in with a premium account to access vocabulary."
+        );
+        if (!entitlements.isAuthenticated) {
+          setIsAuthModalOpen(true);
+        }
+        return;
+      }
+      setViewMode(mode);
+    },
+    [entitlements.isAuthenticated, entitlements.isPremium, showToast]
+  );
+  const effectiveViewMode =
+    viewMode === "vocabulary" && !entitlements.isPremium ? "episodes" : viewMode;
 
   const navigateToEpisode = useCallback(
     async (num: number) => {
@@ -115,13 +139,16 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
       <Sidebar
         episodes={episodeList}
         currentEpNum={currentEpNum}
-        viewMode={viewMode}
+        viewMode={effectiveViewMode}
         vocabCount={vocabWords.length}
         isSidebarOpen={isSidebarOpen}
         onSelectEpisode={navigateToEpisode}
-        onChangeViewMode={setViewMode}
+        onChangeViewMode={handleChangeViewMode}
         onClose={() => setIsSidebarOpen(false)}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        isPremium={entitlements.isPremium}
+        isAdmin={entitlements.isAdmin}
+        onOpenAdminModal={() => setIsAdminModalOpen(true)}
       />
 
       <main className="main-content" ref={mainRef}>
@@ -182,10 +209,11 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
           </div>
         </div>
 
-        {viewMode === "vocabulary" ? (
+        {effectiveViewMode === "vocabulary" ? (
           <VocabularyView
             vocabWords={vocabWords}
             onDeleteWord={deleteWord}
+            isPremium={entitlements.isPremium}
           />
         ) : !episode ? (
           <div className="empty-state">
@@ -204,6 +232,9 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
               onNavigate={handleNavigate}
               onWordSaved={handleWordSaved}
               onToast={showToast}
+              isPremium={entitlements.isPremium}
+              isAuthenticated={entitlements.isAuthenticated}
+              onRequireAuth={() => setIsAuthModalOpen(true)}
             />
           </div>
         )}
@@ -220,6 +251,13 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
       />
 
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+      <AdminPremiumModal
+        isOpen={isAdminModalOpen}
+        onClose={async () => {
+          setIsAdminModalOpen(false);
+          await refreshEntitlements();
+        }}
+      />
     </div>
   );
 }

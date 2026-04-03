@@ -5,6 +5,7 @@ import type { Episode } from "@/lib/types";
 import { translateWord } from "@/app/actions";
 import { useState } from "react";
 import TranslationModal from "./TranslationModal";
+import { supabase } from "@/lib/supabase";
 
 type EpisodeViewerProps = {
   episode: Episode;
@@ -19,6 +20,9 @@ type EpisodeViewerProps = {
     episodeUrl: string;
   }) => Promise<{ added: boolean; message: string; type?: string }>;
   onToast: (msg: string) => void;
+  isPremium: boolean;
+  isAuthenticated: boolean;
+  onRequireAuth: () => void;
 };
 
 type ModalState = {
@@ -38,6 +42,9 @@ export default function EpisodeViewer({
   onNavigate,
   onWordSaved,
   onToast,
+  isPremium,
+  isAuthenticated,
+  onRequireAuth,
 }: EpisodeViewerProps) {
   const [modal, setModal] = useState<ModalState>({
     isOpen: false,
@@ -54,6 +61,16 @@ export default function EpisodeViewer({
     hebContext: string,
     engContext: string
   ) => {
+    if (!isAuthenticated) {
+      onToast("Log in to use word translation.");
+      onRequireAuth();
+      return;
+    }
+    if (!isPremium) {
+      onToast("Word translation is available to premium subscribers.");
+      return;
+    }
+
     const cleanWord = word.replace(
       /^[.,;:!?(){}\[\]"'\-]+|[.,;:!?(){}\[\]"'\-]+$/g,
       ""
@@ -71,7 +88,12 @@ export default function EpisodeViewer({
     });
 
     try {
-      const res = await translateWord(cleanWord, hebContext, engContext || "");
+      const { data } = await supabase.auth.getSession();
+      const accessToken = data.session?.access_token;
+      const res = await translateWord(accessToken, cleanWord, hebContext, engContext || "");
+      if (res.type === "auth_required") {
+        onRequireAuth();
+      }
       setModal((prev) => ({
         ...prev,
         translation: res?.translation || "Translation error",

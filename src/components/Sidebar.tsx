@@ -16,6 +16,9 @@ type SidebarProps = {
   onChangeViewMode: (mode: "episodes" | "vocabulary") => void;
   onClose: () => void;
   onOpenAuthModal?: () => void;
+  isPremium?: boolean;
+  isAdmin?: boolean;
+  onOpenAdminModal?: () => void;
 };
 
 export default function Sidebar({
@@ -28,6 +31,9 @@ export default function Sidebar({
   onChangeViewMode,
   onClose,
   onOpenAuthModal,
+  isPremium = false,
+  isAdmin = false,
+  onOpenAdminModal,
 }: SidebarProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const { user } = useUser();
@@ -72,6 +78,8 @@ export default function Sidebar({
             <button
               className={`tab-btn ${viewMode === "vocabulary" ? "active" : ""}`}
               onClick={() => onChangeViewMode("vocabulary")}
+              disabled={!isPremium}
+              title={!isPremium ? "Premium only" : undefined}
             >
               <Bookmark
                 size={14}
@@ -84,6 +92,11 @@ export default function Sidebar({
               Vocabulary
             </button>
           </div>
+          {!isPremium && (
+            <p style={{ marginTop: "8px", fontSize: "12px", color: "var(--text-muted)" }}>
+              Vocabulary is available for premium subscribers.
+            </p>
+          )}
 
           {viewMode === "episodes" && (
             <div className="search-wrapper">
@@ -153,6 +166,25 @@ export default function Sidebar({
         )}
 
         <div style={{ marginTop: "auto", borderTop: "1px solid var(--border)", padding: "12px 16px" }}>
+          {isAdmin && (
+            <button
+              onClick={onOpenAdminModal}
+              style={{
+                width: "100%",
+                marginBottom: "10px",
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
+                borderRadius: "8px",
+                padding: "8px",
+                fontSize: "12px",
+                fontWeight: 600,
+                color: "var(--text-main)",
+                cursor: "pointer",
+              }}
+            >
+              Open Admin Panel
+            </button>
+          )}
           {user ? (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <span style={{ fontSize: "12px", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "160px" }}>

@@ -7,11 +7,13 @@ import { useUser } from "@/hooks/useUser";
 type VocabularyViewProps = {
   vocabWords: VocabWord[];
   onDeleteWord: (id: string) => void;
+  isPremium: boolean;
 };
 
 export default function VocabularyView({
   vocabWords,
   onDeleteWord,
+  isPremium,
 }: VocabularyViewProps) {
   const { user } = useUser();
 
@@ -35,6 +37,18 @@ export default function VocabularyView({
               <p>You need to log in to save vocabulary.</p>
               <p style={{ fontSize: "14px", marginTop: "8px" }}>
                 Click on any Hebrew word to get started!
+              </p>
+            </>
+          ) : !isPremium ? (
+            <>
+              <Bookmark
+                size={48}
+                strokeWidth={1}
+                style={{ marginBottom: "16px", opacity: 0.5 }}
+              />
+              <p>Vocabulary is a premium feature.</p>
+              <p style={{ fontSize: "14px", marginTop: "8px" }}>
+                Ask an admin to grant premium access to your account.
               </p>
             </>
           ) : (
