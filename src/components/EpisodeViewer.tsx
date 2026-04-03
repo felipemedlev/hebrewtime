@@ -23,6 +23,8 @@ type EpisodeViewerProps = {
   isPremium: boolean;
   isAuthenticated: boolean;
   onRequireAuth: () => void;
+  onRequireSubscription: () => void;
+  isEnglishBlurred: boolean;
 };
 
 type ModalState = {
@@ -45,6 +47,8 @@ export default function EpisodeViewer({
   isPremium,
   isAuthenticated,
   onRequireAuth,
+  onRequireSubscription,
+  isEnglishBlurred,
 }: EpisodeViewerProps) {
   const [modal, setModal] = useState<ModalState>({
     isOpen: false,
@@ -67,7 +71,7 @@ export default function EpisodeViewer({
       return;
     }
     if (!isPremium) {
-      onToast("Word translation is available to premium subscribers.");
+      onRequireSubscription();
       return;
     }
 
@@ -168,7 +172,7 @@ export default function EpisodeViewer({
                   );
                 })}
               </div>
-              <div className="text-english">
+              <div className={`text-english ${isEnglishBlurred ? "blurred" : ""}`}>
                 {eng ? (
                   eng
                 ) : (

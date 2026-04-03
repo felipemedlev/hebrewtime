@@ -220,6 +220,96 @@ html, body {
   border-bottom: 1px solid var(--border);
 }
 
+.subscription-prompt {
+  position: sticky;
+  top: 58px;
+  z-index: 35;
+  margin: 12px auto 0 auto;
+  width: calc(100% - 40px);
+  max-width: 980px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.subscription-prompt-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  background: rgba(46, 142, 255, 0.1);
+  flex-shrink: 0;
+}
+
+.subscription-prompt-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.subscription-prompt-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.subscription-prompt-description {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.subscription-prompt-cta {
+  background: var(--text-main);
+  color: white;
+  border: none;
+  border-radius: 9px;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.subscription-prompt-cta:hover {
+  background: black;
+  transform: translateY(-1px);
+}
+
+.subscription-prompt-close {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  border-radius: 8px;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.subscription-prompt-close:hover {
+  color: var(--text-main);
+  background: rgba(0, 0, 0, 0.05);
+}
+
 .toggle-sidebar-btn {
   display: flex;
   align-items: center;
@@ -235,6 +325,31 @@ html, body {
 .toggle-sidebar-btn:hover {
   background: rgba(0,0,0,0.05);
   color: var(--text-main);
+}
+
+.english-toggle-btn {
+  margin-left: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.english-toggle-btn:hover {
+  color: var(--text-main);
+  border-color: #d1d1d1;
+  background: var(--surface-hover);
+}
+
+.english-toggle-btn.active {
+  color: var(--accent);
+  border-color: rgba(46, 142, 255, 0.35);
+  background: rgba(46, 142, 255, 0.08);
 }
 
 .main-header {
@@ -301,6 +416,13 @@ html, body {
   font-size: 17px;
   line-height: 1.8;
   color: #444444;
+  transition: filter 0.2s ease, opacity 0.2s ease;
+}
+
+.text-english.blurred {
+  filter: blur(6px);
+  opacity: 0.75;
+  user-select: none;
 }
 
 /* Navigation controls */
@@ -641,6 +763,26 @@ html, body {
 }
 
 @media (max-width: 800px) {
+  .subscription-prompt {
+    top: 56px;
+    width: calc(100% - 24px);
+    margin-top: 10px;
+    padding: 12px;
+    gap: 10px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .subscription-prompt-copy {
+    min-width: 0;
+    width: calc(100% - 44px);
+  }
+  .subscription-prompt-cta {
+    margin-left: 44px;
+  }
+  .subscription-prompt-close {
+    margin-left: auto;
+  }
+
   .sidebar {
     position: fixed;
     top: 0;
@@ -705,6 +847,11 @@ html, body {
   }
   .text-english {
     font-size: 17px;
+  }
+  .english-toggle-btn {
+    margin-left: 8px;
+    padding: 6px 8px;
+    font-size: 11px;
   }
   .nav-controls {
     flex-direction: column;

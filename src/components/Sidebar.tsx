@@ -78,8 +78,7 @@ export default function Sidebar({
             <button
               className={`tab-btn ${viewMode === "vocabulary" ? "active" : ""}`}
               onClick={() => onChangeViewMode("vocabulary")}
-              disabled={!isPremium}
-              title={!isPremium ? "Premium only" : undefined}
+              title={!isPremium ? "Join subscription to unlock vocabulary" : undefined}
             >
               <Bookmark
                 size={14}
@@ -92,11 +91,6 @@ export default function Sidebar({
               Vocabulary
             </button>
           </div>
-          {!isPremium && (
-            <p style={{ marginTop: "8px", fontSize: "12px", color: "var(--text-muted)" }}>
-              Vocabulary is available for premium subscribers.
-            </p>
-          )}
 
           {viewMode === "episodes" && (
             <div className="search-wrapper">

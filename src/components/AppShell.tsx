@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { PanelLeftClose, PanelLeft, BookOpen } from "lucide-react";
+import { PanelLeftClose, PanelLeft, BookOpen, Sparkles, X } from "lucide-react";
 import type { Episode, EpisodeListItem, VocabWord } from "@/lib/types";
 import Sidebar from "./Sidebar";
 import EpisodeViewer from "./EpisodeViewer";
@@ -29,6 +29,11 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
   const [isMobile, setIsMobile] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [subscriptionPrompt, setSubscriptionPrompt] = useState<{
+    title: string;
+    description: string;
+  } | null>(null);
+  const [isEnglishBlurred, setIsEnglishBlurred] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
 
@@ -59,6 +64,21 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
     return () => el.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Persist English blur preference across sessions.
+  useEffect(() => {
+    const stored = window.localStorage.getItem("blur-english-translations");
+    if (stored === "1") {
+      setIsEnglishBlurred(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      "blur-english-translations",
+      isEnglishBlurred ? "1" : "0"
+    );
+  }, [isEnglishBlurred]);
+
   const showToast = useCallback((msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 2500);
@@ -77,22 +97,34 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
     [addWord, showToast]
   );
 
+  const showSubscriptionPrompt = useCallback(
+    (source: "vocabulary" | "translation") => {
+      if (source === "vocabulary") {
+        setSubscriptionPrompt({
+          title: "Unlock Vocabulary",
+          description:
+            "Join the subscription for $10/month to access your synced vocabulary list across devices.",
+        });
+        return;
+      }
+      setSubscriptionPrompt({
+        title: "Unlock Word Tools",
+        description:
+          "Join the subscription for $10/month to translate words in context and save them to vocabulary.",
+      });
+    },
+    []
+  );
+
   const handleChangeViewMode = useCallback(
     (mode: "episodes" | "vocabulary") => {
       if (mode === "vocabulary" && !entitlements.isPremium) {
-        showToast(
-          entitlements.isAuthenticated
-            ? "Vocabulary is a premium feature."
-            : "Log in with a premium account to access vocabulary."
-        );
-        if (!entitlements.isAuthenticated) {
-          setIsAuthModalOpen(true);
-        }
+        showSubscriptionPrompt("vocabulary");
         return;
       }
       setViewMode(mode);
     },
-    [entitlements.isAuthenticated, entitlements.isPremium, showToast]
+    [entitlements.isPremium, showSubscriptionPrompt]
   );
   const effectiveViewMode =
     viewMode === "vocabulary" && !entitlements.isPremium ? "episodes" : viewMode;
@@ -165,6 +197,18 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
             )}
           </button>
 
+          <button
+            className={`english-toggle-btn ${isEnglishBlurred ? "active" : ""}`}
+            onClick={() => setIsEnglishBlurred((prev) => !prev)}
+            title={
+              isEnglishBlurred
+                ? "Show English translations"
+                : "Blur English translations"
+            }
+          >
+            {isEnglishBlurred ? "English Blurred" : "English Visible"}
+          </button>
+
           <div style={{ marginLeft: "auto" }}>
             {!user ? (
               <button
@@ -209,6 +253,31 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
           </div>
         </div>
 
+        {subscriptionPrompt && (
+          <div className="subscription-prompt">
+            <div className="subscription-prompt-icon">
+              <Sparkles size={18} />
+            </div>
+            <div className="subscription-prompt-copy">
+              <p className="subscription-prompt-title">{subscriptionPrompt.title}</p>
+              <p className="subscription-prompt-description">{subscriptionPrompt.description}</p>
+            </div>
+            <button
+              className="subscription-prompt-cta"
+              onClick={() => setIsAuthModalOpen(true)}
+            >
+              Start for $10/month
+            </button>
+            <button
+              className="subscription-prompt-close"
+              onClick={() => setSubscriptionPrompt(null)}
+              title="Dismiss"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
+
         {effectiveViewMode === "vocabulary" ? (
           <VocabularyView
             vocabWords={vocabWords}
@@ -235,6 +304,8 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
               isPremium={entitlements.isPremium}
               isAuthenticated={entitlements.isAuthenticated}
               onRequireAuth={() => setIsAuthModalOpen(true)}
+              onRequireSubscription={() => showSubscriptionPrompt("translation")}
+              isEnglishBlurred={isEnglishBlurred}
             />
           </div>
         )}

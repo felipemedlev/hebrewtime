@@ -2,14 +2,16 @@
 
 HebrewTime is a beautiful, bilingual web-based reader for the Hebrew Time podcast. It provides an elegant Notion/Apple-like reading experience with side-by-side Hebrew and English paragraphs.
 
-The application allows intermediate Hebrew learners to read podcast transcripts and click on any word to get a contextual, AI-powered translation (complete with Nekudot) and save it to their personal vocabulary list. Since word translation uses OpenAI credits, translation + vocabulary access are now gated behind a premium flag.
+The application allows intermediate Hebrew learners to read podcast transcripts and click on any word to get a contextual, AI-powered translation (complete with Nekudot) and save it to their personal vocabulary list. Since word translation uses OpenAI credits, translation + vocabulary access are gated behind a premium subscription prompt shown in-app at $10/month.
 
 ## 🚀 Key Features
 
 - **Bilingual Interface**: Smooth side-by-side Hebrew and English paragraphs.
+- **Focus Mode for Hebrew Reading**: A top-bar toggle lets users blur all English transcript text on demand, so learners can practice Hebrew-first reading. The preference is saved in local storage.
 - **Premium-gated AI Translation**: Click any Hebrew word to translate it within the context of the sentence using OpenAI (GPT-4o-mini). Includes complete Nekudot vocalization. This is available only to premium users.
 - **Premium Vocabulary Manager & Auth**: Users can create an account via Supabase Email Auth (including “Forgot password” recovery). Premium users can save synced vocabulary in Supabase PostgreSQL across devices.
-- **Admin Premium Controls (No Payments Yet)**: Admin users can grant/revoke premium access by email from an in-app admin modal, so you can manage subscriptions manually.
+- **Top-of-Screen Subscription Upsell (Apple/Notion Style)**: If a non-premium user clicks the Vocabulary tab or selects a word, the app shows a large sticky promo panel with $10/month messaging and a CTA that opens auth/signup.
+- **Admin Premium Controls**: Admin users can grant/revoke premium access by email from an in-app admin modal.
 - **Native Audio Player**: Persistent bottom audio player utilizing HTML5 `<audio>` for seamless listening, scrubbing, and pausing (supports both direct `.mp3` files and Google Drive fallbacks).
 - **Responsive Design**: Elegant slide-out sidebar for mobile devices.
 - **Automated Scraping**: Python script to scrape episode transcripts from Squarespace and auto-translate missing English sections via OpenAI.
@@ -32,9 +34,9 @@ Following a recent refactor, the app utilizes Next.js Server Components and dyna
 - **Server-Side Data Layer (`src/lib/episodes.ts`)**: Loads the 1.4MB `episodes.json` dataset directly from the filesystem on the server, ensuring the client bundle remains tiny.
 - **Dynamic API Routes (`/api/episode/[id]/route.ts`)**: Client fetches full episode data on demand when navigating between episodes.
 - **Component Breakdown (`src/components/`)**:
-  - `AppShell.tsx`: The main responsive client wrapper managing state and layout.
+  - `AppShell.tsx`: The main responsive client wrapper managing state/layout, view gating, sticky $10/month subscription prompts for blocked premium actions, and the English blur toggle state.
   - `Sidebar.tsx`: Navigation, search, and tab switching.
-  - `EpisodeViewer.tsx`: Bilingual reading experience and word-click handling.
+  - `EpisodeViewer.tsx`: Bilingual reading experience, word-click handling, and conditional blurring of English transcript text.
   - `VocabularyView.tsx`: Displays saved words in a grid.
   - `TranslationModal.tsx`: The AI translation popup.
   - `AuthModal.tsx`: The Supabase authentication UI for login, sign up, and password recovery.
@@ -120,6 +122,7 @@ EXECUTE FUNCTION public.set_updated_at();
 
 - **Non-authenticated users**: cannot use word translation or vocabulary.
 - **Authenticated non-premium users**: can read episodes, but translation and vocabulary are blocked.
+- **Blocked action UX**: when non-premium users try to open Vocabulary or translate a word, they see a sticky top-of-screen subscription panel advertising **$10/month** and can open auth/signup from the CTA.
 - **Premium users**: can translate words (OpenAI usage) and access vocabulary normally.
 - **Admin users** (`ADMIN_EMAILS`): can open the admin modal and grant/revoke premium by email.
 
