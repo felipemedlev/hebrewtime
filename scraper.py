@@ -58,7 +58,7 @@ def fetch_episode(episode_num: int) -> dict | None:
     # ── Title ─────────────────────────────────────────────────────────────────
     title_tag = soup.find("h1")
     title = title_tag.get_text(strip=True) if title_tag else f"Episode {episode_num:02d}"
-    
+
     # Normalize formats like "[20] Title" to "Episode 20: Title"
     match = re.match(r"^\[(\d+)\]\s*(.*)", title)
     if match:
@@ -168,7 +168,7 @@ def translate_episode(episode: dict) -> dict:
             continue
         try:
             response = client.chat.completions.create(
-                model="gpt-4o-mini",   # fast + cheap, great for translation
+                model="gpt-5.4-mini",   # fast + cheap, great for translation
                 messages=[
                     {
                         "role": "system",

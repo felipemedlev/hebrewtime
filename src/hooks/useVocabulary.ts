@@ -47,8 +47,16 @@ export function useVocabulary() {
         return { added: false, message: "Please log in to save vocabulary.", type: "auth_required" };
       }
 
-      // Check for exact duplicate locally
-      if (vocabWords.some((v) => v.word === word.word && v.translation === word.translation)) {
+      // Check for exact duplicate locally. We allow the same word if the translation or the Nekudot are different.
+      const isDuplicate = vocabWords.some((v) => {
+        const sameWord = v.word === word.word;
+        const sameTranslation = v.translation.trim().toLowerCase() === word.translation.trim().toLowerCase();
+        // If they have different Nekudot, it means it's a different pronunciation/context, so not a duplicate.
+        const sameNekudot = (v.wordWithNekudot || "") === (word.wordWithNekudot || "");
+        return sameWord && sameTranslation && sameNekudot;
+      });
+
+      if (isDuplicate) {
         return { added: false, message: "This exact meaning is already saved!", type: "duplicate" };
       }
 

@@ -163,15 +163,15 @@ export async function translateWord(
     return { translation: "Translation unavailable (No API Key)", wordWithNekudot: word, type: "error" };
   }
 
-  const prompt = `You are a helpful dictionary assistant. 
-Translate the specific Hebrew word "${word}" into English. 
-You are given the sentence where it appears to understand the exact context: 
+  const prompt = `You are a helpful dictionary assistant.
+Translate the specific Hebrew word "${word}" into English.
+You are given the sentence where it appears to understand the exact context:
 Hebrew sentence: "${hebrewContext}"
 English meaning of the sentence: "${englishContext}"
 
 Return a JSON object with exactly two keys:
 1. "translation": The English translation of the specific word "${word}", no punctuation, no extra text, just the direct translation.
-2. "wordWithNekudot": The exact Hebrew word "${word}" but fully vocalized with Nekudot (Hebrew vowels) as it is pronounced in this context.`;
+2. "wordWithNekudot": The exact Hebrew word "${word}" but fully vocalized with correct Nekudot (Hebrew vowels) as it is pronounced in this specific context. It is CRITICAL that the Nekudot are 100% accurate and grammatically correct for this exact sentence.`;
 
   try {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -181,7 +181,7 @@ Return a JSON object with exactly two keys:
         "Authorization": `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: "gpt-5.4-mini",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.2,

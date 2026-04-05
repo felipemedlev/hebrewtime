@@ -66,41 +66,62 @@ export default function VocabularyView({
           )}
         </div>
       ) : (
-        <div className="vocab-grid">
-          {vocabWords.map((vw) => (
-            <div key={vw.id} className="vocab-card">
-              <div className="vocab-header">
-                <h3 className="vocab-word font-serif" dir="rtl">
-                  {vw.wordWithNekudot || vw.word}
-                </h3>
-                <button
-                  onClick={() => onDeleteWord(vw.id)}
-                  className="delete-btn"
-                  title="Remove word"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-              <div className="vocab-context">
-                <p
-                  className="vocab-english"
-                  style={{
-                    fontSize: "18px",
-                    color: "var(--text-main)",
-                    marginTop: "4px",
-                  }}
-                >
-                  {vw.translation}
-                </p>
-              </div>
-              <div className="vocab-meta">
-                Saved from:{" "}
-                <a href={vw.episodeUrl} target="_blank" rel="noopener noreferrer">
-                  {vw.episodeTitle}
-                </a>
-              </div>
+        <div style={{ maxWidth: "max(900px, 80%)", margin: "0 auto", padding: "0 80px 80px 80px", width: "100%" }}>
+          <div style={{ border: "1px solid var(--border)", borderRadius: "12px", overflow: "hidden", backgroundColor: "var(--surface)" }}>
+            <div style={{ display: "flex", padding: "12px 20px", borderBottom: "1px solid var(--border)", backgroundColor: "var(--surface-hover)", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)", fontWeight: 500 }}>
+              <div style={{ flex: "0 0 140px", textAlign: "right" }}>Hebrew</div>
+              <div style={{ flex: "1", paddingLeft: "32px" }}>Translation</div>
+              <div style={{ flex: "0 0 200px" }}>Source</div>
+              <div style={{ flex: "0 0 40px" }}></div>
             </div>
-          ))}
+            
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              {vocabWords.map((vw, i) => (
+                <div 
+                  key={vw.id} 
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    padding: "16px 20px",
+                    borderBottom: i < vocabWords.length - 1 ? "1px solid var(--border)" : "none",
+                    transition: "background-color 0.15s",
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.backgroundColor = "var(--surface-hover)"}
+                  onMouseOut={(e) => e.currentTarget.style.backgroundColor = "transparent"}
+                >
+                  <div style={{ flex: "0 0 140px", textAlign: "right" }}>
+                    <span className="font-serif" dir="rtl" style={{ fontSize: "22px", color: "var(--accent)", lineHeight: 1.2 }}>
+                      {vw.wordWithNekudot || vw.word}
+                    </span>
+                  </div>
+                  <div style={{ flex: "1", paddingLeft: "32px", color: "var(--text-main)", fontSize: "15px", lineHeight: 1.4 }}>
+                    {vw.translation}
+                  </div>
+                  <div style={{ flex: "0 0 200px", fontSize: "13px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    <a href={vw.episodeUrl} target="_blank" rel="noopener noreferrer" style={{ color: "var(--text-muted)", textDecoration: "none", transition: "color 0.2s" }} onMouseOver={(e) => e.currentTarget.style.color = "var(--text-main)"} onMouseOut={(e) => e.currentTarget.style.color = "var(--text-muted)"}>
+                      {vw.episodeTitle}
+                    </a>
+                  </div>
+                  <div style={{ flex: "0 0 40px", display: "flex", justifyContent: "flex-end" }}>
+                    <button
+                      onClick={() => onDeleteWord(vw.id)}
+                      title="Remove word"
+                      style={{
+                        background: "transparent", border: "none",
+                        color: "#ccc", cursor: "pointer", padding: "6px",
+                        borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center",
+                        transition: "all 0.2s"
+                      }}
+                      onMouseOver={(e) => { e.currentTarget.style.color = "#ff4444"; e.currentTarget.style.backgroundColor = "#fff0f0"; }}
+                      onMouseOut={(e) => { e.currentTarget.style.color = "#ccc"; e.currentTarget.style.backgroundColor = "transparent"; }}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>

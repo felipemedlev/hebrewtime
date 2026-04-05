@@ -34,7 +34,7 @@ import scraper
 
 load_dotenv()
 
-MODEL = "gpt-4o-mini"
+MODEL = "gpt-5.4-mini"
 SYSTEM_PROMPT = (
     "You are a professional Hebrew-to-English translator. "
     "Translate the following Modern Hebrew paragraph naturally and accurately. "

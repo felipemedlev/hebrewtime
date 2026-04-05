@@ -8,8 +8,10 @@ The application allows intermediate Hebrew learners to read podcast transcripts 
 
 - **Bilingual Interface**: Smooth side-by-side Hebrew and English paragraphs.
 - **Focus Mode for Hebrew Reading**: A top-bar toggle lets users blur all English transcript text on demand, so learners can practice Hebrew-first reading. The preference is saved in local storage.
-- **Premium-gated AI Translation**: Click any Hebrew word to translate it within the context of the sentence using OpenAI (GPT-4o-mini). Includes complete Nekudot vocalization. This is available only to premium users.
-- **Premium Vocabulary Manager & Auth**: Users can create an account via Supabase Email Auth (including “Forgot password” recovery). Premium users can save synced vocabulary in Supabase PostgreSQL across devices.
+- **Premium-gated AI Translation**: Click any Hebrew word to translate it within the context of the sentence using OpenAI (gpt-5.4-mini). A specially tuned prompt ensures 100% grammatically correct Nekudot vocalization based on the exact contextual meaning. This is available only to premium users.
+- **Premium Vocabulary Manager & Auth**: Users can create an account via Supabase Email Auth (including “Forgot password” recovery). Premium users can save synced vocabulary in Supabase PostgreSQL across devices. 
+  - Rendered in an elegant, minimal Apple/Notion-style data table.
+  - Smart deduplication logic allows saving the exact same Hebrew word multiple times if its contextual meaning (translation) or pronunciation (Nekudot) differs.
 - **Top-of-Screen Subscription Upsell (Apple/Notion Style)**: If a non-premium user clicks the Vocabulary tab or selects a word, the app shows a large sticky promo panel with $10/month messaging and a CTA that opens auth/signup.
 - **Admin Premium Controls**: Admin users can grant/revoke premium access by email from an in-app admin modal.
 - **Native Audio Player**: Persistent bottom audio player utilizing HTML5 `<audio>` for seamless listening, scrubbing, and pausing (supports both direct `.mp3` files and Google Drive fallbacks).
@@ -40,7 +42,7 @@ Following a recent refactor, the app utilizes Next.js Server Components and dyna
   - `VocabularyView.tsx`: Displays saved words in a grid.
   - `TranslationModal.tsx`: The AI translation popup.
   - `AuthModal.tsx`: The Supabase authentication UI for login, sign up, and password recovery.
-- **Custom Hooks (`src/hooks/`)**: 
+- **Custom Hooks (`src/hooks/`)**:
   - `useVocabulary.ts`: Manages syncing vocabulary to Supabase based on the user's login state.
   - `useUser.ts`: Subscribes to Supabase auth events to track logged-in users.
 
