@@ -11,6 +11,7 @@ The application allows intermediate Hebrew learners to read podcast transcripts 
 - **Premium-gated AI Translation**: Click any Hebrew word to translate it within the context of the sentence using OpenAI (gpt-5.4-mini). A specially tuned prompt ensures 100% grammatically correct Nekudot vocalization based on the exact contextual meaning. This is available only to premium users.
 - **Premium Vocabulary Manager & Auth**: Users can create an account via Supabase Email Auth (including “Forgot password” recovery). Premium users can save synced vocabulary in Supabase PostgreSQL across devices. 
   - Rendered in an elegant, minimal Apple/Notion-style data table.
+  - Supports inline editing of saved words directly on the vocabulary page (allowing modifications to the word's text, nekudot, verb forms, and translations).
   - Smart deduplication logic allows saving the exact same Hebrew word multiple times if its contextual meaning (translation) or pronunciation (Nekudot) differs.
 - **Top-of-Screen Subscription Upsell (Apple/Notion Style)**: If a non-premium user clicks the Vocabulary tab or selects a word, the app shows a large sticky promo panel with $10/month messaging and a CTA that opens auth/signup.
 - **Admin Premium Controls**: Admin users can grant/revoke premium access by email from an in-app admin modal.

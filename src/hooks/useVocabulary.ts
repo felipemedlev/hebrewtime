@@ -123,5 +123,37 @@ export function useVocabulary() {
     [user]
   );
 
-  return { vocabWords, isLoaded, addWord, deleteWord };
+  const updateWord = useCallback(
+    async (id: string, updates: Partial<VocabWord>) => {
+      if (!user) return { updated: false, message: "Please log in to edit vocabulary.", type: "auth_required" };
+
+      // Optimistic update
+      setVocabWords((prev) =>
+        prev.map((v) => (v.id === id ? { ...v, ...updates } : v))
+      );
+
+      const dbUpdates: any = {};
+      if (updates.word !== undefined) dbUpdates.word = updates.word;
+      if (updates.wordWithNekudot !== undefined) dbUpdates.word_with_nekudot = updates.wordWithNekudot || null;
+      if (updates.verbFormWithNekudot !== undefined) dbUpdates.verb_form_with_nekudot = updates.verbFormWithNekudot || null;
+      if (updates.translation !== undefined) dbUpdates.translation = updates.translation;
+      if (updates.episodeTitle !== undefined) dbUpdates.episode_title = updates.episodeTitle;
+      if (updates.episodeUrl !== undefined) dbUpdates.episode_url = updates.episodeUrl;
+
+      const { error } = await supabase
+        .from("vocabulary")
+        .update(dbUpdates)
+        .eq("id", id)
+        .eq("user_id", user.id);
+
+      if (error) {
+        console.error("Failed to update word:", error);
+        return { updated: false, message: "Failed to update word.", type: "error" };
+      }
+      return { updated: true, message: "Word updated successfully.", type: "success" };
+    },
+    [user]
+  );
+
+  return { vocabWords, isLoaded, addWord, deleteWord, updateWord };
 }

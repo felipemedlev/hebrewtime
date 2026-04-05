@@ -38,7 +38,7 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
 
   const mainRef = useRef<HTMLElement>(null);
-  const { vocabWords, addWord, deleteWord } = useVocabulary();
+  const { vocabWords, addWord, deleteWord, updateWord } = useVocabulary();
   const { user } = useUser();
   const { entitlements, refresh: refreshEntitlements } = useEntitlements();
 
@@ -282,6 +282,7 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
           <VocabularyView
             vocabWords={vocabWords}
             onDeleteWord={deleteWord}
+            onEditWord={updateWord}
             isPremium={entitlements.isPremium}
           />
         ) : !episode ? (
