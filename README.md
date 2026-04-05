@@ -74,6 +74,7 @@ CREATE TABLE IF NOT EXISTS public.vocabulary (
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   word TEXT NOT NULL,
   word_with_nekudot TEXT,
+  verb_form_with_nekudot TEXT,
   translation TEXT NOT NULL,
   episode_title TEXT,
   episode_url TEXT,

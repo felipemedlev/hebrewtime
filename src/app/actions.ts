@@ -169,9 +169,10 @@ You are given the sentence where it appears to understand the exact context:
 Hebrew sentence: "${hebrewContext}"
 English meaning of the sentence: "${englishContext}"
 
-Return a JSON object with exactly two keys:
+Return a JSON object with exactly three keys:
 1. "translation": The English translation of the specific word "${word}", no punctuation, no extra text, just the direct translation.
-2. "wordWithNekudot": The exact Hebrew word "${word}" but fully vocalized with correct Nekudot (Hebrew vowels) as it is pronounced in this specific context. It is CRITICAL that the Nekudot are 100% accurate and grammatically correct for this exact sentence.`;
+2. "wordWithNekudot": The exact Hebrew word "${word}" but fully vocalized with correct Nekudot (Hebrew vowels) as it is pronounced in this specific context. It is CRITICAL that the Nekudot are 100% accurate and grammatically correct for this exact sentence. Double check with pealim.com
+3. "verbFormWithNekudot": If the word is a conjugated verb or related to a verb, provide its infinitive form with fully accurate Nekudot (e.g. if the word is מְדַמְיְנִים then return לְדַמְייֵן). If the word does not have a clear verb form, return null.`;
 
   try {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -198,6 +199,7 @@ Return a JSON object with exactly two keys:
     return {
       translation: result.translation || "Translation error",
       wordWithNekudot: result.wordWithNekudot || word,
+      verbFormWithNekudot: result.verbFormWithNekudot || null,
       type: "success",
     };
   } catch (err) {

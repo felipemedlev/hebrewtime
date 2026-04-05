@@ -15,6 +15,7 @@ type EpisodeViewerProps = {
   onWordSaved: (word: {
     word: string;
     wordWithNekudot?: string;
+    verbFormWithNekudot?: string;
     translation: string;
     episodeTitle: string;
     episodeUrl: string;
@@ -34,6 +35,7 @@ type ModalState = {
   englishContext: string;
   translation: string | null;
   wordWithNekudot: string | null;
+  verbFormWithNekudot: string | null;
   isTranslating: boolean;
 };
 
@@ -57,6 +59,7 @@ export default function EpisodeViewer({
     englishContext: "",
     translation: null,
     wordWithNekudot: null,
+    verbFormWithNekudot: null,
     isTranslating: false,
   });
 
@@ -88,6 +91,7 @@ export default function EpisodeViewer({
       englishContext: engContext || "",
       translation: null,
       wordWithNekudot: null,
+      verbFormWithNekudot: null,
       isTranslating: true,
     });
 
@@ -102,6 +106,7 @@ export default function EpisodeViewer({
         ...prev,
         translation: res?.translation || "Translation error",
         wordWithNekudot: res?.wordWithNekudot || cleanWord,
+        verbFormWithNekudot: res?.verbFormWithNekudot || null,
         isTranslating: false,
       }));
     } catch {
@@ -119,6 +124,7 @@ export default function EpisodeViewer({
     const result = await onWordSaved({
       word: modal.word,
       wordWithNekudot: modal.wordWithNekudot || modal.word,
+      verbFormWithNekudot: modal.verbFormWithNekudot || undefined,
       translation: modal.translation,
       episodeTitle: episode.title,
       episodeUrl: episode.url,
@@ -209,6 +215,7 @@ export default function EpisodeViewer({
         isOpen={modal.isOpen}
         word={modal.word}
         wordWithNekudot={modal.wordWithNekudot}
+        verbFormWithNekudot={modal.verbFormWithNekudot}
         translation={modal.translation}
         isTranslating={modal.isTranslating}
         onClose={() => setModal((prev) => ({ ...prev, isOpen: false }))}

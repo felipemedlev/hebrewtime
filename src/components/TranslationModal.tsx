@@ -6,6 +6,7 @@ type TranslationModalProps = {
   isOpen: boolean;
   word: string;
   wordWithNekudot: string | null;
+  verbFormWithNekudot: string | null;
   translation: string | null;
   isTranslating: boolean;
   onClose: () => void;
@@ -16,6 +17,7 @@ export default function TranslationModal({
   isOpen,
   word,
   wordWithNekudot,
+  verbFormWithNekudot,
   translation,
   isTranslating,
   onClose,
@@ -49,6 +51,11 @@ export default function TranslationModal({
           ) : (
             <div className="translation-result">
               <p className="translation-text">{translation}</p>
+              {verbFormWithNekudot && (
+                <p className="verb-form-text" style={{ marginTop: '8px', fontSize: '14px', color: 'var(--text-muted)' }}>
+                  Verb form: <span className="font-serif" dir="rtl" style={{ fontSize: '18px', color: 'var(--accent)' }}>{verbFormWithNekudot}</span>
+                </p>
+              )}
             </div>
           )}
         </div>

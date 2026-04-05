@@ -70,6 +70,7 @@ export default function VocabularyView({
           <div style={{ border: "1px solid var(--border)", borderRadius: "12px", overflow: "hidden", backgroundColor: "var(--surface)" }}>
             <div style={{ display: "flex", padding: "12px 20px", borderBottom: "1px solid var(--border)", backgroundColor: "var(--surface-hover)", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)", fontWeight: 500 }}>
               <div style={{ flex: "0 0 140px", textAlign: "right" }}>Hebrew</div>
+              <div style={{ flex: "0 0 120px", textAlign: "right", paddingRight: "20px" }}>Verb Form</div>
               <div style={{ flex: "1", paddingLeft: "32px" }}>Translation</div>
               <div style={{ flex: "0 0 200px" }}>Source</div>
               <div style={{ flex: "0 0 40px" }}></div>
@@ -93,6 +94,15 @@ export default function VocabularyView({
                     <span className="font-serif" dir="rtl" style={{ fontSize: "22px", color: "var(--accent)", lineHeight: 1.2 }}>
                       {vw.wordWithNekudot || vw.word}
                     </span>
+                  </div>
+                  <div style={{ flex: "0 0 120px", textAlign: "right", paddingRight: "20px", display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
+                    {vw.verbFormWithNekudot ? (
+                      <span className="font-serif" dir="rtl" style={{ fontSize: "20px", color: "var(--text-main)", lineHeight: 1.2 }}>
+                        {vw.verbFormWithNekudot}
+                      </span>
+                    ) : (
+                      <span style={{ color: "var(--text-muted)", fontSize: "13px" }}>-</span>
+                    )}
                   </div>
                   <div style={{ flex: "1", paddingLeft: "32px", color: "var(--text-main)", fontSize: "15px", lineHeight: 1.4 }}>
                     {vw.translation}
