@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Bookmark, Trash2, LogIn, Edit2, Check, X } from "lucide-react";
+import { Bookmark, Trash2, LogIn, Edit2, Check, X, ExternalLink } from "lucide-react";
 import type { VocabWord } from "@/lib/types";
 import { useUser } from "@/hooks/useUser";
 
@@ -39,9 +39,7 @@ export default function VocabularyView({
     });
   };
 
-  const cancelEdit = () => {
-    setEditingId(null);
-  };
+  const cancelEdit = () => setEditingId(null);
 
   const saveEdit = (id: string) => {
     if (onEditWord) {
@@ -56,211 +54,247 @@ export default function VocabularyView({
 
   return (
     <div className="vocabulary-view">
-      <div className="main-header">
-        <h2 className="main-title font-serif">My Vocabulary</h2>
-        <div className="main-meta">
-          <span>{vocabWords.length} words saved</span>
+      {/* Page Header */}
+      <div className="vocab-page-header">
+        <div className="vocab-page-title-row">
+          <h2 className="vocab-page-title">Vocabulary</h2>
+          {vocabWords.length > 0 && (
+            <span className="vocab-count-badge">{vocabWords.length}</span>
+          )}
         </div>
+        {vocabWords.length > 0 && (
+          <p className="vocab-page-subtitle">Your saved Hebrew words</p>
+        )}
       </div>
+
       {vocabWords.length === 0 ? (
-        <div className="empty-state" style={{ marginTop: "40px" }}>
+        /* ── Empty State ── */
+        <div className="vocab-empty">
           {!user ? (
             <>
-              <LogIn
-                size={48}
-                strokeWidth={1}
-                style={{ marginBottom: "16px", opacity: 0.5 }}
-              />
-              <p>You need to log in to save vocabulary.</p>
-              <p style={{ fontSize: "14px", marginTop: "8px" }}>
-                Click on any Hebrew word to get started!
-              </p>
+              <div className="vocab-empty-icon"><LogIn size={22} strokeWidth={1.5} /></div>
+              <p className="vocab-empty-title">Sign in to save words</p>
+              <p className="vocab-empty-sub">Click any Hebrew word while reading to translate &amp; save it.</p>
             </>
           ) : !isPremium ? (
             <>
-              <Bookmark
-                size={48}
-                strokeWidth={1}
-                style={{ marginBottom: "16px", opacity: 0.5 }}
-              />
-              <p>Vocabulary is a premium feature.</p>
-              <p style={{ fontSize: "14px", marginTop: "8px" }}>
-                Ask an admin to grant premium access to your account.
-              </p>
+              <div className="vocab-empty-icon"><Bookmark size={22} strokeWidth={1.5} /></div>
+              <p className="vocab-empty-title">Premium feature</p>
+              <p className="vocab-empty-sub">Ask an admin to unlock vocabulary access for your account.</p>
             </>
           ) : (
             <>
-              <Bookmark
-                size={48}
-                strokeWidth={1}
-                style={{ marginBottom: "16px", opacity: 0.5 }}
-              />
-              <p>You haven&apos;t saved any words yet.</p>
-              <p style={{ fontSize: "14px", marginTop: "8px" }}>
-                Click on any Hebrew word while reading an episode to save it here!
-              </p>
+              <div className="vocab-empty-icon"><Bookmark size={22} strokeWidth={1.5} /></div>
+              <p className="vocab-empty-title">No words saved yet</p>
+              <p className="vocab-empty-sub">Click any Hebrew word while reading an episode to save it here.</p>
             </>
           )}
         </div>
       ) : (
-        <div style={{ maxWidth: "max(900px, 80%)", margin: "0 auto", padding: "0 80px 80px 80px", width: "100%" }}>
-          <div style={{ border: "1px solid var(--border)", borderRadius: "12px", overflow: "hidden", backgroundColor: "var(--surface)" }}>
-            <div style={{ display: "flex", padding: "12px 20px", borderBottom: "1px solid var(--border)", backgroundColor: "var(--surface-hover)", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)", fontWeight: 500 }}>
-              <div style={{ flex: "0 0 140px", textAlign: "right" }}>Hebrew</div>
-              <div style={{ flex: "0 0 120px", textAlign: "right", paddingRight: "20px" }}>Verb Form</div>
-              <div style={{ flex: "1", paddingLeft: "32px" }}>Translation</div>
-              <div style={{ flex: "0 0 200px" }}>Source</div>
-              <div style={{ flex: "0 0 70px" }}></div>
+        <div className="vocab-table-wrap">
+          {/* ── Desktop Table ── */}
+          <div className="vocab-table">
+            {/* Header */}
+            <div className="vocab-table-header">
+              <div className="vth-hebrew">Hebrew</div>
+              <div className="vth-verb">Verb form</div>
+              <div className="vth-translation">Translation</div>
+              <div className="vth-source">Source</div>
+              <div className="vth-actions" />
             </div>
-            
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              {vocabWords.map((vw, i) => {
-                const isEditing = editingId === vw.id;
-                
-                return (
-                <div 
-                  key={vw.id} 
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    padding: "16px 20px",
-                    borderBottom: i < vocabWords.length - 1 ? "1px solid var(--border)" : "none",
-                    transition: "background-color 0.15s",
-                    backgroundColor: isEditing ? "var(--surface-hover)" : "transparent"
-                  }}
-                  onMouseOver={(e) => { if (!isEditing) e.currentTarget.style.backgroundColor = "var(--surface-hover)"; }}
-                  onMouseOut={(e) => { if (!isEditing) e.currentTarget.style.backgroundColor = "transparent"; }}
+
+            {/* Rows */}
+            {vocabWords.map((vw, i) => {
+              const isEditing = editingId === vw.id;
+              return (
+                <div
+                  key={vw.id}
+                  className={`vocab-table-row${isEditing ? " editing" : ""}${i === vocabWords.length - 1 ? " last" : ""}`}
                 >
-                  <div style={{ flex: "0 0 140px", textAlign: "right", paddingRight: "10px" }}>
+                  {/* Hebrew word */}
+                  <div className="vtd-hebrew">
                     {isEditing ? (
                       <input
                         dir="rtl"
                         value={editValues.wordWithNekudot}
                         onChange={(e) => setEditValues({ ...editValues, wordWithNekudot: e.target.value })}
-                        className="font-serif"
-                        style={{
-                          width: "100%", fontSize: "20px", padding: "4px",
-                          border: "1px solid var(--border)", borderRadius: "4px",
-                          background: "var(--surface)", color: "var(--accent)"
-                        }}
+                        className="vocab-edit-input font-serif"
+                        style={{ fontSize: "20px", color: "var(--accent)", textAlign: "right" }}
                       />
                     ) : (
-                      <span className="font-serif" dir="rtl" style={{ fontSize: "22px", color: "var(--accent)", lineHeight: 1.2 }}>
+                      <span className="font-serif vocab-hebrew-word" dir="rtl">
                         {vw.wordWithNekudot || vw.word}
                       </span>
                     )}
                   </div>
-                  <div style={{ flex: "0 0 120px", textAlign: "right", paddingRight: "20px", display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
+
+                  {/* Verb form */}
+                  <div className="vtd-verb">
                     {isEditing ? (
                       <input
                         dir="rtl"
                         value={editValues.verbFormWithNekudot}
                         onChange={(e) => setEditValues({ ...editValues, verbFormWithNekudot: e.target.value })}
-                        className="font-serif"
-                        placeholder="Verb form..."
-                        style={{
-                          width: "100%", fontSize: "18px", padding: "4px",
-                          border: "1px solid var(--border)", borderRadius: "4px",
-                          background: "var(--surface)", color: "var(--text-main)"
-                        }}
+                        placeholder="—"
+                        className="vocab-edit-input font-serif"
+                        style={{ fontSize: "18px", textAlign: "right" }}
                       />
                     ) : vw.verbFormWithNekudot ? (
-                      <span className="font-serif" dir="rtl" style={{ fontSize: "20px", color: "var(--text-main)", lineHeight: 1.2 }}>
-                        {vw.verbFormWithNekudot}
-                      </span>
+                      <span className="font-serif vocab-verb-word" dir="rtl">{vw.verbFormWithNekudot}</span>
                     ) : (
-                      <span style={{ color: "var(--text-muted)", fontSize: "13px" }}>-</span>
+                      <span className="vocab-dash">—</span>
                     )}
                   </div>
-                  <div style={{ flex: "1", paddingLeft: "32px", color: "var(--text-main)", fontSize: "15px", lineHeight: 1.4 }}>
+
+                  {/* Translation */}
+                  <div className="vtd-translation">
                     {isEditing ? (
                       <input
                         value={editValues.translation}
                         onChange={(e) => setEditValues({ ...editValues, translation: e.target.value })}
-                        style={{
-                          width: "100%", fontSize: "15px", padding: "4px",
-                          border: "1px solid var(--border)", borderRadius: "4px",
-                          background: "var(--surface)", color: "var(--text-main)"
-                        }}
+                        className="vocab-edit-input"
+                        style={{ fontSize: "14px" }}
                       />
                     ) : (
-                      vw.translation
+                      <span className="vocab-translation-text">{vw.translation}</span>
                     )}
                   </div>
-                  <div style={{ flex: "0 0 200px", fontSize: "13px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    <a href={vw.episodeUrl} target="_blank" rel="noopener noreferrer" style={{ color: "var(--text-muted)", textDecoration: "none", transition: "color 0.2s" }} onMouseOver={(e) => e.currentTarget.style.color = "var(--text-main)"} onMouseOut={(e) => e.currentTarget.style.color = "var(--text-muted)"}>
-                      {vw.episodeTitle}
-                    </a>
+
+                  {/* Source */}
+                  <div className="vtd-source">
+                    {vw.episodeUrl ? (
+                      <a
+                        href={vw.episodeUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="vocab-source-link"
+                        title={vw.episodeTitle}
+                      >
+                        <ExternalLink size={12} className="vocab-source-icon" />
+                        <span>{vw.episodeTitle}</span>
+                      </a>
+                    ) : (
+                      <span className="vocab-dash">{vw.episodeTitle || "—"}</span>
+                    )}
                   </div>
-                  <div style={{ flex: "0 0 70px", display: "flex", justifyContent: "flex-end", gap: "4px" }}>
+
+                  {/* Actions */}
+                  <div className="vtd-actions">
                     {isEditing ? (
                       <>
-                        <button
-                          onClick={() => saveEdit(vw.id)}
-                          title="Save changes"
-                          style={{
-                            background: "transparent", border: "none",
-                            color: "#4CAF50", cursor: "pointer", padding: "6px",
-                            borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center",
-                            transition: "all 0.2s"
-                          }}
-                          onMouseOver={(e) => { e.currentTarget.style.backgroundColor = "#E8F5E9"; }}
-                          onMouseOut={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
-                        >
-                          <Check size={16} />
+                        <button onClick={() => saveEdit(vw.id)} title="Save" className="vocab-action-btn save">
+                          <Check size={14} />
                         </button>
-                        <button
-                          onClick={cancelEdit}
-                          title="Cancel"
-                          style={{
-                            background: "transparent", border: "none",
-                            color: "#ccc", cursor: "pointer", padding: "6px",
-                            borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center",
-                            transition: "all 0.2s"
-                          }}
-                          onMouseOver={(e) => { e.currentTarget.style.color = "#ff4444"; e.currentTarget.style.backgroundColor = "#fff0f0"; }}
-                          onMouseOut={(e) => { e.currentTarget.style.color = "#ccc"; e.currentTarget.style.backgroundColor = "transparent"; }}
-                        >
-                          <X size={16} />
+                        <button onClick={cancelEdit} title="Cancel" className="vocab-action-btn cancel">
+                          <X size={14} />
                         </button>
                       </>
                     ) : (
                       <>
-                        <button
-                          onClick={() => startEdit(vw)}
-                          title="Edit word"
-                          style={{
-                            background: "transparent", border: "none",
-                            color: "#ccc", cursor: "pointer", padding: "6px",
-                            borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center",
-                            transition: "all 0.2s"
-                          }}
-                          onMouseOver={(e) => { e.currentTarget.style.color = "var(--text-main)"; e.currentTarget.style.backgroundColor = "var(--surface)"; }}
-                          onMouseOut={(e) => { e.currentTarget.style.color = "#ccc"; e.currentTarget.style.backgroundColor = "transparent"; }}
-                        >
-                          <Edit2 size={16} />
+                        <button onClick={() => startEdit(vw)} title="Edit" className="vocab-action-btn edit">
+                          <Edit2 size={14} />
                         </button>
-                        <button
-                          onClick={() => onDeleteWord(vw.id)}
-                          title="Remove word"
-                          style={{
-                            background: "transparent", border: "none",
-                            color: "#ccc", cursor: "pointer", padding: "6px",
-                            borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center",
-                            transition: "all 0.2s"
-                          }}
-                          onMouseOver={(e) => { e.currentTarget.style.color = "#ff4444"; e.currentTarget.style.backgroundColor = "#fff0f0"; }}
-                          onMouseOut={(e) => { e.currentTarget.style.color = "#ccc"; e.currentTarget.style.backgroundColor = "transparent"; }}
-                        >
-                          <Trash2 size={16} />
+                        <button onClick={() => onDeleteWord(vw.id)} title="Delete" className="vocab-action-btn delete">
+                          <Trash2 size={14} />
                         </button>
                       </>
                     )}
                   </div>
                 </div>
-                );
-              })}
-            </div>
+              );
+            })}
+          </div>
+
+          {/* ── Mobile Cards ── */}
+          <div className="vocab-cards">
+            {vocabWords.map((vw) => {
+              const isEditing = editingId === vw.id;
+              return (
+                <div key={vw.id} className={`vocab-card-item${isEditing ? " editing" : ""}`}>
+                  {/* Card top: Hebrew + actions */}
+                  <div className="vocab-card-top">
+                    <div className="vocab-card-words">
+                      {isEditing ? (
+                        <input
+                          dir="rtl"
+                          value={editValues.wordWithNekudot}
+                          onChange={(e) => setEditValues({ ...editValues, wordWithNekudot: e.target.value })}
+                          className="vocab-edit-input font-serif"
+                          style={{ fontSize: "22px", color: "var(--accent)", textAlign: "right", marginBottom: "6px" }}
+                        />
+                      ) : (
+                        <span className="font-serif vocab-card-hebrew" dir="rtl">
+                          {vw.wordWithNekudot || vw.word}
+                        </span>
+                      )}
+                      {(vw.verbFormWithNekudot || isEditing) && (
+                        isEditing ? (
+                          <input
+                            dir="rtl"
+                            value={editValues.verbFormWithNekudot}
+                            onChange={(e) => setEditValues({ ...editValues, verbFormWithNekudot: e.target.value })}
+                            placeholder="verb form…"
+                            className="vocab-edit-input font-serif"
+                            style={{ fontSize: "16px", textAlign: "right" }}
+                          />
+                        ) : (
+                          <span className="font-serif vocab-card-verb" dir="rtl">{vw.verbFormWithNekudot}</span>
+                        )
+                      )}
+                    </div>
+                    <div className="vocab-card-actions">
+                      {isEditing ? (
+                        <>
+                          <button onClick={() => saveEdit(vw.id)} title="Save" className="vocab-action-btn save">
+                            <Check size={14} />
+                          </button>
+                          <button onClick={cancelEdit} title="Cancel" className="vocab-action-btn cancel">
+                            <X size={14} />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button onClick={() => startEdit(vw)} title="Edit" className="vocab-action-btn edit">
+                            <Edit2 size={14} />
+                          </button>
+                          <button onClick={() => onDeleteWord(vw.id)} title="Delete" className="vocab-action-btn delete">
+                            <Trash2 size={14} />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Translation */}
+                  <div className="vocab-card-translation">
+                    {isEditing ? (
+                      <input
+                        value={editValues.translation}
+                        onChange={(e) => setEditValues({ ...editValues, translation: e.target.value })}
+                        className="vocab-edit-input"
+                        style={{ fontSize: "14px" }}
+                      />
+                    ) : (
+                      <span>{vw.translation}</span>
+                    )}
+                  </div>
+
+                  {/* Source */}
+                  {vw.episodeTitle && (
+                    <div className="vocab-card-source">
+                      {vw.episodeUrl ? (
+                        <a href={vw.episodeUrl} target="_blank" rel="noopener noreferrer" className="vocab-source-link">
+                          <ExternalLink size={11} className="vocab-source-icon" />
+                          <span>{vw.episodeTitle}</span>
+                        </a>
+                      ) : (
+                        <span>{vw.episodeTitle}</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

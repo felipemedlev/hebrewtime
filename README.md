@@ -4,12 +4,12 @@ HebrewTime is a beautiful, bilingual web-based reader for the Hebrew Time podcas
 
 The application allows intermediate Hebrew learners to read podcast transcripts and click on any word to get a contextual, AI-powered translation (complete with Nekudot) and save it to their personal vocabulary list. Since word translation uses OpenAI credits, translation + vocabulary access are gated behind a premium subscription prompt shown in-app at $10/month.
 
-## 🚀 Key Features
+## Key Features
 
 - **Bilingual Interface**: Smooth side-by-side Hebrew and English paragraphs.
 - **Focus Mode for Hebrew Reading**: A top-bar toggle lets users blur all English transcript text on demand, so learners can practice Hebrew-first reading. The preference is saved in local storage.
 - **Premium-gated AI Translation**: Click any Hebrew word to translate it within the context of the sentence using OpenAI (gpt-5.4-mini). A specially tuned prompt ensures 100% grammatically correct Nekudot vocalization based on the exact contextual meaning. This is available only to premium users.
-- **Premium Vocabulary Manager & Auth**: Users can create an account via Supabase Email Auth (including “Forgot password” recovery). Premium users can save synced vocabulary in Supabase PostgreSQL across devices. 
+- **Premium Vocabulary Manager & Auth**: Users can create an account via Supabase Email Auth (including “Forgot password” recovery). Premium users can save synced vocabulary in Supabase PostgreSQL across devices.
   - Rendered in an elegant, minimal Apple/Notion-style data table.
   - Supports inline editing of saved words directly on the vocabulary page (allowing modifications to the word's text, nekudot, verb forms, and translations).
   - Smart deduplication logic allows saving the exact same Hebrew word multiple times if its contextual meaning (translation) or pronunciation (Nekudot) differs.
@@ -19,7 +19,7 @@ The application allows intermediate Hebrew learners to read podcast transcripts 
 - **Responsive Design**: Elegant slide-out sidebar for mobile devices.
 - **Automated Scraping**: Python script to scrape episode transcripts from Squarespace and auto-translate missing English sections via OpenAI.
 
-## 🏗 Architecture & Tech Stack
+## Architecture & Tech Stack
 
 This project is built with **Next.js 16** (App Router) and **React 19**, focusing on performance and clean component design.
 
@@ -47,7 +47,7 @@ Following a recent refactor, the app utilizes Next.js Server Components and dyna
   - `useVocabulary.ts`: Manages syncing vocabulary to Supabase based on the user's login state.
   - `useUser.ts`: Subscribes to Supabase auth events to track logged-in users.
 
-## 🛠 Setup & Local Development
+## Setup & Local Development
 
 ### 1. Environment Variables
 
@@ -177,7 +177,7 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-## 📁 File Structure Highlights
+## File Structure Highlights
 
 - `/scraper.py` - Core scraping and paragraph translation logic.
 - `patch_missing_transcripts.py` - Efficiently patch an existing `episodes.json` (translating only missing paragraph(s)).

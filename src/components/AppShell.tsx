@@ -282,7 +282,10 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
           <VocabularyView
             vocabWords={vocabWords}
             onDeleteWord={deleteWord}
-            onEditWord={updateWord}
+            onEditWord={async (id, updates) => {
+              const res = await updateWord(id, updates);
+              if (res) showToast(res.message);
+            }}
             isPremium={entitlements.isPremium}
           />
         ) : !episode ? (

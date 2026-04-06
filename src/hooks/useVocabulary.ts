@@ -127,12 +127,15 @@ export function useVocabulary() {
     async (id: string, updates: Partial<VocabWord>) => {
       if (!user) return { updated: false, message: "Please log in to edit vocabulary.", type: "auth_required" };
 
+      // Snapshot previous value for rollback
+      const previous = vocabWords.find((v) => v.id === id);
+
       // Optimistic update
       setVocabWords((prev) =>
         prev.map((v) => (v.id === id ? { ...v, ...updates } : v))
       );
 
-      const dbUpdates: any = {};
+      const dbUpdates: Record<string, unknown> = {};
       if (updates.word !== undefined) dbUpdates.word = updates.word;
       if (updates.wordWithNekudot !== undefined) dbUpdates.word_with_nekudot = updates.wordWithNekudot || null;
       if (updates.verbFormWithNekudot !== undefined) dbUpdates.verb_form_with_nekudot = updates.verbFormWithNekudot || null;
@@ -140,19 +143,26 @@ export function useVocabulary() {
       if (updates.episodeTitle !== undefined) dbUpdates.episode_title = updates.episodeTitle;
       if (updates.episodeUrl !== undefined) dbUpdates.episode_url = updates.episodeUrl;
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("vocabulary")
         .update(dbUpdates)
         .eq("id", id)
-        .eq("user_id", user.id);
+        .eq("user_id", user.id)
+        .select();
 
-      if (error) {
-        console.error("Failed to update word:", error);
-        return { updated: false, message: "Failed to update word.", type: "error" };
+      if (error || !data || data.length === 0) {
+        console.error("Failed to update word:", error ?? "No rows matched — check RLS UPDATE policy");
+        // Rollback optimistic update
+        if (previous) {
+          setVocabWords((prev) =>
+            prev.map((v) => (v.id === id ? previous : v))
+          );
+        }
+        return { updated: false, message: error ? "Failed to update: " + error.message : "Update was blocked — no rows changed.", type: "error" };
       }
-      return { updated: true, message: "Word updated successfully.", type: "success" };
+      return { updated: true, message: "Word updated!", type: "success" };
     },
-    [user]
+    [user, vocabWords]
   );
 
   return { vocabWords, isLoaded, addWord, deleteWord, updateWord };
