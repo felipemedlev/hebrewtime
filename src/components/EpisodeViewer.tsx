@@ -31,6 +31,7 @@ type EpisodeViewerProps = {
 type ModalState = {
   isOpen: boolean;
   word: string;
+  lemmaWord: string | null;
   hebrewContext: string;
   englishContext: string;
   translation: string | null;
@@ -55,6 +56,7 @@ export default function EpisodeViewer({
   const [modal, setModal] = useState<ModalState>({
     isOpen: false,
     word: "",
+    lemmaWord: null,
     hebrewContext: "",
     englishContext: "",
     translation: null,
@@ -87,6 +89,7 @@ export default function EpisodeViewer({
     setModal({
       isOpen: true,
       word: cleanWord,
+      lemmaWord: null,
       hebrewContext: hebContext,
       englishContext: engContext || "",
       translation: null,
@@ -104,6 +107,7 @@ export default function EpisodeViewer({
       }
       setModal((prev) => ({
         ...prev,
+        lemmaWord: res?.lemmaWord || cleanWord,
         translation: res?.translation || "Translation error",
         wordWithNekudot: res?.wordWithNekudot || cleanWord,
         verbFormWithNekudot: res?.verbFormWithNekudot || null,
@@ -121,9 +125,12 @@ export default function EpisodeViewer({
   const handleSave = async () => {
     if (!modal.translation) return;
 
+    // Use the lemma (base dictionary form) returned by the AI, falling back to the clicked word
+    const wordToSave = modal.lemmaWord || modal.word;
+
     const result = await onWordSaved({
-      word: modal.word,
-      wordWithNekudot: modal.wordWithNekudot || modal.word,
+      word: wordToSave,
+      wordWithNekudot: modal.wordWithNekudot || wordToSave,
       verbFormWithNekudot: modal.verbFormWithNekudot || undefined,
       translation: modal.translation,
       episodeTitle: episode.title,

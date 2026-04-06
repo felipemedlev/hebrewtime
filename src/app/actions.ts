@@ -163,16 +163,40 @@ export async function translateWord(
     return { translation: "Translation unavailable (No API Key)", wordWithNekudot: word, type: "error" };
   }
 
-  const prompt = `You are a helpful dictionary assistant.
-Translate the specific Hebrew word "${word}" into English.
-You are given the sentence where it appears to understand the exact context:
+  const prompt = `You are a Hebrew dictionary assistant. Your job is to identify and return the BASE DICTIONARY FORM (lemma) of a Hebrew word.
+
+The user clicked the word "${word}" in this sentence:
 Hebrew sentence: "${hebrewContext}"
 English meaning of the sentence: "${englishContext}"
 
-Return a JSON object with exactly three keys:
-1. "translation": The English translation of the specific word "${word}", no punctuation, no extra text, just the direct translation.
-2. "wordWithNekudot": The exact Hebrew word "${word}" but fully vocalized with correct Nekudot (Hebrew vowels) as it is pronounced in this specific context. It is CRITICAL that the Nekudot are 100% accurate and grammatically correct for this exact sentence. Double check with pealim.com
-3. "verbFormWithNekudot": If the word is a conjugated verb or related to a verb, provide its infinitive form with fully accurate Nekudot (e.g. if the word is מְדַמְיְנִים then return לְדַמְייֵן). If the word does not have a clear verb form, return null.`;
+STEP 1 — Strip ALL Hebrew prefixes from "${word}" to get the base lemma:
+- ה (the / definite article)
+- ל (to / preposition)
+- ב (in / preposition)
+- מ or מה (from / preposition)
+- ו (and / conjunction)
+- כ (as, like / preposition)
+- ש (that, which / conjunction)
+Never include these prefixes in your output word.
+
+STEP 2 — Determine the lemma:
+- For NOUNS: return the singular, indefinite form (no definite article). Example: הַנּוֹשֵׂא → lemma is נושא
+- For VERBS: return the infinitive form (לִ + root). Example: מְדַמְיֵן → lemma is לדמיין. Example: מְדַמְיְנִים → lemma is לדמיין
+- Never return conjugated forms, gendered forms, or plural forms.
+- Never return pronoun-based translations like "I / you / he".
+
+STEP 3 — Translate using the BASE MEANING only:
+- For nouns: do NOT include "the" → נושא = "topic" (not "the topic")
+- For verbs: do NOT include "to" → לדמיין = "imagine" (not "to imagine")
+- Use the sentence context to pick the right meaning, but translate the base form.
+
+Verify your answer with pealim.com before responding.
+
+Return a JSON object with exactly four keys:
+1. "lemmaWord": The base Hebrew lemma without any prefixes and without nekudot. E.g.: נושא, לדמיין, חבר, ידע
+2. "translation": The English translation of the BASE WORD, no punctuation, no "the", no "to", no extra text.
+3. "wordWithNekudot": The BASE LEMMA fully vocalized with 100% grammatically correct Nekudot as verified on pealim.com. E.g.: נוֹשֵׂא, לְדַמְיֵן
+4. "verbFormWithNekudot": If the word is or relates to a verb, provide the infinitive form with complete accurate Nekudot (e.g. לְדַמְיֵן). If not a verb, return null.`;
 
   try {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -197,6 +221,7 @@ Return a JSON object with exactly three keys:
     const data = await res.json();
     const result = JSON.parse(data.choices[0].message.content.trim());
     return {
+      lemmaWord: result.lemmaWord || word,
       translation: result.translation || "Translation error",
       wordWithNekudot: result.wordWithNekudot || word,
       verbFormWithNekudot: result.verbFormWithNekudot || null,

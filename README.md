@@ -8,7 +8,14 @@ The application allows intermediate Hebrew learners to read podcast transcripts 
 
 - **Bilingual Interface**: Smooth side-by-side Hebrew and English paragraphs.
 - **Focus Mode for Hebrew Reading**: A top-bar toggle lets users blur all English transcript text on demand, so learners can practice Hebrew-first reading. The preference is saved in local storage.
-- **Premium-gated AI Translation**: Click any Hebrew word to translate it within the context of the sentence using OpenAI (gpt-5.4-mini). A specially tuned prompt ensures 100% grammatically correct Nekudot vocalization based on the exact contextual meaning. This is available only to premium users.
+- **Premium-gated AI Translation**: Click any Hebrew word to translate it within the context of the sentence using OpenAI (gpt-5.4-mini). A specially tuned prompt ensures:
+  - 100% grammatically correct Nekudot vocalization based on the exact contextual meaning.
+  - The stored word is always the **base dictionary form (lemma)** — prefixes like ה (the), ל (to), ב (in), מ (from), ו (and), כ (as) are automatically stripped.
+  - For nouns: the singular indefinite form is saved (e.g., נושא, not הנושא).
+  - For verbs: the infinitive form is saved (e.g., לדמיין, not מדמיין or מְדַמְיְנִים).
+  - Translations omit articles: "topic" not "the topic", "imagine" not "to imagine".
+  - Lemma accuracy is cross-validated against pealim.com in the AI prompt.
+  - This is available only to premium users.
 - **Premium Vocabulary Manager & Auth**: Users can create an account via Supabase Email Auth (including “Forgot password” recovery). Premium users can save synced vocabulary in Supabase PostgreSQL across devices.
   - Rendered in an elegant, minimal Apple/Notion-style data table.
   - Supports inline editing of saved words directly on the vocabulary page (allowing modifications to the word's text, nekudot, verb forms, and translations).
@@ -166,7 +173,40 @@ Make sure your Supabase Auth settings allow redirects back to your site, especia
 
 Note: in this repo’s current `@supabase/supabase-js`/`@supabase/auth-js` version, the typed `verifyOtp({ type: 'recovery' ... })` flow requires an `email`, so we rely on the recovery redirect session initialization instead.
 
-### 6. Running the Next.js App
+### 6. Vocabulary Word Saving — Lemma Rules
+
+When a user saves a Hebrew word, the app always stores the **base dictionary form (lemma)**, not the surface form that appeared in the text. This is enforced by the OpenAI prompt in `src/app/actions.ts → translateWord`.
+
+**Prefix stripping** — the following prefixes are removed before saving:
+
+| Prefix | Meaning |
+|--------|---------|
+| ה | the (definite article) |
+| ל | to (preposition) |
+| ב | in (preposition) |
+| מ / מה | from (preposition) |
+| ו | and (conjunction) |
+| כ | as / like (preposition) |
+| ש | that / which (conjunction) |
+
+**Lemma rules:**
+- **Nouns** → singular indefinite form. Example: הַנּוֹשֵׂא → `נושא`
+- **Verbs** → infinitive form. Example: מְדַמְיֵן or מְדַמְיְנִים → `לדמיין`
+- No conjugations, no gendered/plural forms, no pronoun-based translations.
+
+**Translation rules:**
+- No "the" for nouns: `נושא` = "topic" not "the topic"
+- No "to" for verbs: `לדמיין` = "imagine" not "to imagine"
+
+**OpenAI response contract** (`translateWord` returns 4 fields):
+1. `lemmaWord` — base lemma without prefixes and without nekudot (stored in `vocabulary.word`)
+2. `translation` — base English meaning only
+3. `wordWithNekudot` — base lemma with 100% accurate nekudot (stored in `vocabulary.word_with_nekudot`)
+4. `verbFormWithNekudot` — infinitive with nekudot if verb, otherwise `null`
+
+In `EpisodeViewer.tsx`, `modal.lemmaWord` (from the API response) is used as the `word` field when calling `addWord`, so the raw prefixed surface form is **never** persisted to Supabase.
+
+### 7. Running the Next.js App
 
 Install dependencies and start the development server:
 
