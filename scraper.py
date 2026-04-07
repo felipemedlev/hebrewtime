@@ -76,40 +76,28 @@ def fetch_episode(episode_num: int) -> dict | None:
         # Remove image captions and nav cruft
         for tag in content_block.find_all(["figure", "figcaption", "nav"]):
             tag.decompose()
-        # Preserve the original segmentation strategy (extract all non-empty <p> tags
-        # inside the main article) but fix the specific case where the first transcript
-        # paragraph is rendered as leading text nodes before the first <p>.
-        paragraphs = [p.get_text(strip=True) for p in content_block.find_all("p") if p.get_text(strip=True)]
-
-        # Identify the transcript block that contains the current first paragraph,
-        # then extract any leading text nodes that appear before the first non-empty <p>.
-        lead_text = ""
-        if paragraphs:
-            first_para_norm = norm(paragraphs[0])
-            candidates = content_block.find_all(
-                "div", class_=re.compile(r"\bsqs-block-content\b")
-            )
-
-            best_score = -1
-            transcript_root = None
-            for cand in candidates:
-                cand_text_norm = norm(cand.get_text(" ", strip=True))
-                # Strongly prefer the block that contains the first extracted paragraph.
-                score = cand_text_norm.count(first_para_norm) * 1000
-                # Then prefer blocks with more <p> tags.
-                score += sum(1 for p in cand.find_all("p") if p.get_text(" ", strip=True))
-                if score > best_score:
-                    best_score = score
-                    transcript_root = cand
-
-            if transcript_root is not None:
-                p_tags = transcript_root.find_all("p")
+        # Preserve the original segmentation strategy (extract all non-empty <p> tags)
+        # but also catch cases where transcript paragraphs are rendered as leading
+        # naked text nodes before the first <p> inside a given block (for example,
+        # right at the start of the transcript, or after an intermediate image block).
+        paragraphs = []
+        seen_parents = set()
+        
+        for p in content_block.find_all("p"):
+            text = p.get_text(strip=True)
+            if not text:
+                continue
+                
+            parent = p.parent
+            if parent not in seen_parents:
+                seen_parents.add(parent)
+                # Check for leading text before the first non-empty <p> in this parent
                 first_non_empty_p = next(
-                    (p for p in p_tags if p.get_text(" ", strip=True)), None
+                    (cp for cp in parent.find_all("p") if cp.get_text(strip=True)), None
                 )
-                if first_non_empty_p is not None:
-                    lead_parts: list[str] = []
-                    for el in transcript_root.descendants:
+                if p is first_non_empty_p:
+                    lead_parts = []
+                    for el in parent.descendants:
                         if el is first_non_empty_p:
                             break
                         if getattr(el, "name", None) is None:
@@ -117,11 +105,11 @@ def fetch_episode(episode_num: int) -> dict | None:
                             if s:
                                 lead_parts.append(s)
                     lead_text = " ".join(lead_parts).strip()
-
-        if lead_text:
-            # Only prepend if it isn't already part of the extracted <p> paragraphs.
-            if not any(norm(p) == norm(lead_text) for p in paragraphs):
-                paragraphs.insert(0, lead_text)
+                    
+                    if lead_text and not any(norm(cp.get_text(strip=True)) == norm(lead_text) for cp in parent.find_all("p")):
+                        paragraphs.append(lead_text)
+                        
+            paragraphs.append(text)
     else:
         paragraphs = []
 

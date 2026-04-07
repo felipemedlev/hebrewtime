@@ -148,19 +148,23 @@ python scraper.py
 ```
 This generates/updates `episodes.json` (used by the Next.js app). `episodes_checkpoint.json` is optional and is used only by the scraper/maintenance scripts for resume support.
 
-#### Important: Missing first transcript paragraph
-Squarespace sometimes renders the opening part of the transcript as leading text nodes before the first `<p>`. Older runs of the scraper could therefore miss the first paragraph (and downstream UI would appear to “skip” it).
+#### Important: Missing transcript paragraphs (leading text outside `<p>` tags)
+Squarespace sometimes renders parts of the transcript (especially the opening paragraph, or text immediately following an image block) as leading text nodes before the first `<p>` tag inside its containing layout block. Older runs of the scraper missed these paragraphs (and downstream UI would appear to skip them).
 
-- `scraper.py` was updated to extract those leading text nodes and prepend them as the first Hebrew paragraph.
-- If you already have an older `episodes.json`, you can patch it efficiently by translating only the missing paragraph(s):
+- `scraper.py` was updated to iterate over all layout blocks, correctly extracting these leading text nodes and inserting them into the paragraph sequence in the proper order.
+- If you already have an older `episodes.json` missing these paragraphs, you can patch it efficiently by discovering and translating only the missing paragraph(s) using difflib:
 
 ```bash
-python3 patch_missing_transcripts.py --translate --apply
+python3 apply_scraping_patch.py
 ```
 
 The script:
-- updates `hebrew_paragraphs`, `english_paragraphs`, and `hebrew_text`
-- creates a backup at `episodes.json.bak.<timestamp>`
+- compares the re-scraped Hebrew text with the old JSON data to find exact insertions.
+- translates only the missing middle/prefix paragraphs via OpenAI.
+- updates `hebrew_paragraphs`, `english_paragraphs`, and `hebrew_text`.
+- creates a backup at `episodes.json.bak.<timestamp>`.
+
+(Note: `patch_missing_transcripts.py` was an older script built only for initial-paragraph prefixes, while `apply_scraping_patch.py` handles missing paragraphs anywhere in the text).
 
 ### 5. Password Recovery (Forgot Password)
 Password reset is implemented using Supabase Email Auth:
@@ -220,7 +224,7 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 ## File Structure Highlights
 
 - `/scraper.py` - Core scraping and paragraph translation logic.
-- `patch_missing_transcripts.py` - Efficiently patch an existing `episodes.json` (translating only missing paragraph(s)).
+- `apply_scraping_patch.py` - Efficiently patches `episodes.json` (translating only missing paragraph(s) anywhere in the text).
 - `/episodes.json` - The generated dataset used by the web application.
 - `/src/app/page.tsx` - The main server-rendered entrypoint.
 - `/src/app/actions.ts` - Server actions for premium checks, admin premium management, and `translateWord` communication with OpenAI.
