@@ -25,6 +25,7 @@ type EpisodeViewerProps = {
   isAuthenticated: boolean;
   onRequireAuth: () => void;
   onRequireSubscription: () => void;
+  isLoadingEntitlements: boolean;
   isEnglishBlurred: boolean;
 };
 
@@ -51,6 +52,7 @@ export default function EpisodeViewer({
   isAuthenticated,
   onRequireAuth,
   onRequireSubscription,
+  isLoadingEntitlements,
   isEnglishBlurred,
 }: EpisodeViewerProps) {
   const [modal, setModal] = useState<ModalState>({
@@ -70,6 +72,8 @@ export default function EpisodeViewer({
     hebContext: string,
     engContext: string
   ) => {
+    if (isLoadingEntitlements) return;
+
     if (!isAuthenticated) {
       onToast("Log in to use word translation.");
       onRequireAuth();

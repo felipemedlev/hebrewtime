@@ -74,7 +74,7 @@ export async function getUserEntitlements(accessToken?: string): Promise<Entitle
   }
   const email = user.email.toLowerCase();
   const isAdmin = adminEmails.includes(email);
-  const premium = await isPremiumEmail(email);
+  const premium = isAdmin || await isPremiumEmail(email);
   return {
     isAuthenticated: true,
     isPremium: premium,

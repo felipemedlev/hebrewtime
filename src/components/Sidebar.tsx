@@ -18,6 +18,7 @@ type SidebarProps = {
   onOpenAuthModal?: () => void;
   isPremium?: boolean;
   isAdmin?: boolean;
+  isLoadingEntitlements?: boolean;
   onOpenAdminModal?: () => void;
 };
 
@@ -33,6 +34,7 @@ export default function Sidebar({
   onOpenAuthModal,
   isPremium = false,
   isAdmin = false,
+  isLoadingEntitlements = false,
   onOpenAdminModal,
 }: SidebarProps) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -78,7 +80,7 @@ export default function Sidebar({
             <button
               className={`tab-btn ${viewMode === "vocabulary" ? "active" : ""}`}
               onClick={() => onChangeViewMode("vocabulary")}
-              title={!isPremium ? "Join subscription to unlock vocabulary" : undefined}
+              title={!isPremium && !isLoadingEntitlements ? "Join subscription to unlock vocabulary" : undefined}
             >
               <Bookmark
                 size={14}

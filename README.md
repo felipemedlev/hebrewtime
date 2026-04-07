@@ -17,8 +17,9 @@ The application allows intermediate Hebrew learners to read podcast transcripts 
   - Lemma accuracy is cross-validated against pealim.com in the AI prompt.
   - This is available only to premium users.
 - **Premium Vocabulary Manager & Auth**: Users can create an account via Supabase Email Auth (including “Forgot password” recovery). Premium users can save synced vocabulary in Supabase PostgreSQL across devices.
-  - Rendered in an elegant, minimal Apple/Notion-style data table.
-  - Supports inline editing of saved words directly on the vocabulary page (allowing modifications to the word's text, nekudot, verb forms, and translations).
+  - Rendered in an elegant, minimal Apple/Notion-style data table. Desktop column order: **Source** (leftmost) → Translation → Verb form → **Hebrew** (rightmost, for natural RTL reading).
+  - Supports inline editing of saved words directly on the vocabulary page (allowing modifications to the word's text, nekudot, verb forms, and translations). Pressing **Enter** in any edit field saves the row (same as clicking the ✓ button).
+  - On mobile, the Hebrew word is right-aligned and actions sit on the left, preserving the RTL-natural reading flow in a card layout.
   - Smart deduplication logic allows saving the exact same Hebrew word multiple times if its contextual meaning (translation) or pronunciation (Nekudot) differs.
 - **Top-of-Screen Subscription Upsell (Apple/Notion Style)**: If a non-premium user clicks the Vocabulary tab or selects a word, the app shows a large sticky promo panel with $10/month messaging and a CTA that opens auth/signup.
 - **Admin Premium Controls**: Admin users can grant/revoke premium access by email from an in-app admin modal.
@@ -135,8 +136,7 @@ EXECUTE FUNCTION public.set_updated_at();
 - **Authenticated non-premium users**: can read episodes, but translation and vocabulary are blocked.
 - **Blocked action UX**: when non-premium users try to open Vocabulary or translate a word, they see a sticky top-of-screen subscription panel advertising **$10/month** and can open auth/signup from the CTA.
 - **Premium users**: can translate words (OpenAI usage) and access vocabulary normally.
-- **Admin users** (`ADMIN_EMAILS`): can open the admin modal and grant/revoke premium by email.
-
+- **Admin users** (`ADMIN_EMAILS`): automatically get premium access, and they can open the admin modal to grant/revoke premium access for other users by email.
 ### 4. Updating Episodes (Python Scraper)
 
 To fetch the latest podcast transcripts and auto-translate them to English:

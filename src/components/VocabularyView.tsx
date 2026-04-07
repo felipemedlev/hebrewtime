@@ -94,12 +94,12 @@ export default function VocabularyView({
         <div className="vocab-table-wrap">
           {/* ── Desktop Table ── */}
           <div className="vocab-table">
-            {/* Header */}
+            {/* Header — columns: Source | Translation | Verb | Hebrew | Actions */}
             <div className="vocab-table-header">
-              <div className="vth-hebrew">Hebrew</div>
-              <div className="vth-verb">Verb form</div>
-              <div className="vth-translation">Translation</div>
               <div className="vth-source">Source</div>
+              <div className="vth-translation">Translation</div>
+              <div className="vth-verb">Verb form</div>
+              <div className="vth-hebrew">Hebrew</div>
               <div className="vth-actions" />
             </div>
 
@@ -111,56 +111,7 @@ export default function VocabularyView({
                   key={vw.id}
                   className={`vocab-table-row${isEditing ? " editing" : ""}${i === vocabWords.length - 1 ? " last" : ""}`}
                 >
-                  {/* Hebrew word */}
-                  <div className="vtd-hebrew">
-                    {isEditing ? (
-                      <input
-                        dir="rtl"
-                        value={editValues.wordWithNekudot}
-                        onChange={(e) => setEditValues({ ...editValues, wordWithNekudot: e.target.value })}
-                        className="vocab-edit-input font-serif"
-                        style={{ fontSize: "20px", color: "var(--accent)", textAlign: "right" }}
-                      />
-                    ) : (
-                      <span className="font-serif vocab-hebrew-word" dir="rtl">
-                        {vw.wordWithNekudot || vw.word}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Verb form */}
-                  <div className="vtd-verb">
-                    {isEditing ? (
-                      <input
-                        dir="rtl"
-                        value={editValues.verbFormWithNekudot}
-                        onChange={(e) => setEditValues({ ...editValues, verbFormWithNekudot: e.target.value })}
-                        placeholder="—"
-                        className="vocab-edit-input font-serif"
-                        style={{ fontSize: "18px", textAlign: "right" }}
-                      />
-                    ) : vw.verbFormWithNekudot ? (
-                      <span className="font-serif vocab-verb-word" dir="rtl">{vw.verbFormWithNekudot}</span>
-                    ) : (
-                      <span className="vocab-dash">—</span>
-                    )}
-                  </div>
-
-                  {/* Translation */}
-                  <div className="vtd-translation">
-                    {isEditing ? (
-                      <input
-                        value={editValues.translation}
-                        onChange={(e) => setEditValues({ ...editValues, translation: e.target.value })}
-                        className="vocab-edit-input"
-                        style={{ fontSize: "14px" }}
-                      />
-                    ) : (
-                      <span className="vocab-translation-text">{vw.translation}</span>
-                    )}
-                  </div>
-
-                  {/* Source */}
+                  {/* Source — far left */}
                   <div className="vtd-source">
                     {vw.episodeUrl ? (
                       <a
@@ -175,6 +126,58 @@ export default function VocabularyView({
                       </a>
                     ) : (
                       <span className="vocab-dash">{vw.episodeTitle || "—"}</span>
+                    )}
+                  </div>
+
+                  {/* Translation */}
+                  <div className="vtd-translation">
+                    {isEditing ? (
+                      <input
+                        value={editValues.translation}
+                        onChange={(e) => setEditValues({ ...editValues, translation: e.target.value })}
+                        onKeyDown={(e) => e.key === "Enter" && saveEdit(vw.id)}
+                        className="vocab-edit-input"
+                        style={{ fontSize: "14px" }}
+                      />
+                    ) : (
+                      <span className="vocab-translation-text">{vw.translation}</span>
+                    )}
+                  </div>
+
+                  {/* Verb form */}
+                  <div className="vtd-verb">
+                    {isEditing ? (
+                      <input
+                        dir="rtl"
+                        value={editValues.verbFormWithNekudot}
+                        onChange={(e) => setEditValues({ ...editValues, verbFormWithNekudot: e.target.value })}
+                        onKeyDown={(e) => e.key === "Enter" && saveEdit(vw.id)}
+                        placeholder="—"
+                        className="vocab-edit-input font-serif"
+                        style={{ fontSize: "18px", textAlign: "right" }}
+                      />
+                    ) : vw.verbFormWithNekudot ? (
+                      <span className="font-serif vocab-verb-word" dir="rtl">{vw.verbFormWithNekudot}</span>
+                    ) : (
+                      <span className="vocab-dash">—</span>
+                    )}
+                  </div>
+
+                  {/* Hebrew word — rightmost data column */}
+                  <div className="vtd-hebrew">
+                    {isEditing ? (
+                      <input
+                        dir="rtl"
+                        value={editValues.wordWithNekudot}
+                        onChange={(e) => setEditValues({ ...editValues, wordWithNekudot: e.target.value })}
+                        onKeyDown={(e) => e.key === "Enter" && saveEdit(vw.id)}
+                        className="vocab-edit-input font-serif"
+                        style={{ fontSize: "20px", color: "var(--accent)", textAlign: "right" }}
+                      />
+                    ) : (
+                      <span className="font-serif vocab-hebrew-word" dir="rtl">
+                        {vw.wordWithNekudot || vw.word}
+                      </span>
                     )}
                   </div>
 
@@ -211,37 +214,8 @@ export default function VocabularyView({
               const isEditing = editingId === vw.id;
               return (
                 <div key={vw.id} className={`vocab-card-item${isEditing ? " editing" : ""}`}>
-                  {/* Card top: Hebrew + actions */}
+                  {/* Card top: Hebrew (right-aligned) + actions */}
                   <div className="vocab-card-top">
-                    <div className="vocab-card-words">
-                      {isEditing ? (
-                        <input
-                          dir="rtl"
-                          value={editValues.wordWithNekudot}
-                          onChange={(e) => setEditValues({ ...editValues, wordWithNekudot: e.target.value })}
-                          className="vocab-edit-input font-serif"
-                          style={{ fontSize: "22px", color: "var(--accent)", textAlign: "right", marginBottom: "6px" }}
-                        />
-                      ) : (
-                        <span className="font-serif vocab-card-hebrew" dir="rtl">
-                          {vw.wordWithNekudot || vw.word}
-                        </span>
-                      )}
-                      {(vw.verbFormWithNekudot || isEditing) && (
-                        isEditing ? (
-                          <input
-                            dir="rtl"
-                            value={editValues.verbFormWithNekudot}
-                            onChange={(e) => setEditValues({ ...editValues, verbFormWithNekudot: e.target.value })}
-                            placeholder="verb form…"
-                            className="vocab-edit-input font-serif"
-                            style={{ fontSize: "16px", textAlign: "right" }}
-                          />
-                        ) : (
-                          <span className="font-serif vocab-card-verb" dir="rtl">{vw.verbFormWithNekudot}</span>
-                        )
-                      )}
-                    </div>
                     <div className="vocab-card-actions">
                       {isEditing ? (
                         <>
@@ -263,6 +237,37 @@ export default function VocabularyView({
                         </>
                       )}
                     </div>
+                    <div className="vocab-card-words">
+                      {isEditing ? (
+                        <input
+                          dir="rtl"
+                          value={editValues.wordWithNekudot}
+                          onChange={(e) => setEditValues({ ...editValues, wordWithNekudot: e.target.value })}
+                          onKeyDown={(e) => e.key === "Enter" && saveEdit(vw.id)}
+                          className="vocab-edit-input font-serif"
+                          style={{ fontSize: "22px", color: "var(--accent)", textAlign: "right", marginBottom: "6px" }}
+                        />
+                      ) : (
+                        <span className="font-serif vocab-card-hebrew" dir="rtl">
+                          {vw.wordWithNekudot || vw.word}
+                        </span>
+                      )}
+                      {(vw.verbFormWithNekudot || isEditing) && (
+                        isEditing ? (
+                          <input
+                            dir="rtl"
+                            value={editValues.verbFormWithNekudot}
+                            onChange={(e) => setEditValues({ ...editValues, verbFormWithNekudot: e.target.value })}
+                            onKeyDown={(e) => e.key === "Enter" && saveEdit(vw.id)}
+                            placeholder="verb form…"
+                            className="vocab-edit-input font-serif"
+                            style={{ fontSize: "16px", textAlign: "right" }}
+                          />
+                        ) : (
+                          <span className="font-serif vocab-card-verb" dir="rtl">{vw.verbFormWithNekudot}</span>
+                        )
+                      )}
+                    </div>
                   </div>
 
                   {/* Translation */}
@@ -271,6 +276,7 @@ export default function VocabularyView({
                       <input
                         value={editValues.translation}
                         onChange={(e) => setEditValues({ ...editValues, translation: e.target.value })}
+                        onKeyDown={(e) => e.key === "Enter" && saveEdit(vw.id)}
                         className="vocab-edit-input"
                         style={{ fontSize: "14px" }}
                       />

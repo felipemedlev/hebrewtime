@@ -40,7 +40,7 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
   const mainRef = useRef<HTMLElement>(null);
   const { vocabWords, addWord, deleteWord, updateWord } = useVocabulary();
   const { user } = useUser();
-  const { entitlements, refresh: refreshEntitlements } = useEntitlements();
+  const { entitlements, isLoading: isLoadingEntitlements, refresh: refreshEntitlements } = useEntitlements();
 
   // Responsive
   useEffect(() => {
@@ -118,16 +118,16 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
 
   const handleChangeViewMode = useCallback(
     (mode: "episodes" | "vocabulary") => {
-      if (mode === "vocabulary" && !entitlements.isPremium) {
+      if (mode === "vocabulary" && !entitlements.isPremium && !isLoadingEntitlements) {
         showSubscriptionPrompt("vocabulary");
         return;
       }
       setViewMode(mode);
     },
-    [entitlements.isPremium, showSubscriptionPrompt]
+    [entitlements.isPremium, isLoadingEntitlements, showSubscriptionPrompt]
   );
   const effectiveViewMode =
-    viewMode === "vocabulary" && !entitlements.isPremium ? "episodes" : viewMode;
+    viewMode === "vocabulary" && !entitlements.isPremium && !isLoadingEntitlements ? "episodes" : viewMode;
 
   const navigateToEpisode = useCallback(
     async (num: number) => {
@@ -179,6 +179,7 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
         onClose={() => setIsSidebarOpen(false)}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
         isPremium={entitlements.isPremium}
+        isLoadingEntitlements={isLoadingEntitlements}
         isAdmin={entitlements.isAdmin}
         onOpenAdminModal={() => setIsAdminModalOpen(true)}
       />
@@ -307,6 +308,7 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
               onToast={showToast}
               isPremium={entitlements.isPremium}
               isAuthenticated={entitlements.isAuthenticated}
+              isLoadingEntitlements={isLoadingEntitlements}
               onRequireAuth={() => setIsAuthModalOpen(true)}
               onRequireSubscription={() => showSubscriptionPrompt("translation")}
               isEnglishBlurred={isEnglishBlurred}
