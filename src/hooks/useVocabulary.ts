@@ -13,6 +13,7 @@ export function useVocabulary() {
   // Load from Supabase on mount or when user changes
   useEffect(() => {
     if (!user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setVocabWords([]);
       setIsLoaded(true);
       return;

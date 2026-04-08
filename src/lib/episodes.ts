@@ -5,6 +5,7 @@ import type { Episode, EpisodeListItem } from "./types";
 function loadEpisodes(): Episode[] {
   const filePath = path.join(process.cwd(), "episodes.json");
   const raw = fs.readFileSync(filePath, "utf-8");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const data = JSON.parse(raw) as any[];
 
   const episodesMap = new Map<number, Episode>();

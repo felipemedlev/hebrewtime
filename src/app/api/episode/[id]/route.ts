@@ -1,5 +1,12 @@
 import { NextResponse } from "next/server";
-import { getEpisode } from "@/lib/episodes";
+import { getEpisode, getAllEpisodesList } from "@/lib/episodes";
+
+export async function generateStaticParams() {
+  const episodes = getAllEpisodesList();
+  return episodes.map((ep) => ({
+    id: ep.episode.toString(),
+  }));
+}
 
 export async function GET(
   _request: Request,

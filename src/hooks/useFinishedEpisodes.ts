@@ -14,9 +14,10 @@ export function useFinishedEpisodes() {
       try {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed)) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
           setFinishedEpisodes(new Set(parsed));
         }
-      } catch (e) {
+      } catch {
         // ignore
       }
     }

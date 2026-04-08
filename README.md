@@ -45,7 +45,7 @@ This project is built with **Next.js 16** (App Router) and **React 19**, focusin
 Following a recent refactor, the app utilizes Next.js Server Components and dynamic API routes for optimal performance:
 
 - **Server-Side Data Layer (`src/lib/episodes.ts`)**: Loads the 1.4MB `episodes.json` dataset directly from the filesystem on the server, ensuring the client bundle remains tiny.
-- **Dynamic API Routes (`/api/episode/[id]/route.ts`)**: Client fetches full episode data on demand when navigating between episodes.
+- **Dynamic API Routes (`/api/episode/[id]/route.ts`)**: Statically generates all episode endpoints at build time using `generateStaticParams`, eliminating runtime file system reads and providing instant JSON responses when navigating between episodes.
 - **Component Breakdown (`src/components/`)**:
   - `AppShell.tsx`: The main responsive client wrapper managing state/layout, view gating, sticky $10/month subscription prompts for blocked premium actions, and the English blur toggle state.
   - `Sidebar.tsx`: Navigation, search, and tab switching.
