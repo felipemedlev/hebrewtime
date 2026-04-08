@@ -19,6 +19,7 @@ export type VocabWord = {
   wordWithNekudot?: string;
   verbFormWithNekudot?: string;
   translation: string;
+  pronunciation?: string;
   episodeTitle: string;
   episodeUrl: string;
   savedAt: number;

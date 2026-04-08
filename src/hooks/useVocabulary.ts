@@ -33,6 +33,7 @@ export function useVocabulary() {
               wordWithNekudot: d.word_with_nekudot,
               verbFormWithNekudot: d.verb_form_with_nekudot,
               translation: d.translation,
+              pronunciation: d.pronunciation,
               episodeTitle: d.episode_title,
               episodeUrl: d.episode_url,
               savedAt: d.saved_at,
@@ -80,6 +81,7 @@ export function useVocabulary() {
           word_with_nekudot: word.wordWithNekudot || null,
           verb_form_with_nekudot: word.verbFormWithNekudot || null,
           translation: word.translation,
+          pronunciation: word.pronunciation || null,
           episode_title: word.episodeTitle,
           episode_url: word.episodeUrl,
           saved_at: newWord.savedAt,
@@ -141,6 +143,7 @@ export function useVocabulary() {
       if (updates.wordWithNekudot !== undefined) dbUpdates.word_with_nekudot = updates.wordWithNekudot || null;
       if (updates.verbFormWithNekudot !== undefined) dbUpdates.verb_form_with_nekudot = updates.verbFormWithNekudot || null;
       if (updates.translation !== undefined) dbUpdates.translation = updates.translation;
+      if (updates.pronunciation !== undefined) dbUpdates.pronunciation = updates.pronunciation || null;
       if (updates.episodeTitle !== undefined) dbUpdates.episode_title = updates.episodeTitle;
       if (updates.episodeUrl !== undefined) dbUpdates.episode_url = updates.episodeUrl;
 

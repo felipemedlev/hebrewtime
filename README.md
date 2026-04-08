@@ -88,6 +88,7 @@ CREATE TABLE IF NOT EXISTS public.vocabulary (
   word_with_nekudot TEXT,
   verb_form_with_nekudot TEXT,
   translation TEXT NOT NULL,
+  pronunciation TEXT,
   episode_title TEXT,
   episode_url TEXT,
   saved_at BIGINT

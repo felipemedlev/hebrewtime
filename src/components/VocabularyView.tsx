@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Bookmark, Trash2, LogIn, Edit2, Check, X, ExternalLink } from "lucide-react";
 import type { VocabWord } from "@/lib/types";
 import { useUser } from "@/hooks/useUser";
@@ -24,11 +24,46 @@ export default function VocabularyView({
     wordWithNekudot: string;
     verbFormWithNekudot: string;
     translation: string;
+    pronunciation: string;
   }>({
     wordWithNekudot: "",
     verbFormWithNekudot: "",
     translation: "",
+    pronunciation: "",
   });
+
+  const [selectedChapter, setSelectedChapter] = useState<string>("All Chapters");
+  const [sortBy, setSortBy] = useState<"date" | "episode" | "translation" | "hebrew">("date");
+
+  const chapters = useMemo(() => {
+    const list = new Set(vocabWords.map((v) => v.episodeTitle).filter(Boolean));
+    return ["All Chapters", ...Array.from(list)];
+  }, [vocabWords]);
+
+  const filteredAndSortedWords = useMemo(() => {
+    let result = [...vocabWords];
+
+    if (selectedChapter !== "All Chapters") {
+      result = result.filter((v) => v.episodeTitle === selectedChapter);
+    }
+
+    result.sort((a, b) => {
+      if (sortBy === "date") {
+        return b.savedAt - a.savedAt;
+      } else if (sortBy === "episode") {
+        return (a.episodeTitle || "").localeCompare(b.episodeTitle || "");
+      } else if (sortBy === "translation") {
+        return a.translation.localeCompare(b.translation);
+      } else if (sortBy === "hebrew") {
+        const wordA = a.wordWithNekudot || a.word || "";
+        const wordB = b.wordWithNekudot || b.word || "";
+        return wordA.localeCompare(wordB, "he");
+      }
+      return 0;
+    });
+
+    return result;
+  }, [vocabWords, selectedChapter, sortBy]);
 
   const startEdit = (vw: VocabWord) => {
     setEditingId(vw.id);
@@ -36,6 +71,7 @@ export default function VocabularyView({
       wordWithNekudot: vw.wordWithNekudot || vw.word || "",
       verbFormWithNekudot: vw.verbFormWithNekudot || "",
       translation: vw.translation || "",
+      pronunciation: vw.pronunciation || "",
     });
   };
 
@@ -47,6 +83,7 @@ export default function VocabularyView({
         wordWithNekudot: editValues.wordWithNekudot,
         verbFormWithNekudot: editValues.verbFormWithNekudot,
         translation: editValues.translation,
+        pronunciation: editValues.pronunciation,
       });
     }
     setEditingId(null);
@@ -62,6 +99,46 @@ export default function VocabularyView({
             <span className="vocab-count-badge">{vocabWords.length}</span>
           )}
         </div>
+
+        {vocabWords.length > 0 && (
+          <div style={{ display: "flex", gap: "12px", marginTop: "16px", flexWrap: "wrap" }}>
+            <select
+              value={selectedChapter}
+              onChange={(e) => setSelectedChapter(e.target.value)}
+              style={{
+                padding: "6px 28px 6px 12px",
+                borderRadius: "8px",
+                border: "1px solid var(--border)",
+                background: "var(--surface)",
+                fontSize: "13px",
+                cursor: "pointer",
+                outline: "none",
+                appearance: "auto"
+              }}
+            >
+              {chapters.map(ch => <option key={ch} value={ch}>{ch}</option>)}
+            </select>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              style={{
+                padding: "6px 28px 6px 12px",
+                borderRadius: "8px",
+                border: "1px solid var(--border)",
+                background: "var(--surface)",
+                fontSize: "13px",
+                cursor: "pointer",
+                outline: "none",
+                appearance: "auto"
+              }}
+            >
+              <option value="date">Sort by Date Added</option>
+              <option value="episode">Sort by Episode</option>
+              <option value="translation">Sort by English (A-Z)</option>
+              <option value="hebrew">Sort by Hebrew (א-ת)</option>
+            </select>
+          </div>
+        )}
         {vocabWords.length > 0 && (
           <p className="vocab-page-subtitle">Your saved Hebrew words</p>
         )}
@@ -94,9 +171,10 @@ export default function VocabularyView({
         <div className="vocab-table-wrap">
           {/* ── Desktop Table ── */}
           <div className="vocab-table">
-            {/* Header — columns: Source | Translation | Verb | Hebrew | Actions */}
+            {/* Header — columns: Source | Pronunciation | Translation | Verb | Hebrew | Actions */}
             <div className="vocab-table-header">
               <div className="vth-source">Source</div>
+              <div className="vth-pronunciation">Pronunc.</div>
               <div className="vth-translation">Translation</div>
               <div className="vth-verb">Verb form</div>
               <div className="vth-hebrew">Hebrew</div>
@@ -104,7 +182,7 @@ export default function VocabularyView({
             </div>
 
             {/* Rows */}
-            {vocabWords.map((vw, i) => {
+            {filteredAndSortedWords.map((vw, i) => {
               const isEditing = editingId === vw.id;
               return (
                 <div
@@ -126,6 +204,26 @@ export default function VocabularyView({
                       </a>
                     ) : (
                       <span className="vocab-dash">{vw.episodeTitle || "—"}</span>
+                    )}
+                  </div>
+
+                  {/* Pronunciation */}
+                  <div className="vtd-pronunciation">
+                     {isEditing ? (
+                      <input
+                        value={editValues.pronunciation}
+                        onChange={(e) => setEditValues({ ...editValues, pronunciation: e.target.value })}
+                        onKeyDown={(e) => e.key === "Enter" && saveEdit(vw.id)}
+                        className="vocab-edit-input"
+                        style={{ fontSize: "14px", width: "100%", maxWidth: "120px" }}
+                        placeholder="Pronunciation"
+                      />
+                    ) : vw.pronunciation ? (
+                      <span className="vocab-pronunciation-text" style={{ fontStyle: "italic", opacity: 0.8 }}>
+                        {vw.pronunciation}
+                      </span>
+                    ) : (
+                      <span className="vocab-dash">—</span>
                     )}
                   </div>
 
@@ -210,7 +308,7 @@ export default function VocabularyView({
 
           {/* ── Mobile Cards ── */}
           <div className="vocab-cards">
-            {vocabWords.map((vw) => {
+            {filteredAndSortedWords.map((vw) => {
               const isEditing = editingId === vw.id;
               return (
                 <div key={vw.id} className={`vocab-card-item${isEditing ? " editing" : ""}`}>
@@ -270,7 +368,7 @@ export default function VocabularyView({
                     </div>
                   </div>
 
-                  {/* Translation */}
+                  {/* Translation & Pronunciation */}
                   <div className="vocab-card-translation">
                     {isEditing ? (
                       <input
@@ -278,11 +376,27 @@ export default function VocabularyView({
                         onChange={(e) => setEditValues({ ...editValues, translation: e.target.value })}
                         onKeyDown={(e) => e.key === "Enter" && saveEdit(vw.id)}
                         className="vocab-edit-input"
-                        style={{ fontSize: "14px" }}
+                        style={{ fontSize: "14px", width: "100%", marginBottom: "8px" }}
+                        placeholder="Translation"
                       />
                     ) : (
-                      <span>{vw.translation}</span>
+                      <span style={{ display: "block", marginBottom: vw.pronunciation ? "4px" : "0" }}>{vw.translation}</span>
                     )}
+
+                    {isEditing ? (
+                      <input
+                        value={editValues.pronunciation}
+                        onChange={(e) => setEditValues({ ...editValues, pronunciation: e.target.value })}
+                        onKeyDown={(e) => e.key === "Enter" && saveEdit(vw.id)}
+                        className="vocab-edit-input"
+                        style={{ fontSize: "13px" }}
+                        placeholder="Pronunciation"
+                      />
+                    ) : vw.pronunciation ? (
+                      <span className="vocab-pronunciation-text" style={{ fontStyle: "italic", opacity: 0.8, fontSize: "13px", display: "block" }}>
+                        {vw.pronunciation}
+                      </span>
+                    ) : null}
                   </div>
 
                   {/* Source */}
