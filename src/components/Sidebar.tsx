@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Search, BookOpen, Bookmark, X, LogOut, LogIn } from "lucide-react";
+import { Search, BookOpen, Bookmark, X, LogOut, LogIn, CheckCircle } from "lucide-react";
 import type { EpisodeListItem } from "@/lib/types";
 import { useUser } from "@/hooks/useUser";
 import { supabase } from "@/lib/supabase";
@@ -20,6 +20,7 @@ type SidebarProps = {
   isAdmin?: boolean;
   isLoadingEntitlements?: boolean;
   onOpenAdminModal?: () => void;
+  finishedEpisodes: Set<number>;
 };
 
 export default function Sidebar({
@@ -36,6 +37,7 @@ export default function Sidebar({
   isAdmin = false,
   isLoadingEntitlements = false,
   onOpenAdminModal,
+  finishedEpisodes,
 }: SidebarProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const { user } = useUser();
@@ -126,6 +128,9 @@ export default function Sidebar({
                     .split("-")[0]
                     .trim()}
                 </span>
+                {finishedEpisodes.has(ep.episode) && (
+                  <CheckCircle size={14} style={{ marginLeft: "auto", color: "#10b981", flexShrink: 0 }} />
+                )}
               </button>
             ))}
             {filteredEpisodes.length === 0 && (

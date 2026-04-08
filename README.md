@@ -8,6 +8,8 @@ The application allows intermediate Hebrew learners to read podcast transcripts 
 
 - **Bilingual Interface**: Smooth side-by-side Hebrew and English paragraphs.
 - **Focus Mode for Hebrew Reading**: A top-bar toggle lets users blur all English transcript text on demand, so learners can practice Hebrew-first reading. The preference is saved in local storage.
+- **Mark Episodes as Finished**: Users can mark episodes they've completed. This state is synced to the Supabase database for authenticated users (and stored in local storage) and represented by a green checkmark in the sidebar and an elegant button at the end of the episode text.
+- **Scroll Position Persistence**: The application intelligently remembers your exact scroll position when navigating between your current episode and the vocabulary list, ensuring a seamless learning experience without losing your place.
 - **Premium-gated AI Translation**: Click any Hebrew word to translate it within the context of the sentence using OpenAI (gpt-5.4-mini). A specially tuned prompt ensures:
   - 100% grammatically correct Nekudot vocalization based on the exact contextual meaning.
   - The stored word is always the **base dictionary form (lemma)** — prefixes like ה (the), ל (to), ב (in), מ (from), ו (and), כ (as) are automatically stripped.
@@ -54,6 +56,7 @@ Following a recent refactor, the app utilizes Next.js Server Components and dyna
 - **Custom Hooks (`src/hooks/`)**:
   - `useVocabulary.ts`: Manages syncing vocabulary to Supabase based on the user's login state.
   - `useUser.ts`: Subscribes to Supabase auth events to track logged-in users.
+  - `useFinishedEpisodes.ts`: Manages the state of read matching in local storage, powering the UI checkmarks across the app.
 
 ## Setup & Local Development
 
@@ -108,6 +111,17 @@ ON public.premium_users
 FOR SELECT
 TO authenticated
 USING (true);
+
+CREATE TABLE IF NOT EXISTS public.finished_episodes (
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  episode_number INTEGER NOT NULL,
+  finished_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, episode_number)
+);
+ALTER TABLE public.finished_episodes ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can view own finished episodes" ON public.finished_episodes FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own finished episodes" ON public.finished_episodes FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can delete own finished episodes" ON public.finished_episodes FOR DELETE USING (auth.uid() = user_id);
 ```
 
 Optional helper trigger (keeps `updated_at` current on updates):

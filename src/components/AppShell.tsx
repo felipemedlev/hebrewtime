@@ -13,6 +13,7 @@ import { useUser } from "@/hooks/useUser";
 import { useEntitlements } from "@/hooks/useEntitlements";
 import { supabase } from "@/lib/supabase";
 import AdminPremiumModal from "./AdminPremiumModal";
+import { useFinishedEpisodes } from "@/hooks/useFinishedEpisodes";
 
 type AppShellProps = {
   episodeList: EpisodeListItem[];
@@ -36,11 +37,16 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
   const [isEnglishBlurred, setIsEnglishBlurred] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
+  const [scrollPositions, setScrollPositions] = useState<Record<string, number>>({
+    episodes: 0,
+    vocabulary: 0,
+  });
 
   const mainRef = useRef<HTMLElement>(null);
   const { vocabWords, addWord, deleteWord, updateWord } = useVocabulary();
   const { user } = useUser();
   const { entitlements, isLoading: isLoadingEntitlements, refresh: refreshEntitlements } = useEntitlements();
+  const { finishedEpisodes, toggleFinished } = useFinishedEpisodes();
 
   // Responsive
   useEffect(() => {
@@ -116,23 +122,48 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
     []
   );
 
+  const effectiveViewMode =
+    viewMode === "vocabulary" && !entitlements.isPremium && !isLoadingEntitlements ? "episodes" : viewMode;
+
   const handleChangeViewMode = useCallback(
     (mode: "episodes" | "vocabulary") => {
       if (mode === "vocabulary" && !entitlements.isPremium && !isLoadingEntitlements) {
         showSubscriptionPrompt("vocabulary");
         return;
       }
+      
+      if (mainRef.current) {
+        const currentScroll = mainRef.current.scrollTop;
+        setScrollPositions((prev: Record<string, number>) => ({
+          ...prev,
+          [effectiveViewMode]: currentScroll
+        }));
+      }
+
       setViewMode(mode);
     },
-    [entitlements.isPremium, isLoadingEntitlements, showSubscriptionPrompt]
+    [entitlements.isPremium, isLoadingEntitlements, showSubscriptionPrompt, effectiveViewMode]
   );
-  const effectiveViewMode =
-    viewMode === "vocabulary" && !entitlements.isPremium && !isLoadingEntitlements ? "episodes" : viewMode;
+
+  useEffect(() => {
+    if (mainRef.current) {
+      // Use a timeout to ensure the new view has rendered its content
+      setTimeout(() => {
+        if (mainRef.current) {
+          mainRef.current.scrollTop = scrollPositions[effectiveViewMode] || 0;
+        }
+      }, 10);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveViewMode]);
 
   const navigateToEpisode = useCallback(
     async (num: number) => {
       setCurrentEpNum(num);
       if (isMobile) setIsSidebarOpen(false);
+
+      // Reset scroll position for episodes when navigating to a new episode
+      setScrollPositions((prev: Record<string, number>) => ({ ...prev, episodes: 0 }));
 
       // Fetch episode data dynamically
       try {
@@ -182,6 +213,7 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
         isLoadingEntitlements={isLoadingEntitlements}
         isAdmin={entitlements.isAdmin}
         onOpenAdminModal={() => setIsAdminModalOpen(true)}
+        finishedEpisodes={finishedEpisodes}
       />
 
       <main className="main-content" ref={mainRef}>
@@ -312,6 +344,8 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
               onRequireAuth={() => setIsAuthModalOpen(true)}
               onRequireSubscription={() => showSubscriptionPrompt("translation")}
               isEnglishBlurred={isEnglishBlurred}
+              isFinished={finishedEpisodes.has(episode.episode)}
+              onToggleFinished={() => toggleFinished(episode.episode)}
             />
           </div>
         )}

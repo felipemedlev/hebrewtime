@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, ChevronLeft, ChevronRight } from "lucide-react";
+import { ExternalLink, ChevronLeft, ChevronRight, CheckCircle } from "lucide-react";
 import type { Episode } from "@/lib/types";
 import { translateWord } from "@/app/actions";
 import { useState } from "react";
@@ -27,6 +27,8 @@ type EpisodeViewerProps = {
   onRequireSubscription: () => void;
   isLoadingEntitlements: boolean;
   isEnglishBlurred: boolean;
+  isFinished: boolean;
+  onToggleFinished: () => void;
 };
 
 type ModalState = {
@@ -54,6 +56,8 @@ export default function EpisodeViewer({
   onRequireSubscription,
   isLoadingEntitlements,
   isEnglishBlurred,
+  isFinished,
+  onToggleFinished,
 }: EpisodeViewerProps) {
   const [modal, setModal] = useState<ModalState>({
     isOpen: false,
@@ -156,6 +160,26 @@ export default function EpisodeViewer({
           <a href={episode.url} target="_blank" rel="noopener noreferrer">
             Original Post <ExternalLink size={12} />
           </a>
+          <span>•</span>
+          <button 
+            onClick={onToggleFinished}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: isFinished ? "#10b981" : "var(--text-muted)",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
+              padding: 0,
+              fontSize: "14px",
+              fontFamily: "inherit",
+              fontWeight: 500,
+            }}
+          >
+            <CheckCircle size={14} />
+            {isFinished ? "Finished" : "Mark as finished"}
+          </button>
         </div>
       </div>
 
@@ -201,6 +225,30 @@ export default function EpisodeViewer({
             </div>
           );
         })}
+
+        <div style={{ display: "flex", justifyContent: "center", margin: "2rem 0" }}>
+          <button 
+            onClick={onToggleFinished}
+            style={{
+              background: isFinished ? "rgba(16, 185, 129, 0.1)" : "var(--bg-secondary)",
+              border: `1px solid ${isFinished ? "rgba(16, 185, 129, 0.3)" : "var(--border-color)"}`,
+              color: isFinished ? "#10b981" : "var(--text-primary)",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "12px 24px",
+              borderRadius: "24px",
+              fontSize: "16px",
+              fontFamily: "inherit",
+              fontWeight: 500,
+              transition: "all 0.2s ease",
+            }}
+          >
+            <CheckCircle size={20} />
+            {isFinished ? "Episode Finished" : "Mark as finished"}
+          </button>
+        </div>
 
         <div className="nav-controls">
           <button
