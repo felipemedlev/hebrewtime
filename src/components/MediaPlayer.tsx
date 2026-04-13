@@ -107,13 +107,17 @@ export default function MediaPlayer({
     setIsScrubbing(true);
   }, []);
 
-  const handleSeekCommit = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const time = Number(e.target.value);
+  const handlePointerUp = useCallback(() => {
     const audio = audioRef.current;
-    if (audio) audio.currentTime = time;
-    setCurrentTime(time);
+    const seekInput = seekRef.current;
+    if (audio && seekInput) {
+      const time = Number(seekInput.value);
+      audio.currentTime = time;
+      setCurrentTime(time);
+    }
     setScrubPreviewTime(null);
     setIsScrubbing(false);
+    setFineScrubMode(false);
   }, []);
 
   // ── Fine-scrub (long-press on iOS) ─────────────────────────────────────
@@ -181,7 +185,6 @@ export default function MediaPlayer({
       {/* Hidden native audio element for playback control */}
       <audio
         ref={audioRef}
-        key={audioUrl}
         src={resolvedUrl}
         preload="metadata"
         style={{ display: "none" }}
@@ -252,8 +255,8 @@ export default function MediaPlayer({
                 step={0.1}
                 value={currentTime}
                 onChange={handleSeekChange}
-                onMouseDown={handleSeekStart}
-                onMouseUp={(e) => handleSeekCommit(e as unknown as React.ChangeEvent<HTMLInputElement>)}
+                onPointerDown={handleSeekStart}
+                onPointerUp={handlePointerUp}
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}
