@@ -1090,6 +1090,9 @@ html, body {
     transform: translateX(0);
     visibility: visible;
   }
+  .sidebar {
+    overscroll-behavior: none;
+  }
   .sidebar.closed {
     transform: translateX(-100%);
     width: 320px; /* Keep standard width for smooth slide */
@@ -1097,11 +1100,13 @@ html, body {
   }
 
   .ep-list {
-    padding-bottom: 30px; /* Allow reaching bottom episodes behind media player */
+    padding-bottom: 140px; /* Allow reaching bottom episodes behind media player */
+    overscroll-behavior-y: none;
   }
 
   .app-container.mobile-sidebar-open .main-content {
     overflow: hidden; /* Prevent scrolling main content through overlay */
+    pointer-events: none; /* Bulletproof prevention of touch bleed to main content */
   }
 
   .close-mobile-btn {
