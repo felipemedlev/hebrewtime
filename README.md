@@ -30,6 +30,7 @@ The application allows intermediate Hebrew learners to read podcast transcripts 
   - **Precision scrub mode**: Long-pressing (300 ms) on the seek bar activates a fine-scrub mode where 1 px of finger movement equals ~10× less time change than a normal swipe, enabling frame-accurate positioning. A 🔍 badge and hint text confirm when the mode is active.
   - **Custom play/pause and mute controls** with animated press feedback, eliminating the cramped native browser chrome.
   - **Live time display** (elapsed / total) that updates in real-time while scrubbing.
+  - **Responsive layout integration**: The player seamlessly aligns with the main content area, automatically syncing its width and animations with the sidebar to avoid overlap on desktop.
 - **Responsive Design**: Elegant slide-out sidebar for mobile devices.
 - **Automated Scraping**: Python script to scrape episode transcripts from Squarespace and auto-translate missing English sections via OpenAI.
 

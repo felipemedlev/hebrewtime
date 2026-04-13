@@ -359,6 +359,7 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
         audioUrl={episode?.audio_url ?? null}
         episodeTitle={episode?.title ?? null}
         episodeNum={episode?.episode ?? null}
+        isSidebarOpen={isSidebarOpen}
       />
 
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />

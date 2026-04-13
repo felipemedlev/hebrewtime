@@ -7,6 +7,7 @@ type MediaPlayerProps = {
   audioUrl: string | null;
   episodeTitle: string | null;
   episodeNum: number | null;
+  isSidebarOpen?: boolean;
 };
 
 function formatTime(seconds: number): string {
@@ -22,6 +23,7 @@ export default function MediaPlayer({
   audioUrl,
   episodeTitle,
   episodeNum,
+  isSidebarOpen = false,
 }: MediaPlayerProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -181,7 +183,7 @@ export default function MediaPlayer({
     : audioUrl;
 
   return (
-    <div className={`media-player-bar ${isExpanded ? "expanded" : "collapsed"}`}>
+    <div className={`media-player-bar ${isExpanded ? "expanded" : "collapsed"} ${isSidebarOpen ? "sidebar-open" : ""}`}>
       {/* Hidden native audio element for playback control */}
       <audio
         ref={audioRef}
