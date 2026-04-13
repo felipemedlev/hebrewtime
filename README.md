@@ -27,11 +27,11 @@ The application allows intermediate Hebrew learners to read podcast transcripts 
 - **Admin Premium Controls**: Admin users can grant/revoke premium access by email from an in-app admin modal.
 - **Precision Audio Player**: Persistent bottom audio player with a fully custom UI built on top of HTML5 `<audio>` for reliable cross-platform playback (supports both direct `.mp3` files and Google Drive fallbacks). Key improvements for mobile:
   - **Large-touch-target seek bar**: The scrub thumb is 28 px on mobile (vs the browser default of ~6 px), making it easy to tap and drag on iPhone without misses.
-  - **Precision scrub mode**: Long-pressing (300 ms) on the seek bar activates a fine-scrub mode where 1 px of finger movement equals ~10× less time change than a normal swipe, enabling frame-accurate positioning. A 🔍 badge and hint text confirm when the mode is active.
+  - **Precision scrub mode**: Long-pressing (300 ms) on the seek bar activates a fine-scrub mode where 1 px of finger movement equals ~10× less time change than a normal swipe, enabling frame-accurate positioning. Native browser range events (`touchmove` default behavior and `onChange`) are dynamically intercepted via Ref-based event listeners (`passive: false`) to prevent erratic slider jumping and ensure perfectly smooth frame tracking. A 🔍 badge and hint text confirm when the mode is active.
   - **Custom play/pause and mute controls** with animated press feedback, eliminating the cramped native browser chrome.
   - **Live time display** (elapsed / total) that updates in real-time while scrubbing.
   - **Responsive layout integration**: The player seamlessly aligns with the main content area, automatically syncing its width and animations with the sidebar to avoid overlap on desktop.
-- **Responsive Design**: Elegant slide-out sidebar for mobile devices.
+- **Responsive Design**: Elegant slide-out sidebar for mobile devices. Incorporates robust scroll-bleed prevention by utilizing `overscroll-behavior: none` alongside dynamic `pointer-events: none` isolation on the main content layer. This creates a "glass wall" that mathematically guarantees iOS Safari cannot chain-scroll the background while operating the menu or passing native hitboxes under the dynamically padded Media Player.
 - **Automated Scraping**: Python script to scrape episode transcripts from Squarespace and auto-translate missing English sections via OpenAI.
 
 ## Architecture & Tech Stack
