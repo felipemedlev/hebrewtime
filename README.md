@@ -25,7 +25,11 @@ The application allows intermediate Hebrew learners to read podcast transcripts 
   - Smart deduplication logic allows saving the exact same Hebrew word multiple times if its contextual meaning (translation) or pronunciation (Nekudot) differs.
 - **Top-of-Screen Subscription Upsell (Apple/Notion Style)**: If a non-premium user clicks the Vocabulary tab or selects a word, the app shows a large sticky promo panel with $10/month messaging and a CTA that opens auth/signup.
 - **Admin Premium Controls**: Admin users can grant/revoke premium access by email from an in-app admin modal.
-- **Native Audio Player**: Persistent bottom audio player utilizing HTML5 `<audio>` for seamless listening, scrubbing, and pausing (supports both direct `.mp3` files and Google Drive fallbacks).
+- **Precision Audio Player**: Persistent bottom audio player with a fully custom UI built on top of HTML5 `<audio>` for reliable cross-platform playback (supports both direct `.mp3` files and Google Drive fallbacks). Key improvements for mobile:
+  - **Large-touch-target seek bar**: The scrub thumb is 28 px on mobile (vs the browser default of ~6 px), making it easy to tap and drag on iPhone without misses.
+  - **Precision scrub mode**: Long-pressing (300 ms) on the seek bar activates a fine-scrub mode where 1 px of finger movement equals ~10× less time change than a normal swipe, enabling frame-accurate positioning. A 🔍 badge and hint text confirm when the mode is active.
+  - **Custom play/pause and mute controls** with animated press feedback, eliminating the cramped native browser chrome.
+  - **Live time display** (elapsed / total) that updates in real-time while scrubbing.
 - **Responsive Design**: Elegant slide-out sidebar for mobile devices.
 - **Automated Scraping**: Python script to scrape episode transcripts from Squarespace and auto-translate missing English sections via OpenAI.
 
@@ -245,6 +249,6 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 - `/src/app/actions.ts` - Server actions for premium checks, admin premium management, and `translateWord` communication with OpenAI.
 - `/src/app/update-password/page.tsx` - Password reset callback (verify OTP + update password).
 - `/src/app/api/audio/route.ts` - Internal proxy to bypass Google Drive's audio streaming restrictions.
-- `/src/components/MediaPlayer.tsx` - Sticky native HTML5 audio bar.
+- `/src/components/MediaPlayer.tsx` - Custom bottom audio player with large-touch-target seek bar and precision scrub mode for mobile.
 - `/src/components/AdminPremiumModal.tsx` - Admin-only UI to grant/revoke premium by email.
 - `/src/app/globals.css` - The design system defining colors, typography, layout, and animations.

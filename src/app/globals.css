@@ -1186,21 +1186,21 @@ html, body {
   left: 0;
   right: 0;
   z-index: 500;
-  background: rgba(255, 255, 255, 0.96);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border-top: 1px solid var(--border);
   box-shadow: 0 -4px 32px rgba(0, 0, 0, 0.08);
-  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: height 0.35s cubic-bezier(0.16, 1, 0.3, 1);
   overflow: hidden;
 }
 
-/* Expanded: header + native audio control */
+/* Expanded — header + controls */
 .media-player-bar.expanded {
-  height: 100px;
+  height: 108px;
 }
 
-/* Collapsed: just the header strip */
+/* Collapsed — header strip only */
 .media-player-bar.collapsed {
   height: 48px;
 }
@@ -1234,8 +1234,8 @@ html, body {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: var(--accent);
-  color: #fff;
+  background: var(--surface-hover);
+  color: var(--text-muted);
   flex-shrink: 0;
 }
 
@@ -1250,7 +1250,7 @@ html, body {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.06em;
-  color: var(--accent);
+  color: var(--text-muted);
   text-transform: uppercase;
   white-space: nowrap;
   flex-shrink: 0;
@@ -1283,32 +1283,269 @@ html, body {
   color: var(--text-main);
 }
 
-/* Audio player body */
+/* ── Custom controls body ── */
 .media-player-body {
   display: flex;
   align-items: center;
-  padding: 0 16px 10px 16px;
-  height: calc(100px - 48px);
+  padding: 0 12px 10px 12px;
+  gap: 8px;
+  height: calc(108px - 48px);
 }
 
-/* Native <audio> element — full width, custom accent */
-.media-audio {
-  width: 100%;
+/* Play / Pause button */
+.mp-play-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
   height: 40px;
-  accent-color: var(--accent);
-  border-radius: 8px;
-  outline: none;
+  border-radius: 50%;
+  background: var(--text-main);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 0.15s, background 0.15s;
+  box-shadow: none;
+}
+.mp-play-btn:hover {
+  transform: scale(1.06);
+  background: #333;
+}
+.mp-play-btn:active {
+  transform: scale(0.95);
 }
 
-/* Mobile: keep same compact size */
+/* Mute button */
+.mp-mute-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+.mp-mute-btn:hover {
+  background: rgba(0,0,0,0.05);
+  color: var(--text-main);
+}
+
+/* Seek group: time labels + slider */
+.mp-seek-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mp-time-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 2px;
+}
+
+.mp-time {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.mp-fine-badge {
+  font-size: 10px;
+}
+
+/* Slider track wrapper — provides the visual fill bar */
+.mp-seek-track-wrap {
+  position: relative;
+  height: 20px;        /* tall hit target */
+  display: flex;
+  align-items: center;
+  border-radius: 99px;
+  transition: height 0.2s ease;
+}
+
+/* Fine-scrub mode: expand track for visual feedback */
+.mp-seek-track-wrap.fine-scrub-active {
+  height: 28px;
+}
+.mp-seek-track-wrap.fine-scrub-active .mp-seek-fill {
+  height: 6px;
+}
+.mp-seek-track-wrap.fine-scrub-active .mp-seek-input::-webkit-slider-thumb {
+  width: 28px;
+  height: 28px;
+  box-shadow: 0 0 0 4px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.2);
+}
+.mp-seek-track-wrap.fine-scrub-active .mp-seek-input::-moz-range-thumb {
+  width: 28px;
+  height: 28px;
+  box-shadow: 0 0 0 4px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.2);
+}
+
+/* Progress fill bar (decorative, behind the range input) */
+.mp-seek-fill {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 4px;
+  background: var(--text-main);
+  border-radius: 99px;
+  pointer-events: none;
+  transition: width 0.05s linear, height 0.2s ease;
+  max-width: 100%;
+}
+
+/* The range input — transparent track, styled thumb only */
+.mp-seek-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 1;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  outline: none;
+  border-radius: 99px;
+  /* Ensure browser track is fully transparent */
+}
+
+/* WebKit track */
+.mp-seek-input::-webkit-slider-runnable-track {
+  height: 4px;
+  background: rgba(0,0,0,0.1);
+  border-radius: 99px;
+}
+
+/* WebKit thumb — large touch target */
+.mp-seek-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #111;
+  cursor: pointer;
+  margin-top: calc(-11px + 2px); /* center on 4px track */
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  transition: width 0.2s ease, height 0.2s ease, box-shadow 0.2s ease;
+  /* Invisible padding for larger tap area */
+  border: 3px solid #fff;
+}
+
+/* Firefox track */
+.mp-seek-input::-moz-range-track {
+  height: 4px;
+  background: rgba(0,0,0,0.1);
+  border-radius: 99px;
+}
+
+/* Firefox thumb */
+.mp-seek-input::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #111;
+  border: 3px solid #fff;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  transition: width 0.2s ease, height 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Hover/focus thumb enlargement (desktop) */
+.mp-seek-input:hover::-webkit-slider-thumb,
+.mp-seek-input:focus::-webkit-slider-thumb {
+  width: 26px;
+  height: 26px;
+  margin-top: calc(-13px + 2px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+.mp-seek-input:hover::-moz-range-thumb,
+.mp-seek-input:focus::-moz-range-thumb {
+  width: 26px;
+  height: 26px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+
+/* Precision mode hint label */
+.mp-fine-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 500;
+  text-align: center;
+  letter-spacing: 0.01em;
+  opacity: 0.85;
+  padding-top: 1px;
+}
+
+/* Mobile overrides — bigger everything */
 @media (max-width: 800px) {
   .media-player-bar.expanded {
-    height: 100px;
+    height: 120px;
   }
   .media-player-body {
-    height: calc(100px - 48px);
+    height: calc(120px - 48px);
+    padding: 0 10px 12px 10px;
+    gap: 6px;
   }
   .main-content {
-    padding-bottom: 110px;
+    padding-bottom: 130px;
+  }
+  /* On mobile the thumb must be even larger for fat-finger accuracy */
+  .mp-seek-input::-webkit-slider-thumb {
+    width: 28px;
+    height: 28px;
+    margin-top: calc(-14px + 2px);
+    border: 3px solid #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  }
+  .mp-seek-input::-moz-range-thumb {
+    width: 28px;
+    height: 28px;
+  }
+  .mp-seek-track-wrap {
+    height: 28px;
+  }
+  .mp-seek-input::-webkit-slider-runnable-track {
+    height: 5px;
+  }
+  .mp-seek-input::-moz-range-track {
+    height: 5px;
+  }
+  .mp-seek-fill {
+    height: 5px;
+  }
+  /* Fine-scrub mode on mobile gets an even bigger thumb */
+  .mp-seek-track-wrap.fine-scrub-active {
+    height: 36px;
+  }
+  .mp-seek-track-wrap.fine-scrub-active .mp-seek-input::-webkit-slider-thumb {
+    width: 36px;
+    height: 36px;
+    margin-top: calc(-18px + 2.5px);
+  }
+  .mp-seek-track-wrap.fine-scrub-active .mp-seek-input::-moz-range-thumb {
+    width: 36px;
+    height: 36px;
+  }
+  .mp-play-btn {
+    width: 44px;
+    height: 44px;
   }
 }
