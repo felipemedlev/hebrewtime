@@ -40,6 +40,25 @@ export default function MediaPlayer({
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fineScrubAnchorX = useRef<number>(0);
   const fineScrubAnchorTime = useRef<number>(0);
+  const fineScrubModeRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    fineScrubModeRef.current = fineScrubMode;
+  }, [fineScrubMode]);
+
+  // Prevent native range slider jump during fine scrub
+  useEffect(() => {
+    const input = seekRef.current;
+    if (!input) return;
+    const preventNative = (e: TouchEvent) => {
+      if (fineScrubModeRef.current) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    input.addEventListener("touchmove", preventNative, { passive: false });
+    return () => input.removeEventListener("touchmove", preventNative);
+  }, []);
 
   // When episode changes, reset playback
   useEffect(() => {
@@ -100,6 +119,7 @@ export default function MediaPlayer({
 
   // Normal seek (desktop / coarse touch)
   const handleSeekChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    if (fineScrubModeRef.current) return;
     const time = Number(e.target.value);
     setCurrentTime(time);
     setScrubPreviewTime(time);
@@ -136,9 +156,11 @@ export default function MediaPlayer({
   const handleTouchStart = useCallback((e: React.TouchEvent<HTMLInputElement>) => {
     setIsScrubbing(true);
     const touch = e.touches[0];
+    fineScrubAnchorX.current = touch.clientX; // Store initial tap X so we can measure distance
+    
     // Start long-press timer → 300 ms activates fine-scrub mode
     longPressTimer.current = setTimeout(() => {
-      activateFineScrub(touch.clientX);
+      activateFineScrub(fineScrubAnchorX.current);
     }, 300);
   }, [activateFineScrub]);
 
@@ -154,8 +176,8 @@ export default function MediaPlayer({
       setCurrentTime(newTime);
       setScrubPreviewTime(newTime);
     }
-    // Non-fine mode: native range input handles it, clear long-press timer
-    if (longPressTimer.current) {
+    // Non-fine mode: cancel timer if they move too much before 300ms
+    if (longPressTimer.current && Math.abs(touch.clientX - fineScrubAnchorX.current) > 10) {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
     }

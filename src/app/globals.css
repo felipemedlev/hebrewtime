@@ -1095,7 +1095,15 @@ html, body {
     width: 320px; /* Keep standard width for smooth slide */
     opacity: 1; /* Slide out instead of fade out */
   }
-  
+
+  .ep-list {
+    padding-bottom: 30px; /* Allow reaching bottom episodes behind media player */
+  }
+
+  .app-container.mobile-sidebar-open .main-content {
+    overflow: hidden; /* Prevent scrolling main content through overlay */
+  }
+
   .close-mobile-btn {
     display: block;
   }

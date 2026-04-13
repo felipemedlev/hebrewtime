@@ -198,7 +198,7 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
   );
 
   return (
-    <div className="app-container">
+    <div className={`app-container ${isMobile && isSidebarOpen ? "mobile-sidebar-open" : ""}`}>
       <Sidebar
         episodes={episodeList}
         currentEpNum={currentEpNum}
