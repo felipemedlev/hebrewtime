@@ -31,34 +31,12 @@ export default function MediaPlayer({
   const [duration, setDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [isScrubbing, setIsScrubbing] = useState(false);
-  // Fine-scrub mode: long-press activates it on mobile for precision seeking
-  const [fineScrubMode, setFineScrubMode] = useState(false);
   const [scrubPreviewTime, setScrubPreviewTime] = useState<number | null>(null);
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const seekRef = useRef<HTMLInputElement>(null);
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const fineScrubAnchorX = useRef<number>(0);
-  const fineScrubAnchorTime = useRef<number>(0);
-  const fineScrubModeRef = useRef<boolean>(false);
 
-  useEffect(() => {
-    fineScrubModeRef.current = fineScrubMode;
-  }, [fineScrubMode]);
 
-  // Prevent native range slider jump during fine scrub
-  useEffect(() => {
-    const input = seekRef.current;
-    if (!input) return;
-    const preventNative = (e: TouchEvent) => {
-      if (fineScrubModeRef.current) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    };
-    input.addEventListener("touchmove", preventNative, { passive: false });
-    return () => input.removeEventListener("touchmove", preventNative);
-  }, []);
 
   // When episode changes, reset playback
   useEffect(() => {
@@ -69,7 +47,6 @@ export default function MediaPlayer({
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
-    setFineScrubMode(false);
     setScrubPreviewTime(null);
   }, [audioUrl]);
 
@@ -117,9 +94,7 @@ export default function MediaPlayer({
     setIsMuted(!isMuted);
   }, [isMuted]);
 
-  // Normal seek (desktop / coarse touch)
   const handleSeekChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    if (fineScrubModeRef.current) return;
     const time = Number(e.target.value);
     setCurrentTime(time);
     setScrubPreviewTime(time);
@@ -139,61 +114,9 @@ export default function MediaPlayer({
     }
     setScrubPreviewTime(null);
     setIsScrubbing(false);
-    setFineScrubMode(false);
   }, []);
 
-  // ── Fine-scrub (long-press on iOS) ─────────────────────────────────────
-  // When user long-presses the seek bar, activate fine-scrub mode.
-  // In this mode, horizontal finger movement maps to 10× slower time change,
-  // enabling very precise positioning without a thick thumb.
 
-  const activateFineScrub = useCallback((clientX: number) => {
-    setFineScrubMode(true);
-    fineScrubAnchorX.current = clientX;
-    fineScrubAnchorTime.current = currentTime;
-  }, [currentTime]);
-
-  const handleTouchStart = useCallback((e: React.TouchEvent<HTMLInputElement>) => {
-    setIsScrubbing(true);
-    const touch = e.touches[0];
-    fineScrubAnchorX.current = touch.clientX; // Store initial tap X so we can measure distance
-    
-    // Start long-press timer → 300 ms activates fine-scrub mode
-    longPressTimer.current = setTimeout(() => {
-      activateFineScrub(fineScrubAnchorX.current);
-    }, 300);
-  }, [activateFineScrub]);
-
-  const handleTouchMove = useCallback((e: React.TouchEvent<HTMLInputElement>) => {
-    const touch = e.touches[0];
-    if (fineScrubMode) {
-      // Fine-scrub: 1px = 0.1s (10× precision vs normal)
-      const deltaX = touch.clientX - fineScrubAnchorX.current;
-      const sliderWidth = seekRef.current?.clientWidth ?? 300;
-      // Normal: full slider width = duration. Fine: full slider width = duration/10
-      const secondsPerPx = duration / sliderWidth / 10;
-      const newTime = Math.max(0, Math.min(duration, fineScrubAnchorTime.current + deltaX * secondsPerPx));
-      setCurrentTime(newTime);
-      setScrubPreviewTime(newTime);
-    }
-    // Non-fine mode: cancel timer if they move too much before 300ms
-    if (longPressTimer.current && Math.abs(touch.clientX - fineScrubAnchorX.current) > 10) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-  }, [fineScrubMode, duration]);
-
-  const handleTouchEnd = useCallback(() => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-    const audio = audioRef.current;
-    if (audio) audio.currentTime = currentTime;
-    setScrubPreviewTime(null);
-    setIsScrubbing(false);
-    setFineScrubMode(false);
-  }, [currentTime]);
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
   const displayTime = scrubPreviewTime !== null ? scrubPreviewTime : currentTime;
@@ -258,14 +181,13 @@ export default function MediaPlayer({
             {/* Time labels */}
             <div className="mp-time-row">
               <span className="mp-time">
-                {fineScrubMode && <span className="mp-fine-badge">🔍</span>}
                 {formatTime(displayTime)}
               </span>
               <span className="mp-time mp-time-dur">{formatTime(duration)}</span>
             </div>
 
             {/* Seek bar */}
-            <div className={`mp-seek-track-wrap ${fineScrubMode ? "fine-scrub-active" : ""}`}>
+            <div className="mp-seek-track-wrap">
               <div
                 className="mp-seek-fill"
                 style={{ width: `${progress}%` }}
@@ -281,16 +203,9 @@ export default function MediaPlayer({
                 onChange={handleSeekChange}
                 onPointerDown={handleSeekStart}
                 onPointerUp={handlePointerUp}
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
                 aria-label="Seek"
               />
             </div>
-
-            {fineScrubMode && (
-              <div className="mp-fine-hint">Precision mode — slide slowly for exact time</div>
-            )}
           </div>
 
           {/* Mute */}

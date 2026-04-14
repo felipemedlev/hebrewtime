@@ -27,7 +27,6 @@ The application allows intermediate Hebrew learners to read podcast transcripts 
 - **Admin Premium Controls**: Admin users can grant/revoke premium access by email from an in-app admin modal.
 - **Precision Audio Player**: Persistent bottom audio player with a fully custom UI built on top of HTML5 `<audio>` for reliable cross-platform playback (supports both direct `.mp3` files and Google Drive fallbacks). Key improvements for mobile:
   - **Large-touch-target seek bar**: The scrub thumb is 28 px on mobile (vs the browser default of ~6 px), making it easy to tap and drag on iPhone without misses.
-  - **Precision scrub mode**: Long-pressing (300 ms) on the seek bar activates a fine-scrub mode where 1 px of finger movement equals ~10× less time change than a normal swipe, enabling frame-accurate positioning. Native browser range events (`touchmove` default behavior and `onChange`) are dynamically intercepted via Ref-based event listeners (`passive: false`) to prevent erratic slider jumping and ensure perfectly smooth frame tracking. A 🔍 badge and hint text confirm when the mode is active.
   - **Custom play/pause and mute controls** with animated press feedback, eliminating the cramped native browser chrome.
   - **Live time display** (elapsed / total) that updates in real-time while scrubbing.
   - **Responsive layout integration**: The player seamlessly aligns with the main content area, automatically syncing its width and animations with the sidebar to avoid overlap on desktop.
@@ -250,6 +249,6 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 - `/src/app/actions.ts` - Server actions for premium checks, admin premium management, and `translateWord` communication with OpenAI.
 - `/src/app/update-password/page.tsx` - Password reset callback (verify OTP + update password).
 - `/src/app/api/audio/route.ts` - Internal proxy to bypass Google Drive's audio streaming restrictions.
-- `/src/components/MediaPlayer.tsx` - Custom bottom audio player with large-touch-target seek bar and precision scrub mode for mobile.
+- `/src/components/MediaPlayer.tsx` - Custom bottom audio player with large-touch-target seek bar for mobile.
 - `/src/components/AdminPremiumModal.tsx` - Admin-only UI to grant/revoke premium by email.
 - `/src/app/globals.css` - The design system defining colors, typography, layout, and animations.
