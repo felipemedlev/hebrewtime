@@ -53,7 +53,7 @@ html, body {
 
 /* Sidebar */
 .sidebar {
-  width: 280px;
+  width: var(--sidebar-width, 280px);
   background: #fbfbfa;
   border-right: 1px solid var(--border);
   display: flex;
@@ -63,6 +63,23 @@ html, body {
   overflow: hidden;
   height: 100vh;
   z-index: 50;
+  position: relative;
+}
+
+.sidebar-resizer {
+  position: absolute;
+  top: 0;
+  right: -3px; /* Slightly overhang the border for easier grabbing */
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 60;
+  background: transparent;
+  transition: background 0.2s;
+}
+
+.sidebar-resizer:hover, .sidebar-resizer:active {
+  background: rgba(46, 142, 255, 0.3); /* Subtle blue indicator */
 }
 
 .sidebar.closed {
@@ -1209,7 +1226,7 @@ html, body {
 }
 
 .media-player-bar.sidebar-open {
-  left: 280px;
+  left: var(--sidebar-width, 280px);
 }
 
 /* Expanded — header + controls */

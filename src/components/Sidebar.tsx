@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { Search, BookOpen, Bookmark, X, LogOut, LogIn, CheckCircle } from "lucide-react";
 import type { EpisodeListItem } from "@/lib/types";
 import { useUser } from "@/hooks/useUser";
@@ -41,6 +41,52 @@ export default function Sidebar({
 }: SidebarProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const { user } = useUser();
+  const sidebarRef = useRef<HTMLElement>(null);
+  const isDragging = useRef(false);
+
+  // Initialize from local storage
+  useEffect(() => {
+    const savedWidth = localStorage.getItem("sidebarWidth");
+    if (savedWidth) {
+      document.documentElement.style.setProperty("--sidebar-width", `${savedWidth}px`);
+    }
+  }, []);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isDragging.current = true;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging.current) return;
+      let newWidth = e.clientX;
+      if (newWidth < 200) newWidth = 200; // min width
+      if (newWidth > 600) newWidth = 600; // max width
+      document.documentElement.style.setProperty("--sidebar-width", `${newWidth}px`);
+    };
+
+    const handleMouseUp = () => {
+      if (isDragging.current) {
+        isDragging.current = false;
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        const currentWidth = document.documentElement.style.getPropertyValue("--sidebar-width");
+        if (currentWidth) {
+          localStorage.setItem("sidebarWidth", currentWidth.replace("px", ""));
+        }
+      }
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -60,7 +106,8 @@ export default function Sidebar({
         onClick={onClose}
       />
 
-      <aside className={`sidebar ${!isSidebarOpen ? "closed" : ""}`}>
+      <aside className={`sidebar ${!isSidebarOpen ? "closed" : ""}`} ref={sidebarRef}>
+        <div className="sidebar-resizer" onMouseDown={handleMouseDown} />
         <div className="sidebar-header">
           <div className="sidebar-title">
             <div className="sidebar-title-left">

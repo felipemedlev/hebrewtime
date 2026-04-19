@@ -31,7 +31,7 @@ The application allows intermediate Hebrew learners to read podcast transcripts 
   - **Custom play/pause and mute controls** with animated press feedback, eliminating the cramped native browser chrome.
   - **Live time display** (elapsed / total) that updates in real-time while scrubbing.
   - **Responsive layout integration**: The player seamlessly aligns with the main content area, automatically syncing its width and animations with the sidebar to avoid overlap on desktop.
-- **Responsive Design**: Elegant slide-out sidebar for mobile devices. Incorporates robust scroll-bleed prevention by utilizing `overscroll-behavior: none` alongside dynamic `pointer-events: none` isolation on the main content layer. This creates a "glass wall" that mathematically guarantees iOS Safari cannot chain-scroll the background while operating the menu or passing native hitboxes under the dynamically padded Media Player.
+- **Responsive Workspace**: Features a highly performant, draggable sidebar that lets users seamlessly expand or contract their reading workspace. The custom width bridges native DOM events to CSS variables for 60fps adjustments without heavy React re-renders, smoothly syncing with the bottom media player layout and persisting width preferences via local storage. It also includes an elegant slide-out sidebar for mobile devices, incorporating robust scroll-bleed prevention by utilizing `overscroll-behavior: none` alongside dynamic `pointer-events: none` isolation to mathematically guarantee iOS Safari cannot chain-scroll the background.
 - **Automated Scraping**: Python script to scrape episode transcripts from Squarespace and auto-translate missing English sections via OpenAI.
 
 ## Architecture & Tech Stack
