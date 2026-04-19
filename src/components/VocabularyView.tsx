@@ -75,7 +75,7 @@ export default function VocabularyView({
     });
 
     return result;
-  }, [vocabWords, selectedChapter, sortBy]);
+  }, [vocabWords, selectedChapter, sortBy, searchQuery]);
 
   const startEdit = (vw: VocabWord) => {
     setEditingId(vw.id);
