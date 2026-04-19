@@ -22,6 +22,7 @@ The application allows intermediate Hebrew learners to read podcast transcripts 
   - Rendered in an elegant, minimal Apple/Notion-style data table. Desktop column order: **Source** (leftmost) → Translation → Verb form → **Hebrew** (rightmost, for natural RTL reading).
   - Supports inline editing of saved words directly on the vocabulary page (allowing modifications to the word's text, nekudot, verb forms, and translations). Pressing **Enter** in any edit field saves the row (same as clicking the ✓ button).
   - On mobile, the Hebrew word is right-aligned and actions sit on the left, preserving the RTL-natural reading flow in a card layout.
+  - **Dynamic Search & Filtering**: A responsive search bar instantly filters your vocabulary list as you type. It works seamlessly for both English translations and Hebrew words (even without typing specific Nekudot).
   - Smart deduplication logic allows saving the exact same Hebrew word multiple times if its contextual meaning (translation) or pronunciation (Nekudot) differs.
 - **Top-of-Screen Subscription Upsell (Apple/Notion Style)**: If a non-premium user clicks the Vocabulary tab or selects a word, the app shows a large sticky promo panel with $10/month messaging and a CTA that opens auth/signup.
 - **Admin Premium Controls**: Admin users can grant/revoke premium access by email from an in-app admin modal.

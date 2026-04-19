@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Bookmark, Trash2, LogIn, Edit2, Check, X, ExternalLink } from "lucide-react";
+import { Bookmark, Trash2, LogIn, Edit2, Check, X, ExternalLink, Search } from "lucide-react";
 import type { VocabWord } from "@/lib/types";
 import { useUser } from "@/hooks/useUser";
 
@@ -34,6 +34,7 @@ export default function VocabularyView({
 
   const [selectedChapter, setSelectedChapter] = useState<string>("All Chapters");
   const [sortBy, setSortBy] = useState<"date" | "episode" | "translation" | "hebrew">("date");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const chapters = useMemo(() => {
     const list = new Set(vocabWords.map((v) => v.episodeTitle).filter(Boolean));
@@ -45,6 +46,17 @@ export default function VocabularyView({
 
     if (selectedChapter !== "All Chapters") {
       result = result.filter((v) => v.episodeTitle === selectedChapter);
+    }
+
+    if (searchQuery.trim() !== "") {
+      const query = searchQuery.toLowerCase();
+      result = result.filter((v) => {
+        const transl = (v.translation || "").toLowerCase();
+        const hebrew = v.wordWithNekudot || v.word || "";
+        const hebrewClean = hebrew.replace(/[\u0591-\u05C7]/g, ""); // Strip nekudot for easier searching
+        const pronunc = (v.pronunciation || "").toLowerCase();
+        return transl.includes(query) || hebrew.includes(query) || hebrewClean.includes(query) || pronunc.includes(query);
+      });
     }
 
     result.sort((a, b) => {
@@ -101,7 +113,26 @@ export default function VocabularyView({
         </div>
 
         {vocabWords.length > 0 && (
-          <div style={{ display: "flex", gap: "12px", marginTop: "16px", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: "12px", marginTop: "16px", flexWrap: "wrap", alignItems: "center" }}>
+            <div style={{ position: "relative", flex: "1 1 200px" }}>
+              <Search size={14} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "var(--text-tertiary)" }} />
+              <input
+                type="text"
+                placeholder="Search words..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "6px 12px 6px 32px",
+                  borderRadius: "8px",
+                  border: "1px solid var(--border)",
+                  background: "var(--surface)",
+                  fontSize: "13px",
+                  outline: "none",
+                  color: "var(--text)"
+                }}
+              />
+            </div>
             <select
               value={selectedChapter}
               onChange={(e) => setSelectedChapter(e.target.value)}
