@@ -56,7 +56,12 @@ export default function MediaPlayer({
     if (!audio) return;
 
     const onTimeUpdate = () => {
-      if (!isScrubbing) setCurrentTime(audio.currentTime);
+      if (!isScrubbing) {
+        const time = audio.currentTime;
+        setCurrentTime(time);
+        // Dispatch custom event for EpisodeViewer to sync highlighting
+        window.dispatchEvent(new CustomEvent("playerTimeUpdate", { detail: time }));
+      }
     };
     const onDurationChange = () => setDuration(audio.duration);
     const onPlay  = () => setIsPlaying(true);
@@ -111,6 +116,7 @@ export default function MediaPlayer({
       const time = Number(seekInput.value);
       audio.currentTime = time;
       setCurrentTime(time);
+      window.dispatchEvent(new CustomEvent("playerTimeUpdate", { detail: time }));
     }
     setScrubPreviewTime(null);
     setIsScrubbing(false);

@@ -416,8 +416,18 @@ html, body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 40px;
-  padding: 24px 0;
+  padding: 24px 24px; /* Added side padding for highlight background */
+  margin: 0 -24px; /* Pull back to maintain alignment */
+  transition: background-color 0.4s ease, border-color 0.4s ease;
+  border-left: 3px solid transparent;
+  border-radius: 8px;
 }
+
+.para-pair.active-paragraph {
+  background-color: rgba(46, 142, 255, 0.08); /* Using --accent color #2e8eff as basis */
+  border-left-color: var(--accent);
+}
+
 .para-pair:not(:last-child) {
   border-bottom: 1px solid var(--border);
 }

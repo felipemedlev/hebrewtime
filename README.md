@@ -7,6 +7,7 @@ The application allows intermediate Hebrew learners to read podcast transcripts 
 ## Key Features
 
 - **Bilingual Interface**: Smooth side-by-side Hebrew and English paragraphs.
+- **Audio-Synchronized Highlighting**: As the podcast audio plays, the current Hebrew paragraph is automatically highlighted and smoothly scrolled into view, allowing learners to easily follow along. This is powered by high-performance custom DOM events that sync the UI at 60fps without heavy React re-renders. Note: Currently, only episodes that have been processed with the Whisper timestamp synchronization script (e.g., Episode 1) will feature this highlighting.
 - **Focus Mode for Hebrew Reading**: A top-bar toggle lets users blur all English transcript text on demand, so learners can practice Hebrew-first reading. The preference is saved in local storage.
 - **Mark Episodes as Finished**: Users can mark episodes they've completed. This state is synced to the Supabase database for authenticated users (and stored in local storage) and represented by a green checkmark in the sidebar and an elegant button at the end of the episode text.
 - **Scroll Position Persistence**: The application intelligently remembers your exact scroll position when navigating between your current episode and the vocabulary list, ensuring a seamless learning experience without losing your place.
@@ -186,7 +187,23 @@ The script:
 
 (Note: `patch_missing_transcripts.py` was an older script built only for initial-paragraph prefixes, while `apply_scraping_patch.py` handles missing paragraphs anywhere in the text).
 
-### 5. Password Recovery (Forgot Password)
+### 5. Transcript Audio Synchronization (Whisper)
+
+A dedicated script allows generating precise `start` and `end` timestamps for each Hebrew paragraph, enabling the real-time UI highlighting feature:
+
+```bash
+python scripts/sync_episode_1.py
+```
+
+The script:
+- Downloads the original audio file.
+- Transcribes the audio using OpenAI's `whisper-1` model with segment-level timestamp granularities.
+- Uses sequence matching to align the Whisper segments back to the exact, original `hebrew_paragraphs` (without altering the original text).
+- Replaces the string paragraphs in `episodes.json` with timestamp objects: `{ text: "...", start: 0.0, end: 5.5 }`.
+
+*Currently, this script is configured as a test specifically for Episode 1.*
+
+### 6. Password Recovery (Forgot Password)
 Password reset is implemented using Supabase Email Auth:
 
 - The “Forgot password?” button in `AuthModal` calls `supabase.auth.resetPasswordForEmail(...)`.
@@ -197,7 +214,7 @@ Make sure your Supabase Auth settings allow redirects back to your site, especia
 
 Note: in this repo’s current `@supabase/supabase-js`/`@supabase/auth-js` version, the typed `verifyOtp({ type: 'recovery' ... })` flow requires an `email`, so we rely on the recovery redirect session initialization instead.
 
-### 6. Vocabulary Word Saving — Lemma Rules
+### 7. Vocabulary Word Saving — Lemma Rules
 
 When a user saves a Hebrew word, the app always stores the **base dictionary form (lemma)**, not the surface form that appeared in the text. This is enforced by the OpenAI prompt in `src/app/actions.ts → translateWord`.
 
@@ -230,7 +247,7 @@ When a user saves a Hebrew word, the app always stores the **base dictionary for
 
 In `EpisodeViewer.tsx`, `modal.lemmaWord` (from the API response) is used as the `word` field when calling `addWord`, so the raw prefixed surface form is **never** persisted to Supabase.
 
-### 7. Running the Next.js App
+### 8. Running the Next.js App
 
 Install dependencies and start the development server:
 
@@ -244,6 +261,7 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 ## File Structure Highlights
 
 - `/scraper.py` - Core scraping and paragraph translation logic.
+- `/scripts/sync_episode_1.py` - OpenAI Whisper audio-transcript synchronization tool (Episode 1 test).
 - `apply_scraping_patch.py` - Efficiently patches `episodes.json` (translating only missing paragraph(s) anywhere in the text).
 - `/episodes.json` - The generated dataset used by the web application.
 - `/src/app/page.tsx` - The main server-rendered entrypoint.

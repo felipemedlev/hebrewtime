@@ -3,7 +3,7 @@
 import { ExternalLink, ChevronLeft, ChevronRight, CheckCircle } from "lucide-react";
 import type { Episode } from "@/lib/types";
 import { translateWord } from "@/app/actions";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import TranslationModal from "./TranslationModal";
 import { supabase } from "@/lib/supabase";
 
@@ -70,6 +70,41 @@ export default function EpisodeViewer({
     verbFormWithNekudot: null,
     isTranslating: false,
   });
+
+  const [currentTime, setCurrentTime] = useState(0);
+  const paragraphRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const lastActiveIndex = useRef<number>(-1);
+
+  // Sync with media player
+  useEffect(() => {
+    const handleTimeUpdate = (e: any) => {
+      setCurrentTime(e.detail);
+    };
+    window.addEventListener("playerTimeUpdate", handleTimeUpdate);
+    return () => window.removeEventListener("playerTimeUpdate", handleTimeUpdate);
+  }, []);
+
+  // Auto-scroll logic
+  useEffect(() => {
+    // Find active index
+    const activeIndex = episode.hebrew_paragraphs.findIndex((p, idx) => {
+      if (typeof p === "string") return false;
+      // Highlight first paragraph even if audio is in intro (before first timestamp)
+      if (idx === 0 && currentTime < p.start) return true;
+      return currentTime >= p.start && currentTime <= p.end;
+    });
+
+    if (activeIndex !== -1 && activeIndex !== lastActiveIndex.current) {
+      lastActiveIndex.current = activeIndex;
+      const el = paragraphRefs.current[activeIndex];
+      if (el) {
+        el.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }
+    }
+  }, [currentTime, episode.hebrew_paragraphs]);
 
   const handleWordClick = async (
     word: string,
@@ -184,10 +219,23 @@ export default function EpisodeViewer({
       </div>
 
       <div className="content-grid">
-        {episode.hebrew_paragraphs.map((heb, i) => {
+        {episode.hebrew_paragraphs.map((hebObj, i) => {
+          const isSynced = typeof hebObj === "object";
+          const heb = isSynced ? hebObj.text : hebObj;
+          const isActive = isSynced && (
+            (i === 0 && currentTime < hebObj.start) || 
+            (currentTime >= hebObj.start && currentTime <= hebObj.end)
+          );
           const eng = episode.english_paragraphs?.[i];
+          
           return (
-            <div key={i} className="para-pair">
+            <div 
+              key={i} 
+              ref={(el) => {
+                paragraphRefs.current[i] = el;
+              }}
+              className={`para-pair ${isActive ? "active-paragraph" : ""}`}
+            >
               <div className="text-hebrew font-serif" dir="rtl">
                 {heb.split(/(\s+)/).map((token, idx) => {
                   if (token.trim() === "") {
