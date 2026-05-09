@@ -26,7 +26,8 @@ The application allows intermediate Hebrew learners to read podcast transcripts 
   - **Dynamic Search & Filtering**: A responsive search bar instantly filters your vocabulary list as you type. It works seamlessly for both English translations and Hebrew words (even without typing specific Nekudot).
   - Smart deduplication logic allows saving the exact same Hebrew word multiple times if its contextual meaning (translation) or pronunciation (Nekudot) differs.
 - **Top-of-Screen Subscription Upsell (Apple/Notion Style)**: If a non-premium user clicks the Vocabulary tab or selects a word, the app shows a large sticky promo panel with $10/month messaging and a CTA that opens auth/signup.
-- **Admin Premium Controls**: Admin users can grant/revoke premium access by email from an in-app admin modal.
+- **Admin Premium Controls**: Admin users can grant/revoke premium access by email from an in-app admin modal. When premium access is granted, the system automatically sends a Supabase invite email to the user, allowing them to sign up and access their premium features immediately.
+
 - **Precision Audio Player**: Persistent bottom audio player with a fully custom UI built on top of HTML5 `<audio>` for reliable cross-platform playback (supports both direct `.mp3` files and Google Drive fallbacks). Key improvements for mobile:
   - **Large-touch-target seek bar**: The scrub thumb is 28 px on mobile (vs the browser default of ~6 px), making it easy to tap and drag on iPhone without misses.
   - **Custom play/pause and mute controls** with animated press feedback, eliminating the cramped native browser chrome.
@@ -157,7 +158,8 @@ EXECUTE FUNCTION public.set_updated_at();
 - **Authenticated non-premium users**: can read episodes, but translation and vocabulary are blocked.
 - **Blocked action UX**: when non-premium users try to open Vocabulary or translate a word, they see a sticky top-of-screen subscription panel advertising **$10/month** and can open auth/signup from the CTA.
 - **Premium users**: can translate words (OpenAI usage) and access vocabulary normally.
-- **Admin users** (`ADMIN_EMAILS`): automatically get premium access, and they can open the admin modal to grant/revoke premium access for other users by email.
+- **Admin users** (`ADMIN_EMAILS`): automatically get premium access, and they can open the admin modal to grant/revoke premium access for other users by email. Granting premium access automatically triggers a Supabase invite email to the recipient.
+
 ### 4. Updating Episodes (Python Scraper)
 
 To fetch the latest podcast transcripts and auto-translate them to English:

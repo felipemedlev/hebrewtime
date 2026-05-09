@@ -1,4 +1,6 @@
 "use server";
+import { createClient } from "@supabase/supabase-js";
+
 
 type Entitlements = {
   isAuthenticated: boolean;
@@ -21,6 +23,17 @@ const adminEmails = (process.env.ADMIN_EMAILS ?? "")
   .split(",")
   .map((email) => email.trim().replace(/^['"]|['"]$/g, "").toLowerCase())
   .filter(Boolean);
+
+
+const supabaseAdmin = (supabaseUrl && supabaseServiceRoleKey)
+  ? createClient(supabaseUrl, supabaseServiceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    })
+  : null;
+
 
 function getAuthHeaders(accessToken?: string, useServiceRole = false): HeadersInit {
   const apiKey = useServiceRole ? supabaseServiceRoleKey : supabaseAnonKey;
@@ -141,7 +154,19 @@ export async function setPremiumStatus(
   if (!upsertRes.ok) {
     return { ok: false, message: "Failed to grant premium access." };
   }
+
+  if (supabaseAdmin) {
+    try {
+      // Invite the user via email. If they already exist, this may fail or do nothing depending on Supabase settings.
+      // We wrap in try/catch to ensure the premium grant success is still returned.
+      await supabaseAdmin.auth.admin.inviteUserByEmail(normalized);
+    } catch (err) {
+      console.error("Invite email error:", err);
+    }
+  }
+
   return { ok: true, message: `Granted premium access to ${normalized}.` };
+
 }
 
 export async function translateWord(
