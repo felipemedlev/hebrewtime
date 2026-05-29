@@ -6,9 +6,11 @@ import type { Episode, EpisodeListItem, VocabWord } from "@/lib/types";
 import Sidebar from "./Sidebar";
 import EpisodeViewer from "./EpisodeViewer";
 import VocabularyView from "./VocabularyView";
+import FlashcardsView from "./FlashcardsView";
 import MediaPlayer from "./MediaPlayer";
 import AuthModal from "./AuthModal";
 import { useVocabulary } from "@/hooks/useVocabulary";
+import { useFlashcards } from "@/hooks/useFlashcards";
 import { useUser } from "@/hooks/useUser";
 import { useEntitlements } from "@/hooks/useEntitlements";
 import { supabase } from "@/lib/supabase";
@@ -25,7 +27,7 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
   const [currentEpNum, setCurrentEpNum] = useState<number | null>(
     initialEpisode?.episode ?? null
   );
-  const [viewMode, setViewMode] = useState<"episodes" | "vocabulary">("episodes");
+  const [viewMode, setViewMode] = useState<"episodes" | "vocabulary" | "flashcards">("episodes");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -40,13 +42,23 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
   const [scrollPositions, setScrollPositions] = useState<Record<string, number>>({
     episodes: 0,
     vocabulary: 0,
+    flashcards: 0,
   });
 
   const mainRef = useRef<HTMLElement>(null);
   const { vocabWords, addWord, deleteWord, updateWord } = useVocabulary();
+  const { 
+    learnedCards, 
+    sessionQueue, 
+    isProgressLoaded, 
+    submitReview, 
+    unlearnWord, 
+    stats 
+  } = useFlashcards(vocabWords);
   const { user } = useUser();
   const { entitlements, isLoading: isLoadingEntitlements, refresh: refreshEntitlements } = useEntitlements();
   const { finishedEpisodes, toggleFinished } = useFinishedEpisodes();
+
 
   // Responsive
   useEffect(() => {
@@ -104,12 +116,20 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
   );
 
   const showSubscriptionPrompt = useCallback(
-    (source: "vocabulary" | "translation") => {
+    (source: "vocabulary" | "translation" | "flashcards") => {
       if (source === "vocabulary") {
         setSubscriptionPrompt({
           title: "Unlock Vocabulary",
           description:
             "Join the subscription for $10/month to access your synced vocabulary list across devices.",
+        });
+        return;
+      }
+      if (source === "flashcards") {
+        setSubscriptionPrompt({
+          title: "Unlock Flashcards",
+          description:
+            "Join the subscription for $10/month to unlock the spaced repetition review system.",
         });
         return;
       }
@@ -123,12 +143,18 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
   );
 
   const effectiveViewMode =
-    viewMode === "vocabulary" && !entitlements.isPremium && !isLoadingEntitlements ? "episodes" : viewMode;
+    (viewMode === "vocabulary" || viewMode === "flashcards") && !entitlements.isPremium && !isLoadingEntitlements 
+      ? "episodes" 
+      : viewMode;
 
   const handleChangeViewMode = useCallback(
-    (mode: "episodes" | "vocabulary") => {
+    (mode: "episodes" | "vocabulary" | "flashcards") => {
       if (mode === "vocabulary" && !entitlements.isPremium && !isLoadingEntitlements) {
         showSubscriptionPrompt("vocabulary");
+        return;
+      }
+      if (mode === "flashcards" && !entitlements.isPremium && !isLoadingEntitlements) {
+        showSubscriptionPrompt("flashcards");
         return;
       }
       
@@ -204,6 +230,7 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
         currentEpNum={currentEpNum}
         viewMode={effectiveViewMode}
         vocabCount={vocabWords.length}
+        dueFlashcardsCount={stats.due}
         isSidebarOpen={isSidebarOpen}
         onSelectEpisode={navigateToEpisode}
         onChangeViewMode={handleChangeViewMode}
@@ -320,6 +347,16 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
               if (res) showToast(res.message);
             }}
             isPremium={entitlements.isPremium}
+          />
+        ) : effectiveViewMode === "flashcards" ? (
+          <FlashcardsView
+            vocabWords={vocabWords}
+            learnedCards={learnedCards}
+            sessionQueue={sessionQueue}
+            isLoaded={isProgressLoaded}
+            submitReview={submitReview}
+            unlearnWord={unlearnWord}
+            stats={stats}
           />
         ) : !episode ? (
           <div className="empty-state">

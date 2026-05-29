@@ -26,6 +26,11 @@ The application allows intermediate Hebrew learners to read podcast transcripts 
   - **Dynamic Search & Filtering**: A responsive search bar instantly filters your vocabulary list as you type. It works seamlessly for both English translations and Hebrew words (even without typing specific Nekudot).
   - Smart deduplication logic allows saving the exact same Hebrew word multiple times if its contextual meaning (translation) or pronunciation (Nekudot) differs.
 - **Top-of-Screen Subscription Upsell (Apple/Notion Style)**: If a non-premium user clicks the Vocabulary tab or selects a word, the app shows a large sticky promo panel with $10/month messaging and a CTA that opens auth/signup.
+- **Spaced Repetition Flashcard System (SM-2)**: An elegant, built-in flashcard system designed to help users master their saved vocabulary.
+  - **SuperMemo-2 Scheduling**: Automatically calculates card review intervals using the SM-2 algorithm (parameters: ease factor, repetitions, and recall interval) dynamically loading due cards (up to 20 per session).
+  - **Sleek Notion-Style Compact Stats**: Displays Due Reviews, Learning Queue, Learned Words, and Mastery Progress in a single low-profile horizontal dashboard bar that scales responsively on mobile.
+  - **Snappy Anki-Style Card Transitions**: Utilizes React's key diffing pattern (`key={currentIndex}`) to unmount the rated card and mount the new card instantly on its front face. This completely prevents visual flip-back anomalies or mid-flip text replacement lag.
+  - **Optimistic background syncs**: Rating actions are handled in the background asynchronously, making card swaps instantaneous and non-blocking.
 - **Admin Premium Controls**: Admin users can grant/revoke premium access by email from an in-app admin modal. When premium access is granted, the system automatically sends a Supabase invite email to the user, allowing them to sign up and access their premium features immediately.
 
 - **Precision Audio Player**: Persistent bottom audio player with a fully custom UI built on top of HTML5 `<audio>` for reliable cross-platform playback (supports both direct `.mp3` files and Google Drive fallbacks). Key improvements for mobile:
@@ -58,10 +63,12 @@ Following a recent refactor, the app utilizes Next.js Server Components and dyna
   - `Sidebar.tsx`: Navigation, search, and tab switching.
   - `EpisodeViewer.tsx`: Bilingual reading experience, word-click handling, and conditional blurring of English transcript text.
   - `VocabularyView.tsx`: Displays saved words in a grid.
+  - `FlashcardsView.tsx`: Core spaced-repetition card review view featuring 3D flip animations and snappy Anki-style deck swaps.
   - `TranslationModal.tsx`: The AI translation popup.
   - `AuthModal.tsx`: The Supabase authentication UI for login, sign up, and password recovery.
 - **Custom Hooks (`src/hooks/`)**:
   - `useVocabulary.ts`: Manages syncing vocabulary to Supabase based on the user's login state.
+  - `useFlashcards.ts`: Tracks reviews and schedules next card review times via the SM-2 algorithm, syncing flashcard progress state with Supabase.
   - `useUser.ts`: Subscribes to Supabase auth events to track logged-in users.
   - `useFinishedEpisodes.ts`: Manages the state of read matching in local storage, powering the UI checkmarks across the app.
 
@@ -104,6 +111,25 @@ ALTER TABLE public.vocabulary ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users view own vocabulary" ON public.vocabulary FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users insert own vocabulary" ON public.vocabulary FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users delete own vocabulary" ON public.vocabulary FOR DELETE USING (auth.uid() = user_id);
+
+CREATE TABLE IF NOT EXISTS public.flashcard_progress (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  vocab_id UUID REFERENCES public.vocabulary(id) ON DELETE CASCADE NOT NULL,
+  ease_factor DOUBLE PRECISION DEFAULT 2.5 NOT NULL,
+  interval_days INTEGER DEFAULT 0 NOT NULL,
+  repetitions INTEGER DEFAULT 0 NOT NULL,
+  next_review_at TIMESTAMPTZ NOT NULL,
+  is_learned BOOLEAN DEFAULT FALSE NOT NULL,
+  last_reviewed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+  UNIQUE (user_id, vocab_id)
+);
+ALTER TABLE public.flashcard_progress ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users view own flashcard progress" ON public.flashcard_progress FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users insert own flashcard progress" ON public.flashcard_progress FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users update own flashcard progress" ON public.flashcard_progress FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users delete own flashcard progress" ON public.flashcard_progress FOR DELETE USING (auth.uid() = user_id);
 
 CREATE TABLE IF NOT EXISTS public.premium_users (
   email TEXT PRIMARY KEY,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
-import { Search, BookOpen, Bookmark, X, LogOut, LogIn, CheckCircle } from "lucide-react";
+import { Search, BookOpen, Bookmark, X, LogOut, LogIn, CheckCircle, Brain } from "lucide-react";
 import type { EpisodeListItem } from "@/lib/types";
 import { useUser } from "@/hooks/useUser";
 import { supabase } from "@/lib/supabase";
@@ -9,11 +9,12 @@ import { supabase } from "@/lib/supabase";
 type SidebarProps = {
   episodes: EpisodeListItem[];
   currentEpNum: number | null;
-  viewMode: "episodes" | "vocabulary";
+  viewMode: "episodes" | "vocabulary" | "flashcards";
   vocabCount: number;
+  dueFlashcardsCount?: number;
   isSidebarOpen: boolean;
   onSelectEpisode: (num: number) => void;
-  onChangeViewMode: (mode: "episodes" | "vocabulary") => void;
+  onChangeViewMode: (mode: "episodes" | "vocabulary" | "flashcards") => void;
   onClose: () => void;
   onOpenAuthModal?: () => void;
   isPremium?: boolean;
@@ -28,6 +29,7 @@ export default function Sidebar({
   currentEpNum,
   viewMode,
   vocabCount,
+  dueFlashcardsCount = 0,
   isSidebarOpen,
   onSelectEpisode,
   onChangeViewMode,
@@ -43,6 +45,7 @@ export default function Sidebar({
   const { user } = useUser();
   const sidebarRef = useRef<HTMLElement>(null);
   const isDragging = useRef(false);
+
 
   // Initialize from local storage
   useEffect(() => {
@@ -139,7 +142,28 @@ export default function Sidebar({
                   verticalAlign: "text-bottom",
                 }}
               />
-              Vocabulary
+              Vocab
+            </button>
+            <button
+              className={`tab-btn ${viewMode === "flashcards" ? "active" : ""}`}
+              onClick={() => onChangeViewMode("flashcards")}
+              title={!isPremium && !isLoadingEntitlements ? "Join subscription to unlock flashcards" : undefined}
+              style={{ position: "relative" }}
+            >
+              <Brain
+                size={14}
+                style={{
+                  display: "inline",
+                  marginRight: "4px",
+                  verticalAlign: "text-bottom",
+                }}
+              />
+              Review
+              {dueFlashcardsCount > 0 && (
+                <span className="sidebar-badge-due">
+                  {dueFlashcardsCount}
+                </span>
+              )}
             </button>
           </div>
 
@@ -193,7 +217,7 @@ export default function Sidebar({
               </div>
             )}
           </div>
-        ) : (
+        ) : viewMode === "vocabulary" ? (
           <div className="ep-list">
             <div
               style={{
@@ -209,6 +233,30 @@ export default function Sidebar({
               <p style={{ marginTop: "12px" }}>
                 They are displayed in the main area to the right.
               </p>
+            </div>
+          </div>
+        ) : (
+          <div className="ep-list">
+            <div
+              style={{
+                padding: "16px",
+                color: "var(--text-muted)",
+                fontSize: "13px",
+                lineHeight: "1.6",
+              }}
+            >
+              <p>
+                Spaced repetition session.
+              </p>
+              {dueFlashcardsCount > 0 ? (
+                <p style={{ marginTop: "12px" }}>
+                  You have <strong style={{ color: "var(--accent)" }}>{dueFlashcardsCount}</strong> words ready for review!
+                </p>
+              ) : (
+                <p style={{ marginTop: "12px" }}>
+                  All caught up! No due flashcards right now.
+                </p>
+              )}
             </div>
           </div>
         )}

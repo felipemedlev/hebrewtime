@@ -30,3 +30,24 @@ export type VocabWord = {
   episodeUrl: string;
   savedAt: number;
 };
+
+export type FlashcardRating = 0 | 1 | 3 | 5; // Again (0), Hard (1), Good (3), Easy (5)
+
+export type FlashcardProgress = {
+  id: string;
+  user_id: string;
+  vocab_id: string;
+  ease_factor: number;
+  interval_days: number;
+  repetitions: number;
+  next_review_at: string;
+  is_learned: boolean;
+  last_reviewed_at: string | null;
+  created_at: string;
+};
+
+export type FlashcardItem = {
+  vocabWord: VocabWord;
+  progress: FlashcardProgress | null;
+};
+
