@@ -35,6 +35,7 @@ The application allows intermediate Hebrew learners to read podcast transcripts 
   - **Optimistic background syncs**: Rating actions are handled in the background asynchronously, making card swaps instantaneous and non-blocking.
   - **Example Phrases During Review**: Before or after flipping a card, users can tap “Show examples” to reveal a panel below the card (outside the 3D flip area). On first use, phrases are AI-generated and cached; later sessions read them from the database with zero extra fetch. Each phrase has an unlimited per-slot regenerate button. The examples panel resets when advancing to the next card.
 - **Admin Premium Controls**: Admin users can grant/revoke premium access by email from an in-app admin modal. When premium access is granted, the system automatically sends a Supabase invite email to the user, allowing them to sign up and access their premium features immediately.
+- **First-Time Onboarding Landing Page**: After a user's first successful login, a full-screen onboarding overlay introduces the platform's core value proposition and main features (bilingual reading, click-to-translate, vocabulary/flashcards, audio-synced highlighting). Users can complete it via "Start reading" or dismiss it with "Skip for now". Once completed or skipped, onboarding never reappears on any device. Non-authenticated visitors never see it. Completion is persisted in Supabase user metadata (`user_metadata.onboarded`) — no database migration required.
 
 - **Precision Audio Player**: Persistent bottom audio player with a fully custom UI built on top of HTML5 `<audio>` for reliable cross-platform playback (supports both direct `.mp3` files and Google Drive fallbacks). Key improvements for mobile:
   - **Large-touch-target seek bar**: The scrub thumb is 28 px on mobile (vs the browser default of ~6 px), making it easy to tap and drag on iPhone without misses.
@@ -62,7 +63,7 @@ Following a recent refactor, the app utilizes Next.js Server Components and dyna
 - **Server-Side Data Layer (`src/lib/episodes.ts`)**: Loads the 1.4MB `episodes.json` dataset directly from the filesystem on the server, ensuring the client bundle remains tiny.
 - **Dynamic API Routes (`/api/episode/[id]/route.ts`)**: Statically generates all episode endpoints at build time using `generateStaticParams`, eliminating runtime file system reads and providing instant JSON responses when navigating between episodes.
 - **Component Breakdown (`src/components/`)**:
-  - `AppShell.tsx`: The main responsive client wrapper managing state/layout, view gating, sticky $10/month subscription prompts for blocked premium actions, English blur toggle, and example-phrase orchestration (`generateExamples` / `regenerateExample`).
+  - `AppShell.tsx`: The main responsive client wrapper managing state/layout, view gating, sticky $10/month subscription prompts for blocked premium actions, English blur toggle, example-phrase orchestration (`generateExamples` / `regenerateExample`), and first-time onboarding overlay rendering.
   - `Sidebar.tsx`: Navigation, search, and tab switching.
   - `EpisodeViewer.tsx`: Bilingual reading experience, word-click handling, and conditional blurring of English transcript text.
   - `VocabularyView.tsx`: Saved words in a desktop table / mobile card layout with search, filtering, inline editing, and expandable example-phrase panels.
@@ -70,11 +71,13 @@ Following a recent refactor, the app utilizes Next.js Server Components and dyna
   - `ExamplePhrasesPanel.tsx`: Shared UI for listing, generating, and regenerating example phrases (used by Vocabulary and Flashcards).
   - `TranslationModal.tsx`: The AI translation popup.
   - `AuthModal.tsx`: The Supabase authentication UI for login, sign up, and password recovery.
+  - `OnboardingOverlay.tsx`: Full-screen first-login landing page with hero, feature cards, and CSS mockups of core app capabilities.
 - **Custom Hooks (`src/hooks/`)**:
   - `useVocabulary.ts`: Manages syncing vocabulary (including `example_phrases`) to Supabase based on the user's login state.
   - `useFlashcards.ts`: Tracks reviews and schedules next card review times via FSRS (`src/lib/fsrs.ts`), syncing flashcard progress state with Supabase.
   - `useEntitlements.ts`: Resolves auth/premium/admin status via server actions for gating translations, vocabulary, flashcards, and example phrases.
   - `useUser.ts`: Subscribes to Supabase auth events to track logged-in users.
+  - `useOnboarding.ts`: Derives whether to show the first-login onboarding overlay from `user.user_metadata.onboarded` and persists dismissal via `supabase.auth.updateUser({ data: { onboarded: true } })`.
   - `useFinishedEpisodes.ts`: Manages the state of read matching in local storage, powering the UI checkmarks across the app.
 
 ## Setup & Local Development
@@ -385,6 +388,47 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+### 10. First-Time Onboarding Landing Page
+
+Authenticated users see a one-time onboarding overlay on their first login. It introduces the platform before they begin reading.
+
+**When it shows:**
+- User is authenticated (`useUser` returns a session).
+- `user.user_metadata.onboarded` is not `true`.
+- Non-authenticated visitors never see onboarding.
+
+**When it hides (permanently, cross-device):**
+- User clicks **Start reading** (hero or footer CTA) or **Skip for now** (header).
+- Both actions call `supabase.auth.updateUser({ data: { onboarded: true } })`.
+- `useOnboarding` also sets local `dismissed` state optimistically to prevent re-show flicker while the metadata write completes.
+
+**Flow:**
+1. `AppShell` mounts the main app normally (sidebar, episode viewer, media player, etc.).
+2. `OnboardingOverlay` renders as a fixed full-screen layer above the app (`z-index: 600`, above the media player's `500`).
+3. Dismissing the overlay reveals the app instantly — no route change.
+
+**UI structure (`OnboardingOverlay.tsx`):**
+- Sticky frosted header with `BookOpen` + "Hebrew Time" branding and a skip button.
+- Hero with value proposition, accent headline, and primary CTA.
+- 2×2 feature card grid (1 column on mobile) covering:
+  - Bilingual side-by-side reading (with CSS mockup of Hebrew/English rows).
+  - Click-to-translate with Nekudot (highlighted word + dark translation popup mockup).
+  - Vocabulary & FSRS flashcards (mini table with Due/Learned/New badges).
+  - Audio-synced paragraph highlighting (active paragraph + mini player mockup).
+- Footer CTA with pricing note ("Free to read · Premium from $10/month").
+
+**Accessibility:** Reuses `useModalAccessibility` for focus trap and Escape-to-dismiss (`role="dialog"`, `aria-modal`).
+
+**Styling:** `src/app/styles/onboarding.css` — imported via `globals.css`. Uses existing design tokens (`--text-main`, `--accent`, etc.), Inter for UI text, and `.font-serif` (Noto Serif Hebrew) for Hebrew mockup snippets.
+
+**Testing / reset:** To re-trigger onboarding for a test account, clear the flag in Supabase (SQL Editor or Auth dashboard):
+
+```sql
+UPDATE auth.users
+SET raw_user_meta_data = raw_user_meta_data - 'onboarded'
+WHERE email = 'your@email.com';
+```
+
 ## File Structure Highlights
 
 - `/scraper.py` - Core scraping and paragraph translation logic.
@@ -401,9 +445,11 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 - `/patch_audio.py` - Normalizes/fixes episode `audio_url` values in `episodes.json`.
 - `/src/components/MediaPlayer.tsx` - Custom bottom audio player with large-touch-target seek bar for mobile.
 - `/src/components/AdminPremiumModal.tsx` - Admin-only UI to grant/revoke premium by email.
+- `/src/components/OnboardingOverlay.tsx` - Full-screen first-login onboarding landing page with feature cards and CSS mockups.
 - `/src/components/ExamplePhrasesPanel.tsx` - Shared UI for AI-generated example phrase lists (Vocabulary + Flashcards).
 - `/src/lib/fsrs.ts` - FSRS scheduler wrapper (ts-fsrs) for review intervals and retrievability stats.
 - `/supabase/fsrs-migration.sql` - Adds FSRS columns to `flashcard_progress` for existing Supabase projects.
 - `/src/lib/types.ts` - Shared TypeScript types including `VocabWord`, `ExamplePhrase`, and flashcard types.
 - `/src/app/globals.css` - Entry point that imports modular stylesheets from `/src/app/styles/`.
-- `/src/app/styles/` - Split design system: `base.css`, `sidebar.css`, `layout.css`, `vocabulary.css`, `modals.css`, `media-player.css`, `flashcards.css`, `example-phrases.css`, and related partials.
+- `/src/app/styles/` - Split design system: `base.css`, `sidebar.css`, `layout.css`, `vocabulary.css`, `modals.css`, `media-player.css`, `flashcards.css`, `example-phrases.css`, `onboarding.css`, and related partials.
+- `/src/hooks/useOnboarding.ts` - First-login onboarding visibility and Supabase user-metadata persistence.

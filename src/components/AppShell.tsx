@@ -15,7 +15,9 @@ import { useUser } from "@/hooks/useUser";
 import { useEntitlements } from "@/hooks/useEntitlements";
 import { supabase } from "@/lib/supabase";
 import AdminPremiumModal from "./AdminPremiumModal";
+import OnboardingOverlay from "./OnboardingOverlay";
 import { useFinishedEpisodes } from "@/hooks/useFinishedEpisodes";
+import { useOnboarding } from "@/hooks/useOnboarding";
 import { generateExamplePhrases } from "@/app/actions";
 
 type AppShellProps = {
@@ -57,6 +59,7 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
     stats 
   } = useFlashcards(vocabWords);
   const { user } = useUser();
+  const { shouldShow: shouldShowOnboarding, dismiss: dismissOnboarding } = useOnboarding();
   const { entitlements, isLoading: isLoadingEntitlements, refresh: refreshEntitlements } = useEntitlements();
   const { finishedEpisodes, toggleFinished } = useFinishedEpisodes();
 
@@ -474,6 +477,11 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
       />
 
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+      <OnboardingOverlay
+        isOpen={shouldShowOnboarding}
+        onDismiss={dismissOnboarding}
+        onGetStarted={dismissOnboarding}
+      />
       <AdminPremiumModal
         isOpen={isAdminModalOpen}
         onClose={async () => {
