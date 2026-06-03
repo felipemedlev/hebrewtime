@@ -27,9 +27,10 @@ The application allows intermediate Hebrew learners to read podcast transcripts 
   - Smart deduplication logic allows saving the exact same Hebrew word multiple times if its contextual meaning (translation) or pronunciation (Nekudot) differs.
   - **AI Example Phrases**: Each saved word can reveal 3 AI-generated example sentences (Hebrew with Nekudot + English translation) showing everyday usage. Phrases are **not** generated at save-time — the user expands an “Examples” panel (Vocabulary tab) or taps “Show examples” (Flashcards) to trigger generation on first use. Results are cached in `vocabulary.example_phrases` (JSONB) per user per word and load instantly on subsequent views. Any single phrase can be regenerated unlimited times via a per-phrase refresh button. Shared UI lives in `ExamplePhrasesPanel.tsx`; orchestration in `AppShell.tsx` calls `generateExamplePhrases` then persists via `useVocabulary.updateWord`.
 - **Top-of-Screen Subscription Upsell (Apple/Notion Style)**: If a non-premium user clicks the Vocabulary tab, Flashcards tab, or tries to translate a word, the app shows a large sticky promo panel with $10/month messaging and a CTA that opens auth/signup.
-- **Spaced Repetition Flashcard System (SM-2)**: An elegant, built-in flashcard system designed to help users master their saved vocabulary.
-  - **SuperMemo-2 Scheduling**: Automatically calculates card review intervals using the SM-2 algorithm (parameters: ease factor, repetitions, and recall interval) dynamically loading due cards (up to 20 per session).
-  - **Sleek Notion-Style Compact Stats**: Displays Due Reviews, Learning Queue, Learned Words, and Mastery Progress in a single low-profile horizontal dashboard bar that scales responsively on mobile.
+- **Spaced Repetition Flashcard System (FSRS)**: An elegant, built-in flashcard system designed to help users master their saved vocabulary.
+  - **FSRS Scheduling** ([ts-fsrs](https://github.com/open-spaced-repetition/ts-fsrs)): Uses the Free Spaced Repetition Scheduler with 90% target retention, predicting memory stability and difficulty per card. Due cards load dynamically (up to 20 per session).
+  - **Compact Review Stats Strip**: Shows Due, New, Learning, Learned, Reviewed Today, Avg Recall (FSRS retrievability), Next Review ETA (when caught up), and Mastery progress in a low-height summary strip. On mobile, the stats become a horizontal scroll strip so the main flashcard/review area stays high on the screen.
+  - **Clean Review Navigation**: The Review tab no longer shows an overlaid due-count badge; due counts remain available in the sidebar context text and the compact stats strip.
   - **Snappy Anki-Style Card Transitions**: Utilizes React's key diffing pattern (`key={currentIndex}`) to unmount the rated card and mount the new card instantly on its front face. This completely prevents visual flip-back anomalies or mid-flip text replacement lag.
   - **Optimistic background syncs**: Rating actions are handled in the background asynchronously, making card swaps instantaneous and non-blocking.
   - **Example Phrases During Review**: Before or after flipping a card, users can tap “Show examples” to reveal a panel below the card (outside the 3D flip area). On first use, phrases are AI-generated and cached; later sessions read them from the database with zero extra fetch. Each phrase has an unlimited per-slot regenerate button. The examples panel resets when advancing to the next card.
@@ -65,13 +66,13 @@ Following a recent refactor, the app utilizes Next.js Server Components and dyna
   - `Sidebar.tsx`: Navigation, search, and tab switching.
   - `EpisodeViewer.tsx`: Bilingual reading experience, word-click handling, and conditional blurring of English transcript text.
   - `VocabularyView.tsx`: Saved words in a desktop table / mobile card layout with search, filtering, inline editing, and expandable example-phrase panels.
-  - `FlashcardsView.tsx`: Core spaced-repetition card review view featuring 3D flip animations, snappy Anki-style deck swaps, and example phrases below the card.
+  - `FlashcardsView.tsx`: Core spaced-repetition card review view featuring a compact Review stats strip, 3D flip animations, snappy Anki-style deck swaps, and example phrases below the card.
   - `ExamplePhrasesPanel.tsx`: Shared UI for listing, generating, and regenerating example phrases (used by Vocabulary and Flashcards).
   - `TranslationModal.tsx`: The AI translation popup.
   - `AuthModal.tsx`: The Supabase authentication UI for login, sign up, and password recovery.
 - **Custom Hooks (`src/hooks/`)**:
   - `useVocabulary.ts`: Manages syncing vocabulary (including `example_phrases`) to Supabase based on the user's login state.
-  - `useFlashcards.ts`: Tracks reviews and schedules next card review times via the SM-2 algorithm, syncing flashcard progress state with Supabase.
+  - `useFlashcards.ts`: Tracks reviews and schedules next card review times via FSRS (`src/lib/fsrs.ts`), syncing flashcard progress state with Supabase.
   - `useEntitlements.ts`: Resolves auth/premium/admin status via server actions for gating translations, vocabulary, flashcards, and example phrases.
   - `useUser.ts`: Subscribes to Supabase auth events to track logged-in users.
   - `useFinishedEpisodes.ts`: Manages the state of read matching in local storage, powering the UI checkmarks across the app.
@@ -149,6 +150,10 @@ CREATE TABLE IF NOT EXISTS public.flashcard_progress (
   is_learned BOOLEAN DEFAULT FALSE NOT NULL,
   last_reviewed_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+  stability DOUBLE PRECISION,
+  difficulty DOUBLE PRECISION,
+  state INTEGER NOT NULL DEFAULT 0,
+  lapses INTEGER NOT NULL DEFAULT 0,
   UNIQUE (user_id, vocab_id)
 );
 ALTER TABLE public.flashcard_progress ENABLE ROW LEVEL SECURITY;
@@ -201,6 +206,8 @@ CREATE POLICY "Premium users update own vocabulary" ON public.vocabulary
 ```
 
 If you created the database before premium-aware RLS was added, run the full migration in [`supabase/premium-rls-migration.sql`](supabase/premium-rls-migration.sql). It replaces the older auth-only vocabulary/flashcard policies, adds `user_has_premium_access()`, and restricts `premium_users` reads to each user's own row.
+
+If you created `flashcard_progress` before FSRS columns were added, run [`supabase/fsrs-migration.sql`](supabase/fsrs-migration.sql) in the Supabase SQL Editor. Existing SM-2 rows are migrated automatically on the next review in the app.
 
 **Admin note:** `ADMIN_EMAILS` unlocks premium features in server actions and the UI, but vocabulary/flashcard writes are enforced in Postgres via `premium_users`. Grant admin accounts a row in `premium_users` (via the admin panel or a one-time `INSERT`) so they can save vocabulary.
 
@@ -395,6 +402,8 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 - `/src/components/MediaPlayer.tsx` - Custom bottom audio player with large-touch-target seek bar for mobile.
 - `/src/components/AdminPremiumModal.tsx` - Admin-only UI to grant/revoke premium by email.
 - `/src/components/ExamplePhrasesPanel.tsx` - Shared UI for AI-generated example phrase lists (Vocabulary + Flashcards).
+- `/src/lib/fsrs.ts` - FSRS scheduler wrapper (ts-fsrs) for review intervals and retrievability stats.
+- `/supabase/fsrs-migration.sql` - Adds FSRS columns to `flashcard_progress` for existing Supabase projects.
 - `/src/lib/types.ts` - Shared TypeScript types including `VocabWord`, `ExamplePhrase`, and flashcard types.
 - `/src/app/globals.css` - Entry point that imports modular stylesheets from `/src/app/styles/`.
 - `/src/app/styles/` - Split design system: `base.css`, `sidebar.css`, `layout.css`, `vocabulary.css`, `modals.css`, `media-player.css`, `flashcards.css`, `example-phrases.css`, and related partials.

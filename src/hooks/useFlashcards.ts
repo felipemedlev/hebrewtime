@@ -3,15 +3,29 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "./useUser";
-import type { VocabWord, FlashcardItem, FlashcardProgress, FlashcardRating } from "@/lib/types";
-import { calculateSM2 } from "@/lib/sm2";
+import type {
+  VocabWord,
+  FlashcardItem,
+  FlashcardProgress,
+  FlashcardRating,
+  FlashcardStats,
+} from "@/lib/types";
+import { computeNextProgress, cardRetrievability } from "@/lib/fsrs";
+
+function isSameLocalDay(isoDate: string, now: Date): boolean {
+  const d = new Date(isoDate);
+  return (
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+  );
+}
 
 export function useFlashcards(vocabWords: VocabWord[]) {
   const { user } = useUser();
   const [progresses, setProgresses] = useState<FlashcardProgress[]>([]);
   const [isProgressLoaded, setIsProgressLoaded] = useState(false);
 
-  // Load flashcard progress data from Supabase
   const loadProgress = useCallback(async () => {
     if (!user) {
       setProgresses([]);
@@ -29,7 +43,13 @@ export function useFlashcards(vocabWords: VocabWord[]) {
       if (error) {
         console.error("Error fetching flashcard progress:", error);
       } else if (data) {
-        setProgresses(data);
+        setProgresses(
+          data.map((row) => ({
+            ...row,
+            state: row.state ?? 0,
+            lapses: row.lapses ?? 0,
+          }))
+        );
       }
     } catch (err) {
       console.error("Unexpected error loading flashcard progress:", err);
@@ -42,7 +62,6 @@ export function useFlashcards(vocabWords: VocabWord[]) {
     loadProgress();
   }, [loadProgress]);
 
-  // Combine vocab list and their review progress
   const flashcards = useMemo<FlashcardItem[]>(() => {
     return vocabWords.map((word) => {
       const prog = progresses.find((p) => p.vocab_id === word.id) || null;
@@ -53,7 +72,6 @@ export function useFlashcards(vocabWords: VocabWord[]) {
     });
   }, [vocabWords, progresses]);
 
-  // Separate cards into sections
   const learnedCards = useMemo<FlashcardItem[]>(() => {
     return flashcards.filter((card) => card.progress?.is_learned === true);
   }, [flashcards]);
@@ -62,22 +80,18 @@ export function useFlashcards(vocabWords: VocabWord[]) {
     return flashcards.filter((card) => !card.progress?.is_learned);
   }, [flashcards]);
 
-  // Identify due cards
   const dueCards = useMemo<FlashcardItem[]>(() => {
     const nowStr = new Date().toISOString();
     return activeCards.filter((card) => {
-      // If never reviewed, it's due (considered a "new" card)
       if (!card.progress) return true;
       return card.progress.next_review_at <= nowStr;
     });
   }, [activeCards]);
 
-  // Build the review session queue (max 20 cards: due/new first)
   const sessionQueue = useMemo<FlashcardItem[]>(() => {
     return dueCards.slice(0, 20);
   }, [dueCards]);
 
-  // Submit a card review
   const submitReview = useCallback(
     async (vocabId: string, rating: FlashcardRating) => {
       if (!user) return;
@@ -86,36 +100,24 @@ export function useFlashcards(vocabWords: VocabWord[]) {
       if (!currentItem) return;
 
       const prevProg = currentItem.progress;
-      const prevInterval = prevProg ? prevProg.interval_days : 0;
-      const prevRepetitions = prevProg ? prevProg.repetitions : 0;
-      const prevEase = prevProg ? prevProg.ease_factor : 2.5;
-
-      const sm2 = calculateSM2(rating, prevInterval, prevRepetitions, prevEase);
-
       const now = new Date();
-      const nextReview = new Date();
-      // If rating is 0 (Again), review in 10 minutes (0.007 days)
-      if (rating === 0) {
-        nextReview.setMinutes(now.getMinutes() + 10);
-      } else {
-        nextReview.setDate(now.getDate() + sm2.intervalDays);
-      }
+      const fsrsUpdate = computeNextProgress(prevProg, rating, now);
 
-      const nextReviewAtStr = nextReview.toISOString();
-      const lastReviewedAtStr = now.toISOString();
-
-      // Optimistically update progress state
       const updatedProgress: FlashcardProgress = {
         id: prevProg?.id || `temp-${vocabId}`,
         user_id: user.id,
         vocab_id: vocabId,
-        ease_factor: sm2.easeFactor,
-        interval_days: sm2.intervalDays,
-        repetitions: sm2.repetitions,
-        next_review_at: nextReviewAtStr,
-        is_learned: sm2.isLearned,
-        last_reviewed_at: lastReviewedAtStr,
-        created_at: prevProg?.created_at || lastReviewedAtStr,
+        ease_factor: prevProg?.ease_factor ?? 2.5,
+        interval_days: fsrsUpdate.interval_days,
+        repetitions: fsrsUpdate.repetitions,
+        next_review_at: fsrsUpdate.next_review_at,
+        is_learned: fsrsUpdate.is_learned,
+        last_reviewed_at: fsrsUpdate.last_reviewed_at,
+        created_at: prevProg?.created_at || fsrsUpdate.last_reviewed_at,
+        stability: fsrsUpdate.stability,
+        difficulty: fsrsUpdate.difficulty,
+        state: fsrsUpdate.state,
+        lapses: fsrsUpdate.lapses,
       };
 
       setProgresses((prev) => {
@@ -124,24 +126,26 @@ export function useFlashcards(vocabWords: VocabWord[]) {
           const next = [...prev];
           next[index] = updatedProgress;
           return next;
-        } else {
-          return [...prev, updatedProgress];
         }
+        return [...prev, updatedProgress];
       });
 
-      // Persist to database (upsert by unique composite index [user_id, vocab_id])
       const { data, error } = await supabase
         .from("flashcard_progress")
         .upsert(
           {
             user_id: user.id,
             vocab_id: vocabId,
-            ease_factor: sm2.easeFactor,
-            interval_days: sm2.intervalDays,
-            repetitions: sm2.repetitions,
-            next_review_at: nextReviewAtStr,
-            is_learned: sm2.isLearned,
-            last_reviewed_at: lastReviewedAtStr,
+            ease_factor: prevProg?.ease_factor ?? 2.5,
+            interval_days: fsrsUpdate.interval_days,
+            repetitions: fsrsUpdate.repetitions,
+            next_review_at: fsrsUpdate.next_review_at,
+            is_learned: fsrsUpdate.is_learned,
+            last_reviewed_at: fsrsUpdate.last_reviewed_at,
+            stability: fsrsUpdate.stability,
+            difficulty: fsrsUpdate.difficulty,
+            state: fsrsUpdate.state,
+            lapses: fsrsUpdate.lapses,
           },
           { onConflict: "user_id,vocab_id" }
         )
@@ -150,23 +154,24 @@ export function useFlashcards(vocabWords: VocabWord[]) {
 
       if (error) {
         console.error("Failed to save flashcard review progress:", error);
-        // Rollback on database error
         loadProgress();
       } else if (data) {
         setProgresses((prev) =>
-          prev.map((p) => (p.vocab_id === vocabId ? data : p))
+          prev.map((p) =>
+            p.vocab_id === vocabId
+              ? { ...data, state: data.state ?? 0, lapses: data.lapses ?? 0 }
+              : p
+          )
         );
       }
     },
     [user, flashcards, loadProgress]
   );
 
-  // Unlearn / reset learning progress for a card
   const unlearnWord = useCallback(
     async (vocabId: string) => {
       if (!user) return;
 
-      // Optimistically delete or reset progress to trigger "new card" state
       setProgresses((prev) => prev.filter((p) => p.vocab_id !== vocabId));
 
       const { error } = await supabase
@@ -183,12 +188,43 @@ export function useFlashcards(vocabWords: VocabWord[]) {
     [user, loadProgress]
   );
 
-  // Calculate learning statistics
-  const stats = useMemo(() => {
+  const stats = useMemo<FlashcardStats>(() => {
+    const now = new Date();
+    const nowStr = now.toISOString();
     const total = flashcards.length;
     const learned = learnedCards.length;
     const active = activeCards.length;
     const due = dueCards.length;
+    const newCount = flashcards.filter((c) => !c.progress).length;
+    const learning = active - due - newCount;
+
+    const reviewedToday = progresses.filter(
+      (p) => p.last_reviewed_at && isSameLocalDay(p.last_reviewed_at, now)
+    ).length;
+
+    const futureReviews = activeCards
+      .filter(
+        (c) =>
+          c.progress &&
+          c.progress.next_review_at > nowStr &&
+          !c.progress.is_learned
+      )
+      .map((c) => c.progress!.next_review_at)
+      .sort();
+
+    const retrievabilities = activeCards
+      .filter((c) => c.progress?.last_reviewed_at)
+      .map((c) => cardRetrievability(c.progress, now));
+
+    const avgRecall =
+      retrievabilities.length > 0
+        ? Math.round(
+            (retrievabilities.reduce((a, b) => a + b, 0) /
+              retrievabilities.length) *
+              100
+          )
+        : 0;
+
     const progressPercent = total > 0 ? Math.round((learned / total) * 100) : 0;
 
     return {
@@ -196,9 +232,14 @@ export function useFlashcards(vocabWords: VocabWord[]) {
       learned,
       active,
       due,
+      newCount: Math.max(0, newCount),
+      learning: Math.max(0, learning),
+      reviewedToday,
+      nextReviewAt: futureReviews[0] ?? null,
+      avgRecall,
       progressPercent,
     };
-  }, [flashcards, learnedCards, activeCards, dueCards]);
+  }, [flashcards, learnedCards, activeCards, dueCards, progresses]);
 
   return {
     flashcards,

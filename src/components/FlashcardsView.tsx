@@ -1,18 +1,39 @@
 "use client";
 
 import { useState } from "react";
-import { 
-  Brain, 
-  RotateCcw, 
-  Check, 
-  Sparkles, 
+import {
+  Brain,
+  RotateCcw,
+  Check,
+  Sparkles,
   ExternalLink,
-  Flame, 
+  Flame,
   BookOpen,
-  MessageSquare
+  MessageSquare,
+  Clock,
+  PlusCircle,
+  TrendingUp,
+  CalendarClock,
 } from "lucide-react";
-import type { VocabWord, FlashcardItem, FlashcardRating } from "@/lib/types";
+import type {
+  VocabWord,
+  FlashcardItem,
+  FlashcardRating,
+  FlashcardStats,
+} from "@/lib/types";
 import ExamplePhrasesPanel from "./ExamplePhrasesPanel";
+
+function formatNextReview(iso: string | null): string {
+  if (!iso) return "—";
+  const diffMs = new Date(iso).getTime() - Date.now();
+  if (diffMs <= 0) return "Soon";
+  const mins = Math.ceil(diffMs / 60000);
+  if (mins < 60) return `${mins}m`;
+  const hours = Math.ceil(mins / 60);
+  if (hours < 48) return `${hours}h`;
+  const days = Math.ceil(hours / 24);
+  return `${days}d`;
+}
 
 type FlashcardsViewProps = {
   vocabWords: VocabWord[];
@@ -21,13 +42,7 @@ type FlashcardsViewProps = {
   isLoaded: boolean;
   submitReview: (vocabId: string, rating: FlashcardRating) => Promise<void>;
   unlearnWord: (vocabId: string) => Promise<void>;
-  stats: {
-    total: number;
-    learned: number;
-    active: number;
-    due: number;
-    progressPercent: number;
-  };
+  stats: FlashcardStats;
   generateExamples: (word: VocabWord) => Promise<{ ok: boolean; message?: string }>;
   regenerateExample: (word: VocabWord, index: number) => Promise<{ ok: boolean; message?: string }>;
 };
@@ -136,41 +151,62 @@ export default function FlashcardsView({
 
   return (
     <div className="flashcards-container">
-      {/* Header Stats Bar */}
-      <div className="flashcards-stats-bar">
-        <div className="flashcard-stat-item">
+      {/* Stats dashboard */}
+      <div className="flashcards-stats-dashboard">
+        <div className="flashcard-stat-tile highlight-due">
           <Flame size={14} className="flashcard-stat-icon-due" />
           <span className="stat-label">Due</span>
-          <span className="stat-value due-badge">{stats.due}</span>
+          <span className="stat-value">{stats.due}</span>
         </div>
-        
-        <div className="stat-divider"></div>
-        
-        <div className="flashcard-stat-item">
+
+        <div className="flashcard-stat-tile">
+          <PlusCircle size={14} className="flashcard-stat-icon-new" />
+          <span className="stat-label">New</span>
+          <span className="stat-value">{stats.newCount}</span>
+        </div>
+
+        <div className="flashcard-stat-tile">
           <BookOpen size={14} className="flashcard-stat-icon-active" />
           <span className="stat-label">Learning</span>
-          <span className="stat-value">{stats.active}</span>
+          <span className="stat-value">{stats.learning}</span>
         </div>
-        
-        <div className="stat-divider"></div>
-        
-        <div className="flashcard-stat-item">
+
+        <div className="flashcard-stat-tile">
           <Check size={14} className="flashcard-stat-icon-learned" />
           <span className="stat-label">Learned</span>
           <span className="stat-value">
-            {stats.learned}<span className="stat-total">/{stats.total}</span>
+            {stats.learned}
+            <span className="stat-total">/{stats.total}</span>
           </span>
         </div>
-        
-        <div className="stat-divider"></div>
-        
-        <div className="flashcard-stat-item progress-item">
+
+        <div className="flashcard-stat-tile">
+          <Clock size={14} className="flashcard-stat-icon-today" />
+          <span className="stat-label">Today</span>
+          <span className="stat-value">{stats.reviewedToday}</span>
+        </div>
+
+        <div className="flashcard-stat-tile">
+          <TrendingUp size={14} className="flashcard-stat-icon-recall" />
+          <span className="stat-label">Avg Recall</span>
+          <span className="stat-value">{stats.avgRecall}%</span>
+        </div>
+
+        {stats.due === 0 && stats.nextReviewAt && (
+          <div className="flashcard-stat-tile">
+            <CalendarClock size={14} className="flashcard-stat-icon-eta" />
+            <span className="stat-label">Next Review</span>
+            <span className="stat-value">{formatNextReview(stats.nextReviewAt)}</span>
+          </div>
+        )}
+
+        <div className="flashcard-stat-tile mastery-tile">
           <Sparkles size={14} className="flashcard-stat-icon-progress" />
           <span className="stat-label">Mastery</span>
           <div className="flashcard-compact-progress">
             <div className="flashcard-stat-progress-bg">
-              <div 
-                className="flashcard-stat-progress-fill" 
+              <div
+                className="flashcard-stat-progress-fill"
                 style={{ width: `${stats.progressPercent}%` }}
               ></div>
             </div>
@@ -282,7 +318,7 @@ export default function FlashcardsView({
                 />
               )}
 
-              {/* SM-2 Interactive Rating Panel */}
+              {/* FSRS Interactive Rating Panel */}
               <div className={`flashcard-rating-panel ${isFlipped ? "revealed" : ""}`}>
                 {!isFlipped ? (
                   <div className="flashcard-pre-reveal-actions">
@@ -354,9 +390,14 @@ export default function FlashcardsView({
                   <p>
                     Excellent! You have reviewed all active flashcards for now. Check back later for your next scheduled reviews.
                   </p>
-                  {stats.active > 0 && (
+                  {stats.active > 0 && stats.nextReviewAt && (
                     <p style={{ fontSize: "14px", color: "var(--text-muted)", marginTop: "4px" }}>
-                      Next review interval is calculated automatically using the SM-2 algorithm.
+                      Next review in <strong>{formatNextReview(stats.nextReviewAt)}</strong> (FSRS scheduling).
+                    </p>
+                  )}
+                  {stats.active > 0 && !stats.nextReviewAt && (
+                    <p style={{ fontSize: "14px", color: "var(--text-muted)", marginTop: "4px" }}>
+                      Review intervals are scheduled automatically using the FSRS algorithm.
                     </p>
                   )}
                 </>

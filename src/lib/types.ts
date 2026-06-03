@@ -50,6 +50,26 @@ export type FlashcardProgress = {
   is_learned: boolean;
   last_reviewed_at: string | null;
   created_at: string;
+  /** FSRS memory stability (days); null for legacy SM-2 rows until next review */
+  stability: number | null;
+  /** FSRS difficulty (1–10); null for legacy rows */
+  difficulty: number | null;
+  /** FSRS State: 0=New, 1=Learning, 2=Review, 3=Relearning */
+  state: number;
+  lapses: number;
+};
+
+export type FlashcardStats = {
+  total: number;
+  learned: number;
+  active: number;
+  due: number;
+  newCount: number;
+  learning: number;
+  reviewedToday: number;
+  nextReviewAt: string | null;
+  avgRecall: number;
+  progressPercent: number;
 };
 
 export type FlashcardItem = {

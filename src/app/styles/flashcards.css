@@ -5,10 +5,10 @@
 .flashcards-container {
   max-width: 800px;
   margin: 0 auto;
-  padding: 32px 24px;
+  padding: 24px 24px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 14px;
   animation: fadeIn 0.4s ease-out;
 }
 
@@ -17,48 +17,42 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* Sidebar notification badge for due reviews */
-.sidebar-badge-due {
-  position: absolute;
-  top: 50%;
-  right: 12px;
-  transform: translateY(-50%);
-  background-color: var(--text-main);
-  color: white;
-  font-size: 10px;
-  font-weight: 600;
-  padding: 2px 6px;
-  border-radius: 10px;
-  min-width: 18px;
-  text-align: center;
-  line-height: 1;
-}
-
-/* Statistics Bar */
-.flashcards-stats-bar {
+/* Stats dashboard (compact summary strip) */
+.flashcards-stats-dashboard {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px;
   background: var(--surface);
   border: 1px solid rgba(0, 0, 0, 0.05);
-  border-radius: 12px;
-  padding: 10px 18px;
+  border-radius: 14px;
+  padding: 7px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.01);
-  gap: 16px;
-  min-height: 48px;
 }
 
-.flashcard-stat-item {
+.flashcard-stat-tile {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--text-muted);
-  font-weight: 500;
+  gap: 6px;
+  border-radius: 10px;
+  padding: 6px 9px;
+  min-height: 34px;
+  white-space: nowrap;
 }
 
-.flashcard-stat-item svg {
-  opacity: 0.7;
+.flashcard-stat-tile.highlight-due {
+  background: rgba(224, 49, 49, 0.04);
+}
+
+.flashcard-stat-tile.mastery-tile {
+  flex: 1 1 190px;
+  margin-left: auto;
+  gap: 8px;
+}
+
+.flashcard-stat-tile svg {
+  opacity: 0.75;
+  flex-shrink: 0;
 }
 
 .flashcard-stat-icon-due {
@@ -73,48 +67,50 @@
   color: #059669;
 }
 
+.flashcard-stat-icon-new {
+  color: #1971c2;
+}
+
+.flashcard-stat-icon-today {
+  color: #862e9c;
+}
+
+.flashcard-stat-icon-recall {
+  color: #e67700;
+}
+
+.flashcard-stat-icon-eta {
+  color: var(--text-muted);
+}
+
 .flashcard-stat-icon-progress {
   color: var(--accent);
 }
 
 .stat-label {
-  font-size: 13px;
+  font-size: 10px;
   color: var(--text-muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .stat-value {
   font-size: 14px;
   font-weight: 600;
   color: var(--text-main);
+  line-height: 1.2;
 }
 
-.stat-value.due-badge {
-  background-color: rgba(224, 49, 49, 0.08);
+.highlight-due .stat-value {
   color: #e03131;
-  padding: 2px 8px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 700;
 }
 
 .stat-total {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-muted);
   font-weight: 400;
   margin-left: 1px;
-}
-
-.stat-divider {
-  width: 1px;
-  height: 16px;
-  background-color: rgba(0, 0, 0, 0.08);
-}
-
-.flashcard-stat-item.progress-item {
-  flex-grow: 1;
-  max-width: 240px;
-  justify-content: flex-end;
-  gap: 10px;
 }
 
 .flashcard-compact-progress {
@@ -122,7 +118,8 @@
   align-items: center;
   gap: 8px;
   width: 100%;
-  max-width: 130px;
+  min-width: 110px;
+  max-width: 160px;
 }
 
 .flashcard-stat-progress-bg {
@@ -149,35 +146,46 @@
 }
 
 @media (max-width: 640px) {
-  .flashcards-stats-bar {
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 10px 18px;
-    padding: 12px;
+  .flashcards-stats-dashboard {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 6px;
+    margin-inline: -4px;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
   }
-  
-  .stat-divider {
+
+  .flashcards-stats-dashboard::-webkit-scrollbar {
     display: none;
   }
-  
-  .flashcard-stat-item.progress-item {
-    max-width: 100%;
-    width: 100%;
-    justify-content: center;
-    border-top: 1px solid rgba(0, 0, 0, 0.05);
-    padding-top: 10px;
-    margin-top: 4px;
-    gap: 10px;
+
+  .flashcard-stat-tile {
+    flex: 0 0 auto;
+    padding: 6px 8px;
+    min-height: 32px;
+    scroll-snap-align: start;
   }
-  
+
+  .flashcard-stat-tile.mastery-tile {
+    flex-basis: 170px;
+    margin-left: 0;
+  }
+
   .flashcard-compact-progress {
-    max-width: 180px;
+    min-width: 88px;
+    max-width: 110px;
+  }
+
+  .stat-value {
+    font-size: 13px;
   }
 }
 
 /* Flashcards View Tabs (Minimal Segmented Control Style) */
 .vocab-filters-bar {
-  margin-bottom: 24px;
+  margin-bottom: 12px;
   display: flex;
   justify-content: flex-start;
   width: 100%;
@@ -232,13 +240,13 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 40px 24px;
+  padding: 28px 22px;
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 16px;
+  gap: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
   max-width: 480px;
   margin: 0 auto;
@@ -246,8 +254,8 @@
 }
 
 .flashcard-illustration-circle {
-  width: 56px;
-  height: 56px;
+  width: 46px;
+  height: 46px;
   border-radius: 12px;
   background-color: var(--surface-hover);
   display: flex;
@@ -259,7 +267,7 @@
 }
 
 .flashcard-start-screen h2 {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
   letter-spacing: -0.01em;
   margin: 0;
@@ -284,7 +292,7 @@
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
-  margin-top: 8px;
+  margin-top: 4px;
 }
 
 .flashcard-start-btn:hover {
@@ -557,7 +565,7 @@
 .flashcards-session-wrapper,
 .flashcards-learned-wrapper {
   animation: fadeIn 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-  min-height: 340px;
+  min-height: 300px;
   width: 100%;
   display: flex;
   flex-direction: column;
@@ -603,6 +611,15 @@
 
 /* Small Viewport Optimization */
 @media (max-width: 580px) {
+  .flashcards-container {
+    padding: 12px 12px 20px;
+    gap: 10px;
+  }
+
+  .vocab-filters-bar {
+    margin-bottom: 8px;
+  }
+
   .vocab-view-tabs {
     display: flex;
     width: 100%;
@@ -624,7 +641,22 @@
   .flashcard-translation-word {
     font-size: 20px;
   }
-  .flashcards-container {
-    padding: 20px 16px;
+  .flashcard-start-screen {
+    padding: 22px 16px;
+    gap: 10px;
+    border-radius: 10px;
+  }
+
+  .flashcard-illustration-circle {
+    width: 42px;
+    height: 42px;
+  }
+
+  .flashcard-start-screen h2 {
+    font-size: 17px;
+  }
+
+  .flashcard-start-screen p {
+    font-size: 13px;
   }
 }

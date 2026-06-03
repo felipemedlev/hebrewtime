@@ -156,7 +156,6 @@ export default function Sidebar({
               className={`tab-btn ${viewMode === "flashcards" ? "active" : ""}`}
               onClick={() => onChangeViewMode("flashcards")}
               title={!isPremium && !isLoadingEntitlements ? "Join subscription to unlock flashcards" : undefined}
-              style={{ position: "relative" }}
               role="tab"
               aria-selected={viewMode === "flashcards"}
               id="sidebar-tab-flashcards"
@@ -171,11 +170,6 @@ export default function Sidebar({
                 }}
               />
               Review
-              {dueFlashcardsCount > 0 && (
-                <span className="sidebar-badge-due">
-                  {dueFlashcardsCount}
-                </span>
-              )}
             </button>
           </div>
 
