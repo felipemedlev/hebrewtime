@@ -37,6 +37,7 @@ export function useVocabulary() {
               episodeTitle: d.episode_title,
               episodeUrl: d.episode_url,
               savedAt: d.saved_at,
+              examplePhrases: d.example_phrases || [],
             }))
           );
         }
@@ -85,6 +86,7 @@ export function useVocabulary() {
           episode_title: word.episodeTitle,
           episode_url: word.episodeUrl,
           saved_at: newWord.savedAt,
+          example_phrases: word.examplePhrases || [],
         })
         .select()
         .single();
@@ -146,6 +148,7 @@ export function useVocabulary() {
       if (updates.pronunciation !== undefined) dbUpdates.pronunciation = updates.pronunciation || null;
       if (updates.episodeTitle !== undefined) dbUpdates.episode_title = updates.episodeTitle;
       if (updates.episodeUrl !== undefined) dbUpdates.episode_url = updates.episodeUrl;
+      if (updates.examplePhrases !== undefined) dbUpdates.example_phrases = updates.examplePhrases;
 
       const { data, error } = await supabase
         .from("vocabulary")

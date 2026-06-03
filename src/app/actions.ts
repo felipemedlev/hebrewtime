@@ -1,5 +1,6 @@
 "use server";
 import { createClient } from "@supabase/supabase-js";
+import type { ExamplePhrase } from "@/lib/types";
 
 
 type Entitlements = {
@@ -255,5 +256,82 @@ Return a JSON object with exactly four keys:
   } catch (err) {
     console.error("Fetch Error:", err);
     return { translation: "Translation error", wordWithNekudot: word, type: "error" };
+  }
+}
+
+export async function generateExamplePhrases(
+  accessToken: string | undefined,
+  word: string,
+  translation: string,
+  count: number,
+  existingPhrases?: ExamplePhrase[]
+) {
+  const ent = await getUserEntitlements(accessToken);
+  if (!ent.isAuthenticated) {
+    return { phrases: [], type: "auth_required" as const };
+  }
+  if (!ent.isPremium) {
+    return { phrases: [], type: "premium_required" as const };
+  }
+
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    return { phrases: [], type: "error" as const };
+  }
+
+  const wordDisplay = word;
+  const existingBlock =
+    existingPhrases && existingPhrases.length > 0
+      ? `\nDo NOT repeat or closely paraphrase any of these existing example sentences:\n${existingPhrases.map((p, i) => `${i + 1}. Hebrew: "${p.hebrew}" / English: "${p.english}"`).join("\n")}\n`
+      : "";
+
+  const prompt = `You are a Hebrew language tutor helping intermediate learners understand how to use vocabulary in everyday conversation.
+
+Generate exactly ${count} natural, everyday Hebrew sentence${count === 1 ? "" : "s"} that USE the word "${wordDisplay}" (meaning: "${translation}") in realistic daily-life contexts (shopping, work, family, travel, casual conversation, etc.).
+
+Requirements:
+- Each sentence must naturally include the target word (or an inflected/conjugated form of it).
+- Hebrew sentences must be fully vocalized with grammatically correct Nekudot.
+- English translations should be natural and clear.
+- Keep sentences at an intermediate level — not too simple, not overly complex.
+- Each sentence should demonstrate a different usage context or grammatical pattern.
+${existingBlock}
+Return a JSON object with exactly one key "phrases" containing an array of ${count} object${count === 1 ? "" : "s"}, each with:
+- "hebrew": the Hebrew sentence with full Nekudot
+- "english": the English translation`;
+
+  try {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-5.4-mini",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        temperature: 0.7,
+      }),
+    });
+
+    if (!res.ok) {
+      console.error("OpenAI Error:", await res.text());
+      return { phrases: [], type: "error" as const };
+    }
+
+    const data = await res.json();
+    const result = JSON.parse(data.choices[0].message.content.trim());
+    const phrases: ExamplePhrase[] = (result.phrases || [])
+      .filter((p: { hebrew?: string; english?: string }) => p.hebrew && p.english)
+      .map((p: { hebrew: string; english: string }) => ({
+        hebrew: p.hebrew.trim(),
+        english: p.english.trim(),
+      }));
+
+    return { phrases, type: "success" as const };
+  } catch (err) {
+    console.error("Fetch Error:", err);
+    return { phrases: [], type: "error" as const };
   }
 }

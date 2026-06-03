@@ -1,15 +1,18 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Bookmark, Trash2, LogIn, Edit2, Check, X, ExternalLink, Search } from "lucide-react";
+import { Bookmark, Trash2, LogIn, Edit2, Check, X, ExternalLink, Search, MessageSquare } from "lucide-react";
 import type { VocabWord } from "@/lib/types";
 import { useUser } from "@/hooks/useUser";
+import ExamplePhrasesPanel from "./ExamplePhrasesPanel";
 
 type VocabularyViewProps = {
   vocabWords: VocabWord[];
   onDeleteWord: (id: string) => void;
   onEditWord?: (id: string, updates: Partial<VocabWord>) => void;
   isPremium: boolean;
+  generateExamples: (word: VocabWord) => Promise<{ ok: boolean; message?: string }>;
+  regenerateExample: (word: VocabWord, index: number) => Promise<{ ok: boolean; message?: string }>;
 };
 
 export default function VocabularyView({
@@ -17,9 +20,14 @@ export default function VocabularyView({
   onDeleteWord,
   onEditWord,
   isPremium,
+  generateExamples,
+  regenerateExample,
 }: VocabularyViewProps) {
   const { user } = useUser();
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [generatingId, setGeneratingId] = useState<string | null>(null);
+  const [regeneratingSlot, setRegeneratingSlot] = useState<{ wordId: string; index: number } | null>(null);
   const [editValues, setEditValues] = useState<{
     wordWithNekudot: string;
     verbFormWithNekudot: string;
@@ -99,6 +107,24 @@ export default function VocabularyView({
       });
     }
     setEditingId(null);
+  };
+
+  const toggleExamples = (id: string) => {
+    setExpandedId((prev) => (prev === id ? null : id));
+  };
+
+  const handleGenerate = async (word: VocabWord) => {
+    setGeneratingId(word.id);
+    const result = await generateExamples(word);
+    setGeneratingId(null);
+    return result;
+  };
+
+  const handleRegenerate = async (word: VocabWord, index: number) => {
+    setRegeneratingSlot({ wordId: word.id, index });
+    const result = await regenerateExample(word, index);
+    setRegeneratingSlot(null);
+    return result;
   };
 
   return (
@@ -215,10 +241,11 @@ export default function VocabularyView({
             {/* Rows */}
             {filteredAndSortedWords.map((vw, i) => {
               const isEditing = editingId === vw.id;
+              const isExpanded = expandedId === vw.id;
               return (
+                <div key={vw.id} className="vocab-table-row-group">
                 <div
-                  key={vw.id}
-                  className={`vocab-table-row${isEditing ? " editing" : ""}${i === vocabWords.length - 1 ? " last" : ""}`}
+                  className={`vocab-table-row${isEditing ? " editing" : ""}${i === vocabWords.length - 1 && !isExpanded ? " last" : ""}`}
                 >
                   {/* Source — far left */}
                   <div className="vtd-source">
@@ -323,6 +350,13 @@ export default function VocabularyView({
                       </>
                     ) : (
                       <>
+                        <button
+                          onClick={() => toggleExamples(vw.id)}
+                          title="Example phrases"
+                          className={`vocab-action-btn examples${isExpanded ? " active" : ""}`}
+                        >
+                          <MessageSquare size={14} />
+                        </button>
                         <button onClick={() => startEdit(vw)} title="Edit" className="vocab-action-btn edit">
                           <Edit2 size={14} />
                         </button>
@@ -333,6 +367,22 @@ export default function VocabularyView({
                     )}
                   </div>
                 </div>
+
+                {isExpanded && !isEditing && (
+                  <div className="vocab-table-examples-row">
+                    <ExamplePhrasesPanel
+                      word={vw}
+                      variant="vocab"
+                      onGenerate={handleGenerate}
+                      onRegenerate={handleRegenerate}
+                      isGenerating={generatingId === vw.id}
+                      regeneratingIndex={
+                        regeneratingSlot?.wordId === vw.id ? regeneratingSlot.index : null
+                      }
+                    />
+                  </div>
+                )}
+                </div>
               );
             })}
           </div>
@@ -341,6 +391,7 @@ export default function VocabularyView({
           <div className="vocab-cards">
             {filteredAndSortedWords.map((vw) => {
               const isEditing = editingId === vw.id;
+              const isExpanded = expandedId === vw.id;
               return (
                 <div key={vw.id} className={`vocab-card-item${isEditing ? " editing" : ""}`}>
                   {/* Card top: Hebrew (right-aligned) + actions */}
@@ -357,6 +408,13 @@ export default function VocabularyView({
                         </>
                       ) : (
                         <>
+                          <button
+                            onClick={() => toggleExamples(vw.id)}
+                            title="Example phrases"
+                            className={`vocab-action-btn examples${isExpanded ? " active" : ""}`}
+                          >
+                            <MessageSquare size={14} />
+                          </button>
                           <button onClick={() => startEdit(vw)} title="Edit" className="vocab-action-btn edit">
                             <Edit2 size={14} />
                           </button>
@@ -442,6 +500,19 @@ export default function VocabularyView({
                         <span>{vw.episodeTitle}</span>
                       )}
                     </div>
+                  )}
+
+                  {isExpanded && !isEditing && (
+                    <ExamplePhrasesPanel
+                      word={vw}
+                      variant="vocab"
+                      onGenerate={handleGenerate}
+                      onRegenerate={handleRegenerate}
+                      isGenerating={generatingId === vw.id}
+                      regeneratingIndex={
+                        regeneratingSlot?.wordId === vw.id ? regeneratingSlot.index : null
+                      }
+                    />
                   )}
                 </div>
               );

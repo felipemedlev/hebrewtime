@@ -8,9 +8,11 @@ import {
   Sparkles, 
   ExternalLink,
   Flame, 
-  BookOpen
+  BookOpen,
+  MessageSquare
 } from "lucide-react";
 import type { VocabWord, FlashcardItem, FlashcardRating } from "@/lib/types";
+import ExamplePhrasesPanel from "./ExamplePhrasesPanel";
 
 type FlashcardsViewProps = {
   vocabWords: VocabWord[];
@@ -26,6 +28,8 @@ type FlashcardsViewProps = {
     due: number;
     progressPercent: number;
   };
+  generateExamples: (word: VocabWord) => Promise<{ ok: boolean; message?: string }>;
+  regenerateExample: (word: VocabWord, index: number) => Promise<{ ok: boolean; message?: string }>;
 };
 
 export default function FlashcardsView({
@@ -36,16 +40,24 @@ export default function FlashcardsView({
   submitReview,
   unlearnWord,
   stats,
+  generateExamples,
+  regenerateExample,
 }: FlashcardsViewProps) {
   const [sessionActive, setSessionActive] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [viewTab, setViewTab] = useState<"session" | "learned">("session");
+  const [showExamples, setShowExamples] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [regeneratingIndex, setRegeneratingIndex] = useState<number | null>(null);
+
+  const currentWord = sessionQueue[currentIndex]?.vocabWord;
 
   const startSession = () => {
     if (sessionQueue.length > 0) {
       setCurrentIndex(0);
       setIsFlipped(false);
+      setShowExamples(false);
       setSessionActive(true);
     }
   };
@@ -62,12 +74,43 @@ export default function FlashcardsView({
     
     // Reset flip state for the next card immediately
     setIsFlipped(false);
+    setShowExamples(false);
     
     if (currentIndex + 1 < sessionQueue.length) {
       setCurrentIndex(currentIndex + 1);
     } else {
       setSessionActive(false);
     }
+  };
+
+  const handleToggleExamples = async () => {
+    if (!currentWord) return;
+
+    if (!showExamples) {
+      setShowExamples(true);
+      if (!currentWord.examplePhrases?.length) {
+        setIsGenerating(true);
+        await generateExamples(currentWord);
+        setIsGenerating(false);
+      }
+      return;
+    }
+
+    setShowExamples(false);
+  };
+
+  const handleGenerate = async (word: VocabWord) => {
+    setIsGenerating(true);
+    const result = await generateExamples(word);
+    setIsGenerating(false);
+    return result;
+  };
+
+  const handleRegenerate = async (word: VocabWord, index: number) => {
+    setRegeneratingIndex(index);
+    const result = await regenerateExample(word, index);
+    setRegeneratingIndex(null);
+    return result;
   };
 
   if (!isLoaded) {
@@ -227,29 +270,61 @@ export default function FlashcardsView({
                 </div>
               </div>
 
+              {/* Example phrases panel (below card) */}
+              {showExamples && currentWord && (
+                <ExamplePhrasesPanel
+                  word={currentWord}
+                  variant="flashcard"
+                  onGenerate={handleGenerate}
+                  onRegenerate={handleRegenerate}
+                  isGenerating={isGenerating}
+                  regeneratingIndex={regeneratingIndex}
+                />
+              )}
+
               {/* SM-2 Interactive Rating Panel */}
               <div className={`flashcard-rating-panel ${isFlipped ? "revealed" : ""}`}>
                 {!isFlipped ? (
-                  <button className="flashcard-reveal-btn" onClick={handleFlip}>
-                    Reveal Translation
-                  </button>
+                  <div className="flashcard-pre-reveal-actions">
+                    <button className="flashcard-reveal-btn" onClick={handleFlip}>
+                      Reveal Translation
+                    </button>
+                    <button
+                      className={`flashcard-examples-toggle-btn${showExamples ? " active" : ""}`}
+                      onClick={handleToggleExamples}
+                      disabled={isGenerating}
+                    >
+                      <MessageSquare size={14} />
+                      {showExamples ? "Hide examples" : "Show examples"}
+                    </button>
+                  </div>
                 ) : (
-                  <div className="flashcard-rating-grid">
-                    <button className="rating-btn again" onClick={() => handleRate(0)}>
-                      <span className="rating-btn-lbl">Again</span>
-                      <span className="rating-btn-desc">Forgot</span>
-                    </button>
-                    <button className="rating-btn hard" onClick={() => handleRate(1)}>
-                      <span className="rating-btn-lbl">Hard</span>
-                      <span className="rating-btn-desc">Unsure</span>
-                    </button>
-                    <button className="rating-btn good" onClick={() => handleRate(3)}>
-                      <span className="rating-btn-lbl">Good</span>
-                      <span className="rating-btn-desc">Hesitant</span>
-                    </button>
-                    <button className="rating-btn easy" onClick={() => handleRate(5)}>
-                      <span className="rating-btn-lbl">Easy</span>
-                      <span className="rating-btn-desc">Instant</span>
+                  <div className="flashcard-post-reveal-actions">
+                    <div className="flashcard-rating-grid">
+                      <button className="rating-btn again" onClick={() => handleRate(0)}>
+                        <span className="rating-btn-lbl">Again</span>
+                        <span className="rating-btn-desc">Forgot</span>
+                      </button>
+                      <button className="rating-btn hard" onClick={() => handleRate(1)}>
+                        <span className="rating-btn-lbl">Hard</span>
+                        <span className="rating-btn-desc">Unsure</span>
+                      </button>
+                      <button className="rating-btn good" onClick={() => handleRate(3)}>
+                        <span className="rating-btn-lbl">Good</span>
+                        <span className="rating-btn-desc">Hesitant</span>
+                      </button>
+                      <button className="rating-btn easy" onClick={() => handleRate(5)}>
+                        <span className="rating-btn-lbl">Easy</span>
+                        <span className="rating-btn-desc">Instant</span>
+                      </button>
+                    </div>
+                    <button
+                      className={`flashcard-examples-toggle-btn compact${showExamples ? " active" : ""}`}
+                      onClick={handleToggleExamples}
+                      disabled={isGenerating}
+                    >
+                      <MessageSquare size={14} />
+                      {showExamples ? "Hide examples" : "Show examples"}
                     </button>
                   </div>
                 )}

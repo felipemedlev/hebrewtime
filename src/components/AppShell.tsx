@@ -16,6 +16,7 @@ import { useEntitlements } from "@/hooks/useEntitlements";
 import { supabase } from "@/lib/supabase";
 import AdminPremiumModal from "./AdminPremiumModal";
 import { useFinishedEpisodes } from "@/hooks/useFinishedEpisodes";
+import { generateExamplePhrases } from "@/app/actions";
 
 type AppShellProps = {
   episodeList: EpisodeListItem[];
@@ -140,6 +141,75 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
       });
     },
     []
+  );
+
+  const generateExamples = useCallback(
+    async (word: VocabWord): Promise<{ ok: boolean; message?: string }> => {
+      const { data } = await supabase.auth.getSession();
+      const accessToken = data.session?.access_token;
+      const res = await generateExamplePhrases(
+        accessToken,
+        word.wordWithNekudot || word.word,
+        word.translation,
+        3
+      );
+
+      if (res.type === "auth_required") {
+        setIsAuthModalOpen(true);
+        return { ok: false, message: "Please log in to generate examples." };
+      }
+      if (res.type === "premium_required") {
+        showSubscriptionPrompt("vocabulary");
+        return { ok: false, message: "Premium subscription required." };
+      }
+      if (res.type === "error" || res.phrases.length === 0) {
+        return { ok: false, message: "Failed to generate examples. Please try again." };
+      }
+
+      const updateRes = await updateWord(word.id, { examplePhrases: res.phrases });
+      if (!updateRes?.updated) {
+        return { ok: false, message: updateRes?.message || "Failed to save examples." };
+      }
+      return { ok: true };
+    },
+    [updateWord, showSubscriptionPrompt]
+  );
+
+  const regenerateExample = useCallback(
+    async (word: VocabWord, index: number): Promise<{ ok: boolean; message?: string }> => {
+      const existing = word.examplePhrases || [];
+      const { data } = await supabase.auth.getSession();
+      const accessToken = data.session?.access_token;
+      const res = await generateExamplePhrases(
+        accessToken,
+        word.wordWithNekudot || word.word,
+        word.translation,
+        1,
+        existing
+      );
+
+      if (res.type === "auth_required") {
+        setIsAuthModalOpen(true);
+        return { ok: false, message: "Please log in to regenerate examples." };
+      }
+      if (res.type === "premium_required") {
+        showSubscriptionPrompt("vocabulary");
+        return { ok: false, message: "Premium subscription required." };
+      }
+      if (res.type === "error" || res.phrases.length === 0) {
+        return { ok: false, message: "Failed to regenerate example. Please try again." };
+      }
+
+      const updatedPhrases = [...existing];
+      updatedPhrases[index] = res.phrases[0];
+
+      const updateRes = await updateWord(word.id, { examplePhrases: updatedPhrases });
+      if (!updateRes?.updated) {
+        return { ok: false, message: updateRes?.message || "Failed to save example." };
+      }
+      return { ok: true };
+    },
+    [updateWord, showSubscriptionPrompt]
   );
 
   const effectiveViewMode =
@@ -347,6 +417,8 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
               if (res) showToast(res.message);
             }}
             isPremium={entitlements.isPremium}
+            generateExamples={generateExamples}
+            regenerateExample={regenerateExample}
           />
         ) : effectiveViewMode === "flashcards" ? (
           <FlashcardsView
@@ -357,6 +429,8 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
             submitReview={submitReview}
             unlearnWord={unlearnWord}
             stats={stats}
+            generateExamples={generateExamples}
+            regenerateExample={regenerateExample}
           />
         ) : !episode ? (
           <div className="empty-state">

@@ -19,6 +19,11 @@ export type EpisodeListItem = {
   title: string;
 };
 
+export type ExamplePhrase = {
+  hebrew: string;
+  english: string;
+};
+
 export type VocabWord = {
   id: string;
   word: string;
@@ -29,6 +34,7 @@ export type VocabWord = {
   episodeTitle: string;
   episodeUrl: string;
   savedAt: number;
+  examplePhrases?: ExamplePhrase[];
 };
 
 export type FlashcardRating = 0 | 1 | 3 | 5; // Again (0), Hard (1), Good (3), Easy (5)

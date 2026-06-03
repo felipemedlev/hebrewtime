@@ -2,7 +2,7 @@
 
 HebrewTime is a beautiful, bilingual web-based reader for the Hebrew Time podcast. It provides an elegant Notion/Apple-like reading experience with side-by-side Hebrew and English paragraphs.
 
-The application allows intermediate Hebrew learners to read podcast transcripts and click on any word to get a contextual, AI-powered translation (complete with Nekudot) and save it to their personal vocabulary list. Since word translation uses OpenAI credits, translation + vocabulary access are gated behind a premium subscription prompt shown in-app at $10/month.
+The application allows intermediate Hebrew learners to read podcast transcripts and click on any word to get a contextual, AI-powered translation (complete with Nekudot) and save it to their personal vocabulary list. Premium users can also generate AI example sentences for saved words to see everyday usage in context. Since word translation and example-phrase generation use OpenAI credits, translation, vocabulary, and flashcards are gated behind a premium subscription prompt shown in-app at $10/month.
 
 ## Key Features
 
@@ -10,7 +10,7 @@ The application allows intermediate Hebrew learners to read podcast transcripts 
 - **Audio-Synchronized Highlighting**: As the podcast audio plays, the current Hebrew paragraph is automatically highlighted and smoothly scrolled into view, allowing learners to easily follow along. This is powered by high-performance custom DOM events that sync the UI at 60fps without heavy React re-renders. Note: Currently, only episodes that have been processed with the Whisper timestamp synchronization script (e.g., Episode 1) will feature this highlighting.
 - **Focus Mode for Hebrew Reading**: A top-bar toggle lets users blur all English transcript text on demand, so learners can practice Hebrew-first reading. The preference is saved in local storage.
 - **Mark Episodes as Finished**: Users can mark episodes they've completed. This state is synced to the Supabase database for authenticated users (and stored in local storage) and represented by a green checkmark in the sidebar and an elegant button at the end of the episode text.
-- **Scroll Position Persistence**: The application intelligently remembers your exact scroll position when navigating between your current episode and the vocabulary list, ensuring a seamless learning experience without losing your place.
+- **Scroll Position Persistence**: The application remembers your exact scroll position when switching between episodes, the vocabulary list, and flashcards, so you never lose your place.
 - **Premium-gated AI Translation**: Click any Hebrew word to translate it within the context of the sentence using OpenAI (gpt-5.4-mini). A specially tuned prompt ensures:
   - 100% grammatically correct Nekudot vocalization based on the exact contextual meaning.
   - The stored word is always the **base dictionary form (lemma)** — prefixes like ה (the), ל (to), ב (in), מ (from), ו (and), כ (as) are automatically stripped.
@@ -20,17 +20,19 @@ The application allows intermediate Hebrew learners to read podcast transcripts 
   - Lemma accuracy is cross-validated against pealim.com in the AI prompt.
   - This is available only to premium users.
 - **Premium Vocabulary Manager & Auth**: Users can create an account via Supabase Email Auth (including “Forgot password” recovery). Premium users can save synced vocabulary in Supabase PostgreSQL across devices.
-  - Rendered in an elegant, minimal Apple/Notion-style data table. Desktop column order: **Source** (leftmost) → Translation → Verb form → **Hebrew** (rightmost, for natural RTL reading).
-  - Supports inline editing of saved words directly on the vocabulary page (allowing modifications to the word's text, nekudot, verb forms, and translations). Pressing **Enter** in any edit field saves the row (same as clicking the ✓ button).
+  - Rendered in an elegant, minimal Apple/Notion-style data table on desktop and card layout on mobile. Desktop column order: **Source** (leftmost) → Pronunc. → Translation → Verb form → **Hebrew** (rightmost, for natural RTL reading) → Actions.
+  - Supports inline editing of saved words directly on the vocabulary page (Hebrew with Nekudot, verb form, translation, and pronunciation). Pressing **Enter** in any edit field saves the row (same as clicking the ✓ button).
   - On mobile, the Hebrew word is right-aligned and actions sit on the left, preserving the RTL-natural reading flow in a card layout.
-  - **Dynamic Search & Filtering**: A responsive search bar instantly filters your vocabulary list as you type. It works seamlessly for both English translations and Hebrew words (even without typing specific Nekudot).
+  - **Dynamic Search & Filtering**: A responsive search bar instantly filters your vocabulary list as you type. It works seamlessly for English translations, Hebrew words (even without typing specific Nekudot), and pronunciation.
   - Smart deduplication logic allows saving the exact same Hebrew word multiple times if its contextual meaning (translation) or pronunciation (Nekudot) differs.
-- **Top-of-Screen Subscription Upsell (Apple/Notion Style)**: If a non-premium user clicks the Vocabulary tab or selects a word, the app shows a large sticky promo panel with $10/month messaging and a CTA that opens auth/signup.
+  - **AI Example Phrases**: Each saved word can reveal 3 AI-generated example sentences (Hebrew with Nekudot + English translation) showing everyday usage. Phrases are **not** generated at save-time — the user expands an “Examples” panel (Vocabulary tab) or taps “Show examples” (Flashcards) to trigger generation on first use. Results are cached in `vocabulary.example_phrases` (JSONB) per user per word and load instantly on subsequent views. Any single phrase can be regenerated unlimited times via a per-phrase refresh button. Shared UI lives in `ExamplePhrasesPanel.tsx`; orchestration in `AppShell.tsx` calls `generateExamplePhrases` then persists via `useVocabulary.updateWord`.
+- **Top-of-Screen Subscription Upsell (Apple/Notion Style)**: If a non-premium user clicks the Vocabulary tab, Flashcards tab, or tries to translate a word, the app shows a large sticky promo panel with $10/month messaging and a CTA that opens auth/signup.
 - **Spaced Repetition Flashcard System (SM-2)**: An elegant, built-in flashcard system designed to help users master their saved vocabulary.
   - **SuperMemo-2 Scheduling**: Automatically calculates card review intervals using the SM-2 algorithm (parameters: ease factor, repetitions, and recall interval) dynamically loading due cards (up to 20 per session).
   - **Sleek Notion-Style Compact Stats**: Displays Due Reviews, Learning Queue, Learned Words, and Mastery Progress in a single low-profile horizontal dashboard bar that scales responsively on mobile.
   - **Snappy Anki-Style Card Transitions**: Utilizes React's key diffing pattern (`key={currentIndex}`) to unmount the rated card and mount the new card instantly on its front face. This completely prevents visual flip-back anomalies or mid-flip text replacement lag.
   - **Optimistic background syncs**: Rating actions are handled in the background asynchronously, making card swaps instantaneous and non-blocking.
+  - **Example Phrases During Review**: Before or after flipping a card, users can tap “Show examples” to reveal a panel below the card (outside the 3D flip area). On first use, phrases are AI-generated and cached; later sessions read them from the database with zero extra fetch. Each phrase has an unlimited per-slot regenerate button. The examples panel resets when advancing to the next card.
 - **Admin Premium Controls**: Admin users can grant/revoke premium access by email from an in-app admin modal. When premium access is granted, the system automatically sends a Supabase invite email to the user, allowing them to sign up and access their premium features immediately.
 
 - **Precision Audio Player**: Persistent bottom audio player with a fully custom UI built on top of HTML5 `<audio>` for reliable cross-platform playback (supports both direct `.mp3` files and Google Drive fallbacks). Key improvements for mobile:
@@ -50,7 +52,7 @@ This project is built with **Next.js 16** (App Router) and **React 19**, focusin
 - **Styling**: Vanilla CSS (`globals.css`) for a clean, dependency-free aesthetic.
 - **Icons**: `lucide-react`
 - **Database & Auth**: Supabase (PostgreSQL) and `@supabase/supabase-js`.
-- **Data Fetching/AI**: OpenAI API for on-the-fly contextual word translations (premium-only).
+- **Data Fetching/AI**: OpenAI API (`gpt-5.4-mini`) for on-the-fly contextual word translations and lazy-generated example phrases (both premium-only).
 - **Scraper**: Python 3 (`requests`, `beautifulsoup4`, `openai`).
 
 ### Core Architecture
@@ -59,16 +61,18 @@ Following a recent refactor, the app utilizes Next.js Server Components and dyna
 - **Server-Side Data Layer (`src/lib/episodes.ts`)**: Loads the 1.4MB `episodes.json` dataset directly from the filesystem on the server, ensuring the client bundle remains tiny.
 - **Dynamic API Routes (`/api/episode/[id]/route.ts`)**: Statically generates all episode endpoints at build time using `generateStaticParams`, eliminating runtime file system reads and providing instant JSON responses when navigating between episodes.
 - **Component Breakdown (`src/components/`)**:
-  - `AppShell.tsx`: The main responsive client wrapper managing state/layout, view gating, sticky $10/month subscription prompts for blocked premium actions, and the English blur toggle state.
+  - `AppShell.tsx`: The main responsive client wrapper managing state/layout, view gating, sticky $10/month subscription prompts for blocked premium actions, English blur toggle, and example-phrase orchestration (`generateExamples` / `regenerateExample`).
   - `Sidebar.tsx`: Navigation, search, and tab switching.
   - `EpisodeViewer.tsx`: Bilingual reading experience, word-click handling, and conditional blurring of English transcript text.
-  - `VocabularyView.tsx`: Displays saved words in a grid.
-  - `FlashcardsView.tsx`: Core spaced-repetition card review view featuring 3D flip animations and snappy Anki-style deck swaps.
+  - `VocabularyView.tsx`: Saved words in a desktop table / mobile card layout with search, filtering, inline editing, and expandable example-phrase panels.
+  - `FlashcardsView.tsx`: Core spaced-repetition card review view featuring 3D flip animations, snappy Anki-style deck swaps, and example phrases below the card.
+  - `ExamplePhrasesPanel.tsx`: Shared UI for listing, generating, and regenerating example phrases (used by Vocabulary and Flashcards).
   - `TranslationModal.tsx`: The AI translation popup.
   - `AuthModal.tsx`: The Supabase authentication UI for login, sign up, and password recovery.
 - **Custom Hooks (`src/hooks/`)**:
-  - `useVocabulary.ts`: Manages syncing vocabulary to Supabase based on the user's login state.
+  - `useVocabulary.ts`: Manages syncing vocabulary (including `example_phrases`) to Supabase based on the user's login state.
   - `useFlashcards.ts`: Tracks reviews and schedules next card review times via the SM-2 algorithm, syncing flashcard progress state with Supabase.
+  - `useEntitlements.ts`: Resolves auth/premium/admin status via server actions for gating translations, vocabulary, flashcards, and example phrases.
   - `useUser.ts`: Subscribes to Supabase auth events to track logged-in users.
   - `useFinishedEpisodes.ts`: Manages the state of read matching in local storage, powering the UI checkmarks across the app.
 
@@ -76,7 +80,7 @@ Following a recent refactor, the app utilizes Next.js Server Components and dyna
 
 ### 1. Environment Variables
 
-Create a `.env` file in the root directory. You need an OpenAI API key for translations, and Supabase keys for authentication and database support.
+Create a `.env` file in the root directory. You need an OpenAI API key for translations and example phrases, and Supabase keys for authentication and database support.
 
 ```env
 OPENAI_API_KEY=sk-your-openai-api-key-here
@@ -105,11 +109,13 @@ CREATE TABLE IF NOT EXISTS public.vocabulary (
   pronunciation TEXT,
   episode_title TEXT,
   episode_url TEXT,
-  saved_at BIGINT
+  saved_at BIGINT,
+  example_phrases JSONB NOT NULL DEFAULT '[]'::jsonb
 );
 ALTER TABLE public.vocabulary ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users view own vocabulary" ON public.vocabulary FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users insert own vocabulary" ON public.vocabulary FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users update own vocabulary" ON public.vocabulary FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users delete own vocabulary" ON public.vocabulary FOR DELETE USING (auth.uid() = user_id);
 
 CREATE TABLE IF NOT EXISTS public.flashcard_progress (
@@ -158,6 +164,17 @@ CREATE POLICY "Users can insert own finished episodes" ON public.finished_episod
 CREATE POLICY "Users can delete own finished episodes" ON public.finished_episodes FOR DELETE USING (auth.uid() = user_id);
 ```
 
+If you already created the `vocabulary` table without example phrases or without an UPDATE policy, run this migration in the Supabase SQL Editor:
+
+```sql
+ALTER TABLE public.vocabulary
+  ADD COLUMN IF NOT EXISTS example_phrases JSONB NOT NULL DEFAULT '[]'::jsonb;
+
+-- Skip this line if "Users update own vocabulary" already exists from a fresh install.
+CREATE POLICY "Users update own vocabulary" ON public.vocabulary
+  FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+```
+
 Optional helper trigger (keeps `updated_at` current on updates):
 
 ```sql
@@ -180,10 +197,10 @@ EXECUTE FUNCTION public.set_updated_at();
 
 ### 3. Premium Access Rules
 
-- **Non-authenticated users**: cannot use word translation or vocabulary.
-- **Authenticated non-premium users**: can read episodes, but translation and vocabulary are blocked.
-- **Blocked action UX**: when non-premium users try to open Vocabulary or translate a word, they see a sticky top-of-screen subscription panel advertising **$10/month** and can open auth/signup from the CTA.
-- **Premium users**: can translate words (OpenAI usage) and access vocabulary normally.
+- **Non-authenticated users**: cannot use word translation, vocabulary, or flashcards.
+- **Authenticated non-premium users**: can read episodes, but translation, vocabulary, flashcards, and example-phrase generation are blocked.
+- **Blocked action UX**: when non-premium users try to open Vocabulary, open Flashcards, or translate a word, they see a sticky top-of-screen subscription panel advertising **$10/month** and can open auth/signup from the CTA.
+- **Premium users**: can translate words, generate example phrases (OpenAI usage), and access vocabulary and flashcards normally.
 - **Admin users** (`ADMIN_EMAILS`): automatically get premium access, and they can open the admin modal to grant/revoke premium access for other users by email. Granting premium access automatically triggers a Supabase invite email to the recipient.
 
 ### 4. Updating Episodes (Python Scraper)
@@ -275,7 +292,39 @@ When a user saves a Hebrew word, the app always stores the **base dictionary for
 
 In `EpisodeViewer.tsx`, `modal.lemmaWord` (from the API response) is used as the `word` field when calling `addWord`, so the raw prefixed surface form is **never** persisted to Supabase.
 
-### 8. Running the Next.js App
+### 8. AI Example Phrases
+
+Premium users can generate contextual example sentences for any saved vocabulary word. Phrases help learners see how a word is used in everyday Hebrew beyond the original episode context.
+
+**Storage model:**
+- Stored as a JSONB array on the `vocabulary` row: `example_phrases` (default `[]`).
+- App type: `ExamplePhrase = { hebrew: string; english: string }` on `VocabWord.examplePhrases`.
+- Loaded in the same `select("*")` query as the rest of vocabulary — no separate table or extra round-trip.
+- Scoped per-user automatically because vocabulary rows are user-owned via RLS.
+
+**Generation flow (lazy, then cached):**
+1. User opens examples (Vocabulary: MessageSquare toggle on a row; Flashcards: “Show examples” button).
+2. If `examplePhrases` is empty, `AppShell.generateExamples` calls the server action, then `useVocabulary.updateWord` persists the result optimistically.
+3. If phrases already exist, they render immediately from in-memory `vocabWords` state (shared by Vocabulary and Flashcards via `useFlashcards(vocabWords)`).
+4. Regenerating one phrase: `AppShell.regenerateExample` calls the action with `count: 1` and passes existing phrases so the model avoids duplicates, then splices the new phrase at that index and saves.
+
+**Server action** (`src/app/actions.ts → generateExamplePhrases`):
+- Signature: `generateExamplePhrases(accessToken, word, translation, count, existingPhrases?)`
+- Same premium/auth guard as `translateWord` via `getUserEntitlements`.
+- Model: `gpt-5.4-mini`, `response_format: { type: "json_object" }`, `temperature: 0.7`.
+- Returns `{ phrases: ExamplePhrase[], type: "success" | "auth_required" | "premium_required" | "error" }`.
+- Prompt asks for natural intermediate-level sentences with full Nekudot; inflected/conjugated forms of the target word are allowed.
+
+**UI components:**
+- `ExamplePhrasesPanel.tsx` — shared list/generate/regenerate UI.
+- `VocabularyView.tsx` — expandable panel under desktop table rows / inside mobile cards.
+- `FlashcardsView.tsx` — panel below the flip card (not inside it, to preserve 3D flip); resets on card advance.
+
+**Cost/latency notes:**
+- One OpenAI call to generate all 3 phrases; one call per single-phrase regeneration (unlimited).
+- Phrases are never auto-generated on word save (avoids credits on words the user never reviews).
+
+### 9. Running the Next.js App
 
 Install dependencies and start the development server:
 
@@ -293,9 +342,11 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 - `apply_scraping_patch.py` - Efficiently patches `episodes.json` (translating only missing paragraph(s) anywhere in the text).
 - `/episodes.json` - The generated dataset used by the web application.
 - `/src/app/page.tsx` - The main server-rendered entrypoint.
-- `/src/app/actions.ts` - Server actions for premium checks, admin premium management, and `translateWord` communication with OpenAI.
+- `/src/app/actions.ts` - Server actions for premium checks, admin premium management, `translateWord`, and `generateExamplePhrases` (OpenAI).
 - `/src/app/update-password/page.tsx` - Password reset callback (verify OTP + update password).
 - `/src/app/api/audio/route.ts` - Internal proxy to bypass Google Drive's audio streaming restrictions.
 - `/src/components/MediaPlayer.tsx` - Custom bottom audio player with large-touch-target seek bar for mobile.
 - `/src/components/AdminPremiumModal.tsx` - Admin-only UI to grant/revoke premium by email.
+- `/src/components/ExamplePhrasesPanel.tsx` - Shared UI for AI-generated example phrase lists (Vocabulary + Flashcards).
+- `/src/lib/types.ts` - Shared TypeScript types including `VocabWord`, `ExamplePhrase`, and flashcard types.
 - `/src/app/globals.css` - The design system defining colors, typography, layout, and animations.
