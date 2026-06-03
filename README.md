@@ -49,7 +49,7 @@ This project is built with **Next.js 16** (App Router) and **React 19**, focusin
 
 ### Tech Stack
 - **Framework**: Next.js 16
-- **Styling**: Vanilla CSS (`globals.css`) for a clean, dependency-free aesthetic.
+- **Styling**: Vanilla CSS split under `src/app/styles/` (imported via `globals.css`) for a clean, dependency-free aesthetic.
 - **Icons**: `lucide-react`
 - **Database & Auth**: Supabase (PostgreSQL) and `@supabase/supabase-js`.
 - **Data Fetching/AI**: OpenAI API (`gpt-5.4-mini`) for on-the-fly contextual word translations and lazy-generated example phrases (both premium-only).
@@ -113,10 +113,30 @@ CREATE TABLE IF NOT EXISTS public.vocabulary (
   example_phrases JSONB NOT NULL DEFAULT '[]'::jsonb
 );
 ALTER TABLE public.vocabulary ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users view own vocabulary" ON public.vocabulary FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users insert own vocabulary" ON public.vocabulary FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users update own vocabulary" ON public.vocabulary FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users delete own vocabulary" ON public.vocabulary FOR DELETE USING (auth.uid() = user_id);
+
+CREATE OR REPLACE FUNCTION public.user_has_premium_access()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.premium_users pu
+    JOIN auth.users u ON lower(u.email) = lower(pu.email)
+    WHERE u.id = auth.uid()
+      AND pu.is_premium = true
+  );
+$$;
+
+REVOKE ALL ON FUNCTION public.user_has_premium_access() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.user_has_premium_access() TO authenticated;
+
+CREATE POLICY "Premium users view own vocabulary" ON public.vocabulary FOR SELECT USING (auth.uid() = user_id AND public.user_has_premium_access());
+CREATE POLICY "Premium users insert own vocabulary" ON public.vocabulary FOR INSERT WITH CHECK (auth.uid() = user_id AND public.user_has_premium_access());
+CREATE POLICY "Premium users update own vocabulary" ON public.vocabulary FOR UPDATE USING (auth.uid() = user_id AND public.user_has_premium_access()) WITH CHECK (auth.uid() = user_id AND public.user_has_premium_access());
+CREATE POLICY "Premium users delete own vocabulary" ON public.vocabulary FOR DELETE USING (auth.uid() = user_id AND public.user_has_premium_access());
 
 CREATE TABLE IF NOT EXISTS public.flashcard_progress (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -132,10 +152,10 @@ CREATE TABLE IF NOT EXISTS public.flashcard_progress (
   UNIQUE (user_id, vocab_id)
 );
 ALTER TABLE public.flashcard_progress ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users view own flashcard progress" ON public.flashcard_progress FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users insert own flashcard progress" ON public.flashcard_progress FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users update own flashcard progress" ON public.flashcard_progress FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users delete own flashcard progress" ON public.flashcard_progress FOR DELETE USING (auth.uid() = user_id);
+CREATE POLICY "Premium users view own flashcard progress" ON public.flashcard_progress FOR SELECT USING (auth.uid() = user_id AND public.user_has_premium_access());
+CREATE POLICY "Premium users insert own flashcard progress" ON public.flashcard_progress FOR INSERT WITH CHECK (auth.uid() = user_id AND public.user_has_premium_access());
+CREATE POLICY "Premium users update own flashcard progress" ON public.flashcard_progress FOR UPDATE USING (auth.uid() = user_id AND public.user_has_premium_access()) WITH CHECK (auth.uid() = user_id AND public.user_has_premium_access());
+CREATE POLICY "Premium users delete own flashcard progress" ON public.flashcard_progress FOR DELETE USING (auth.uid() = user_id AND public.user_has_premium_access());
 
 CREATE TABLE IF NOT EXISTS public.premium_users (
   email TEXT PRIMARY KEY,
@@ -146,11 +166,15 @@ CREATE TABLE IF NOT EXISTS public.premium_users (
 ALTER TABLE public.premium_users ENABLE ROW LEVEL SECURITY;
 
 -- Only service-role writes are used by the app for this table.
-CREATE POLICY "Authenticated users can read premium rows"
+CREATE POLICY "Users can read own premium status"
 ON public.premium_users
 FOR SELECT
 TO authenticated
-USING (true);
+USING (
+  lower(email) = lower((
+    SELECT u.email FROM auth.users u WHERE u.id = auth.uid()
+  ))
+);
 
 CREATE TABLE IF NOT EXISTS public.finished_episodes (
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
@@ -170,10 +194,15 @@ If you already created the `vocabulary` table without example phrases or without
 ALTER TABLE public.vocabulary
   ADD COLUMN IF NOT EXISTS example_phrases JSONB NOT NULL DEFAULT '[]'::jsonb;
 
--- Skip this line if "Users update own vocabulary" already exists from a fresh install.
-CREATE POLICY "Users update own vocabulary" ON public.vocabulary
-  FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+-- Skip this line if "Premium users update own vocabulary" already exists from a fresh install.
+CREATE POLICY "Premium users update own vocabulary" ON public.vocabulary
+  FOR UPDATE USING (auth.uid() = user_id AND public.user_has_premium_access())
+  WITH CHECK (auth.uid() = user_id AND public.user_has_premium_access());
 ```
+
+If you created the database before premium-aware RLS was added, run the full migration in [`supabase/premium-rls-migration.sql`](supabase/premium-rls-migration.sql). It replaces the older auth-only vocabulary/flashcard policies, adds `user_has_premium_access()`, and restricts `premium_users` reads to each user's own row.
+
+**Admin note:** `ADMIN_EMAILS` unlocks premium features in server actions and the UI, but vocabulary/flashcard writes are enforced in Postgres via `premium_users`. Grant admin accounts a row in `premium_users` (via the admin panel or a one-time `INSERT`) so they can save vocabulary.
 
 Optional helper trigger (keeps `updated_at` current on updates):
 
@@ -201,7 +230,11 @@ EXECUTE FUNCTION public.set_updated_at();
 - **Authenticated non-premium users**: can read episodes, but translation, vocabulary, flashcards, and example-phrase generation are blocked.
 - **Blocked action UX**: when non-premium users try to open Vocabulary, open Flashcards, or translate a word, they see a sticky top-of-screen subscription panel advertising **$10/month** and can open auth/signup from the CTA.
 - **Premium users**: can translate words, generate example phrases (OpenAI usage), and access vocabulary and flashcards normally.
-- **Admin users** (`ADMIN_EMAILS`): automatically get premium access, and they can open the admin modal to grant/revoke premium access for other users by email. Granting premium access automatically triggers a Supabase invite email to the recipient.
+- **Admin users** (`ADMIN_EMAILS`): automatically get premium access in server actions and the UI, and they can open the admin modal to grant/revoke premium access for other users by email. Granting premium access automatically triggers a Supabase invite email to the recipient. Admin accounts also need a row in `premium_users` to pass database RLS for vocabulary/flashcard writes.
+
+**Security notes:**
+- OpenAI server actions (`translateWord`, `generateExamplePhrases`) enforce auth/premium checks, per-user rate limits, and input length bounds in `src/lib/actionGuards.ts`.
+- The audio proxy at `/api/audio` only accepts HTTPS Google Drive URLs (`src/lib/allowedAudioHosts.ts`); all other hosts are rejected.
 
 ### 4. Updating Episodes (Python Scraper)
 
@@ -231,6 +264,16 @@ The script:
 - creates a backup at `episodes.json.bak.<timestamp>`.
 
 (Note: `patch_missing_transcripts.py` was an older script built only for initial-paragraph prefixes, while `apply_scraping_patch.py` handles missing paragraphs anywhere in the text).
+
+#### Fixing audio URLs (`patch_audio.py`)
+
+If episodes are missing `audio_url` values or still use old Google Drive `/file/d/.../view` links that fail in the browser, run:
+
+```bash
+python patch_audio.py
+```
+
+The script normalizes Google Drive URLs to direct-download form and can re-fetch missing audio links from Squarespace. It writes `episodes.json` (or `episodes_checkpoint.json` if present).
 
 ### 5. Transcript Audio Synchronization (Whisper)
 
@@ -343,10 +386,15 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 - `/episodes.json` - The generated dataset used by the web application.
 - `/src/app/page.tsx` - The main server-rendered entrypoint.
 - `/src/app/actions.ts` - Server actions for premium checks, admin premium management, `translateWord`, and `generateExamplePhrases` (OpenAI).
-- `/src/app/update-password/page.tsx` - Password reset callback (verify OTP + update password).
-- `/src/app/api/audio/route.ts` - Internal proxy to bypass Google Drive's audio streaming restrictions.
+- `/src/app/update-password/page.tsx` - Password reset callback (recovery redirect session via `getSession()`, then `updateUser()`).
+- `/src/app/api/audio/route.ts` - Google Drive-only audio proxy with host allowlist (bypasses Drive streaming restrictions).
+- `/src/lib/actionGuards.ts` - Input bounds and in-memory rate limiting for OpenAI server actions.
+- `/src/lib/allowedAudioHosts.ts` - HTTPS allowlist used by the audio proxy.
+- `/supabase/premium-rls-migration.sql` - Premium-aware RLS migration for existing Supabase projects.
+- `/patch_audio.py` - Normalizes/fixes episode `audio_url` values in `episodes.json`.
 - `/src/components/MediaPlayer.tsx` - Custom bottom audio player with large-touch-target seek bar for mobile.
 - `/src/components/AdminPremiumModal.tsx` - Admin-only UI to grant/revoke premium by email.
 - `/src/components/ExamplePhrasesPanel.tsx` - Shared UI for AI-generated example phrase lists (Vocabulary + Flashcards).
 - `/src/lib/types.ts` - Shared TypeScript types including `VocabWord`, `ExamplePhrase`, and flashcard types.
-- `/src/app/globals.css` - The design system defining colors, typography, layout, and animations.
+- `/src/app/globals.css` - Entry point that imports modular stylesheets from `/src/app/styles/`.
+- `/src/app/styles/` - Split design system: `base.css`, `sidebar.css`, `layout.css`, `vocabulary.css`, `modals.css`, `media-player.css`, `flashcards.css`, `example-phrases.css`, and related partials.

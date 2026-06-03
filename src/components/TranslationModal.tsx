@@ -1,6 +1,7 @@
 "use client";
 
 import { X, Loader2 } from "lucide-react";
+import { useModalAccessibility } from "@/hooks/useModalAccessibility";
 
 type TranslationModalProps = {
   isOpen: boolean;
@@ -23,6 +24,8 @@ export default function TranslationModal({
   onClose,
   onSave,
 }: TranslationModalProps) {
+  const { dialogRef, titleId } = useModalAccessibility(isOpen, onClose);
+
   if (!isOpen) return null;
 
   return (
@@ -32,12 +35,18 @@ export default function TranslationModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="modal-content">
+      <div
+        ref={dialogRef}
+        className="modal-content"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+      >
         <div className="modal-header">
-          <h3 className="modal-title font-serif" dir="rtl">
+          <h3 id={titleId} className="modal-title font-serif" dir="rtl">
             {wordWithNekudot || word}
           </h3>
-          <button onClick={onClose} className="close-btn">
+          <button onClick={onClose} className="close-btn" aria-label="Close translation">
             <X size={18} />
           </button>
         </div>

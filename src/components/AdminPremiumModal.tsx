@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Loader2, X } from "lucide-react";
 import { listPremiumUsers, setPremiumStatus } from "@/app/actions";
 import { supabase } from "@/lib/supabase";
+import { useModalAccessibility } from "@/hooks/useModalAccessibility";
 
 type PremiumRow = {
   email: string;
@@ -20,6 +21,7 @@ export default function AdminPremiumModal({ isOpen, onClose }: AdminPremiumModal
   const [targetEmail, setTargetEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const { dialogRef, titleId } = useModalAccessibility(isOpen, onClose);
 
   const loadRows = async () => {
     const { data } = await supabase.auth.getSession();
@@ -60,10 +62,16 @@ export default function AdminPremiumModal({ isOpen, onClose }: AdminPremiumModal
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="modal-content">
+      <div
+        ref={dialogRef}
+        className="modal-content"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+      >
         <div className="modal-header">
-          <h3 className="modal-title">Premium Users Admin</h3>
-          <button onClick={onClose} className="close-btn">
+          <h3 id={titleId} className="modal-title">Premium Users Admin</h3>
+          <button onClick={onClose} className="close-btn" aria-label="Close admin panel">
             <X size={18} />
           </button>
         </div>
@@ -89,7 +97,11 @@ export default function AdminPremiumModal({ isOpen, onClose }: AdminPremiumModal
           )}
 
           <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
+            <label htmlFor="admin-premium-email" className="sr-only">
+              User email
+            </label>
             <input
+              id="admin-premium-email"
               type="email"
               placeholder="user@email.com"
               value={targetEmail}
@@ -144,6 +156,7 @@ export default function AdminPremiumModal({ isOpen, onClose }: AdminPremiumModal
                       cursor: "pointer",
                     }}
                     disabled={isLoading}
+                    aria-label={`Remove premium access for ${row.email}`}
                   >
                     Remove
                   </button>

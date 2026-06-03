@@ -8,7 +8,7 @@ Requirements:
     pip install requests beautifulsoup4 openai
 
 Usage:
-    python scrape_translate.py
+    python scraper.py
 """
 
 import json

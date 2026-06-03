@@ -249,11 +249,20 @@ export default function EpisodeViewer({
                     <span
                       key={idx}
                       className={cleanWord ? "hebrew-word" : ""}
+                      role={cleanWord ? "button" : undefined}
+                      tabIndex={cleanWord ? 0 : undefined}
                       onClick={() => {
                         if (cleanWord) handleWordClick(token, heb, eng);
                       }}
-                      title={
-                        cleanWord ? "Click to translate and save" : undefined
+                      onKeyDown={(event) => {
+                        if (!cleanWord) return;
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          handleWordClick(token, heb, eng);
+                        }
+                      }}
+                      aria-label={
+                        cleanWord ? `Translate ${cleanWord}` : undefined
                       }
                     >
                       {token}

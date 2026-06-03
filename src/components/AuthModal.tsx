@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { useModalAccessibility } from "@/hooks/useModalAccessibility";
 
 type AuthModalProps = {
   isOpen: boolean;
@@ -16,6 +17,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const { dialogRef, titleId } = useModalAccessibility(isOpen, onClose);
 
   if (!isOpen) return null;
 
@@ -46,9 +48,6 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           password,
         });
         if (error) throw error;
-        // Supabase might require email confirmation depending on settings
-        // But for now we just handle it or close
-        // If auto-confirm is enabled in their dashboard, they're logged in.
         onClose();
       }
     } catch (err: unknown) {
@@ -65,12 +64,18 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="modal-content">
+      <div
+        ref={dialogRef}
+        className="modal-content"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+      >
         <div className="modal-header">
-          <h3 className="modal-title" style={{ fontSize: "20px", color: "var(--text-main)" }}>
+          <h3 id={titleId} className="modal-title" style={{ fontSize: "20px", color: "var(--text-main)" }}>
             {mode === "login" ? "Welcome Back" : mode === "signup" ? "Create Account" : "Reset Password"}
           </h3>
-          <button onClick={onClose} className="close-btn" disabled={isLoading}>
+          <button onClick={onClose} className="close-btn" disabled={isLoading} aria-label="Close">
             <X size={18} />
           </button>
         </div>
@@ -103,8 +108,9 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             )}
 
             <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-              <label style={{ fontSize: "13px", fontWeight: 500 }}>Email</label>
+              <label htmlFor="auth-email" style={{ fontSize: "13px", fontWeight: 500 }}>Email</label>
               <input
+                id="auth-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -116,8 +122,9 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             
             {mode !== "reset" && (
               <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                <label style={{ fontSize: "13px", fontWeight: 500 }}>Password</label>
+                <label htmlFor="auth-password" style={{ fontSize: "13px", fontWeight: 500 }}>Password</label>
                 <input
+                  id="auth-password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

@@ -1,0 +1,139 @@
+/* Mobile responsive fixes */
+.sidebar-overlay {
+  display: none;
+}
+
+@media (max-width: 800px) {
+  .subscription-prompt {
+    top: 56px;
+    width: calc(100% - 24px);
+    margin-top: 10px;
+    padding: 12px;
+    gap: 10px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .subscription-prompt-copy {
+    min-width: 0;
+    width: calc(100% - 44px);
+  }
+  .subscription-prompt-cta {
+    margin-left: 44px;
+  }
+  .subscription-prompt-close {
+    margin-left: auto;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 100;
+    width: 320px;
+    max-width: 85vw;
+    height: 100vh;
+    box-shadow: 2px 0 24px rgba(0,0,0,0.1);
+    transform: translateX(0);
+    visibility: visible;
+  }
+  .sidebar {
+    overscroll-behavior: none;
+  }
+  .sidebar.closed {
+    transform: translateX(-100%);
+    width: 320px; /* Keep standard width for smooth slide */
+    opacity: 1; /* Slide out instead of fade out */
+  }
+
+  .ep-list {
+    padding-bottom: 140px; /* Allow reaching bottom episodes behind media player */
+    overscroll-behavior-y: none;
+  }
+
+  .app-container.mobile-sidebar-open .main-content {
+    overflow: hidden; /* Prevent scrolling main content through overlay */
+    pointer-events: none; /* Bulletproof prevention of touch bleed to main content */
+  }
+
+  .close-mobile-btn {
+    display: block;
+  }
+
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.3);
+    backdrop-filter: blur(2px);
+    z-index: 90;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+  }
+  .sidebar-overlay.closed {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .main-header {
+    padding: 20px 24px 10px 24px;
+  }
+  .content-grid {
+    padding: 10px 24px 60px 24px;
+  }
+  .vocab-grid {
+    padding: 10px 24px 60px 24px;
+    grid-template-columns: 1fr;
+  }
+  .main-title {
+    font-size: 28px;
+    line-height: 1.25;
+  }
+  .para-pair {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 24px 0;
+  }
+  .text-hebrew {
+    font-size: 21px;
+  }
+  .text-english {
+    font-size: 17px;
+  }
+  .english-toggle-btn {
+    margin-left: 8px;
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+  .nav-controls {
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 30px;
+    padding-top: 30px;
+  }
+  .nav-btn {
+    justify-content: center;
+    padding: 14px 16px;
+  }
+
+  /* Vocabulary: hide table, show cards */
+  .vocab-page-header {
+    padding: 24px 20px 16px 20px;
+  }
+  .vocab-table-wrap {
+    padding: 0 20px 60px 20px;
+  }
+  .vocab-table { display: none; }
+  .vocab-cards {
+    display: block;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 20px;
+    background: var(--surface);
+  }
+  .vocab-page-title {
+    font-size: 22px;
+  }
+}

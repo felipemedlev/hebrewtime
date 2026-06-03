@@ -122,10 +122,14 @@ export default function Sidebar({
             </button>
           </div>
 
-          <div className="sidebar-tabs">
+          <div className="sidebar-tabs" role="tablist" aria-label="Main navigation">
             <button
               className={`tab-btn ${viewMode === "episodes" ? "active" : ""}`}
               onClick={() => onChangeViewMode("episodes")}
+              role="tab"
+              aria-selected={viewMode === "episodes"}
+              id="sidebar-tab-episodes"
+              aria-controls="sidebar-panel"
             >
               Episodes
             </button>
@@ -133,6 +137,10 @@ export default function Sidebar({
               className={`tab-btn ${viewMode === "vocabulary" ? "active" : ""}`}
               onClick={() => onChangeViewMode("vocabulary")}
               title={!isPremium && !isLoadingEntitlements ? "Join subscription to unlock vocabulary" : undefined}
+              role="tab"
+              aria-selected={viewMode === "vocabulary"}
+              id="sidebar-tab-vocabulary"
+              aria-controls="sidebar-panel"
             >
               <Bookmark
                 size={14}
@@ -149,6 +157,10 @@ export default function Sidebar({
               onClick={() => onChangeViewMode("flashcards")}
               title={!isPremium && !isLoadingEntitlements ? "Join subscription to unlock flashcards" : undefined}
               style={{ position: "relative" }}
+              role="tab"
+              aria-selected={viewMode === "flashcards"}
+              id="sidebar-tab-flashcards"
+              aria-controls="sidebar-panel"
             >
               <Brain
                 size={14}
@@ -169,9 +181,13 @@ export default function Sidebar({
 
           {viewMode === "episodes" && (
             <div className="search-wrapper">
-              <Search size={14} className="search-icon" />
+              <label htmlFor="sidebar-episode-search" className="sr-only">
+                Search episodes
+              </label>
+              <Search size={14} className="search-icon" aria-hidden="true" />
               <input
-                type="text"
+                id="sidebar-episode-search"
+                type="search"
                 placeholder="Search episodes…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -182,7 +198,7 @@ export default function Sidebar({
         </div>
 
         {viewMode === "episodes" ? (
-          <div className="ep-list">
+          <div className="ep-list" id="sidebar-panel" role="tabpanel" aria-labelledby="sidebar-tab-episodes">
             {filteredEpisodes.map((ep) => (
               <button
                 key={ep.episode}
@@ -218,7 +234,7 @@ export default function Sidebar({
             )}
           </div>
         ) : viewMode === "vocabulary" ? (
-          <div className="ep-list">
+          <div className="ep-list" id="sidebar-panel" role="tabpanel" aria-labelledby="sidebar-tab-vocabulary">
             <div
               style={{
                 padding: "16px",
@@ -236,7 +252,7 @@ export default function Sidebar({
             </div>
           </div>
         ) : (
-          <div className="ep-list">
+          <div className="ep-list" id="sidebar-panel" role="tabpanel" aria-labelledby="sidebar-tab-flashcards">
             <div
               style={{
                 padding: "16px",

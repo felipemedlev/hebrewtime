@@ -1,0 +1,630 @@
+/* ==========================================================================
+   Spaced Repetition Flashcards Styles (Minimal Apple/Notion Aesthetic)
+   ========================================================================== */
+
+.flashcards-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Sidebar notification badge for due reviews */
+.sidebar-badge-due {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  background-color: var(--text-main);
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+  line-height: 1;
+}
+
+/* Statistics Bar */
+.flashcards-stats-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 12px;
+  padding: 10px 18px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.01);
+  gap: 16px;
+  min-height: 48px;
+}
+
+.flashcard-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.flashcard-stat-item svg {
+  opacity: 0.7;
+}
+
+.flashcard-stat-icon-due {
+  color: #e03131;
+}
+
+.flashcard-stat-icon-active {
+  color: var(--text-main);
+}
+
+.flashcard-stat-icon-learned {
+  color: #059669;
+}
+
+.flashcard-stat-icon-progress {
+  color: var(--accent);
+}
+
+.stat-label {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.stat-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.stat-value.due-badge {
+  background-color: rgba(224, 49, 49, 0.08);
+  color: #e03131;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.stat-total {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 400;
+  margin-left: 1px;
+}
+
+.stat-divider {
+  width: 1px;
+  height: 16px;
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+.flashcard-stat-item.progress-item {
+  flex-grow: 1;
+  max-width: 240px;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.flashcard-compact-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 130px;
+}
+
+.flashcard-stat-progress-bg {
+  flex-grow: 1;
+  height: 4px;
+  background-color: rgba(0, 0, 0, 0.06);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.flashcard-stat-progress-fill {
+  height: 100%;
+  background-color: var(--text-main);
+  border-radius: 2px;
+  transition: width 0.5s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.progress-percent {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-main);
+  min-width: 28px;
+  text-align: right;
+}
+
+@media (max-width: 640px) {
+  .flashcards-stats-bar {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px 18px;
+    padding: 12px;
+  }
+  
+  .stat-divider {
+    display: none;
+  }
+  
+  .flashcard-stat-item.progress-item {
+    max-width: 100%;
+    width: 100%;
+    justify-content: center;
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    padding-top: 10px;
+    margin-top: 4px;
+    gap: 10px;
+  }
+  
+  .flashcard-compact-progress {
+    max-width: 180px;
+  }
+}
+
+/* Flashcards View Tabs (Minimal Segmented Control Style) */
+.vocab-filters-bar {
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: flex-start;
+  width: 100%;
+}
+
+.vocab-view-tabs {
+  display: inline-flex;
+  background-color: rgba(0, 0, 0, 0.04);
+  border-radius: 8px;
+  padding: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.01);
+}
+
+.vocab-filter-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  outline: none;
+}
+
+.vocab-filter-icon {
+  margin-right: 6px;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.vocab-filter-btn:hover {
+  color: var(--text-main);
+}
+
+.vocab-filter-btn:hover .vocab-filter-icon {
+  transform: scale(1.08);
+}
+
+.vocab-filter-btn.active {
+  background-color: var(--surface);
+  color: var(--text-main);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+/* Start/Illustration Screen */
+.flashcard-start-screen {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 40px 24px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+  max-width: 480px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.flashcard-illustration-circle {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  background-color: var(--surface-hover);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+  color: var(--text-main);
+  border: 1px solid rgba(0,0,0,0.04);
+}
+
+.flashcard-start-screen h2 {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+  color: var(--text-main);
+}
+
+.flashcard-start-screen p {
+  font-size: 14px;
+  color: var(--text-muted);
+  max-width: 360px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.flashcard-start-btn {
+  background-color: var(--text-main);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 8px;
+}
+
+.flashcard-start-btn:hover {
+  background-color: black;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+.flashcard-start-btn:active {
+  transform: translateY(0);
+}
+
+/* Active Session Layout */
+.flashcard-session-active {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.flashcard-session-progress {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 480px;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.flashcard-session-progress-bar {
+  flex-grow: 1;
+  margin-left: 16px;
+  height: 4px;
+  background-color: rgba(0, 0, 0, 0.06);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.flashcard-session-progress-fill {
+  height: 100%;
+  background-color: var(--text-main);
+  border-radius: 2px;
+  transition: width 0.4s cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* 3D Flip Card Scene & Containers */
+.flashcard-card-scene {
+  width: 100%;
+  max-width: 480px;
+  height: 240px;
+  perspective: 1000px;
+  cursor: pointer;
+}
+
+.flashcard-card-inner {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.5s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.flashcard-card-inner.is-flipped {
+  transform: rotateY(180deg);
+}
+
+.flashcard-card-front,
+.flashcard-card-back {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+  background-color: var(--surface);
+}
+
+.flashcard-card-back {
+  transform: rotateY(180deg);
+}
+
+/* Typography on Card Faces */
+.flashcard-badge-side {
+  position: absolute;
+  top: 24px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.flashcard-hebrew-word {
+  font-size: 40px;
+  font-weight: 600;
+  margin: 8px 0;
+  color: var(--text-main);
+  text-align: center;
+  line-height: 1.2;
+}
+
+.flashcard-hebrew-word-small {
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--text-main);
+  opacity: 0.8;
+}
+
+.flashcard-verb-form {
+  font-size: 18px;
+  color: var(--text-muted);
+  font-weight: 400;
+  margin-bottom: 8px;
+}
+
+.flashcard-translation-word {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-main);
+  text-align: center;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.flashcard-pronunciation {
+  font-size: 14px;
+  font-style: italic;
+  color: var(--text-muted);
+  margin: 4px 0 0 0;
+}
+
+.flashcard-hint-click {
+  position: absolute;
+  bottom: 24px;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0;
+  font-weight: 400;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.flashcard-card-scene:hover .flashcard-hint-click {
+  opacity: 0.6;
+}
+
+/* Rating Buttons Section */
+.flashcard-rating-panel {
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: opacity 0.2s;
+}
+
+.flashcard-reveal-btn {
+  width: 100%;
+  background-color: var(--text-main);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 14px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.flashcard-reveal-btn:hover {
+  background-color: black;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.flashcard-rating-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  width: 100%;
+}
+
+.rating-btn {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  padding: 12px 6px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background-color: var(--surface);
+  transition: all 0.2s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.rating-btn-lbl {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-main);
+  transition: color 0.2s;
+}
+
+.rating-btn-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  transition: color 0.2s;
+}
+
+.rating-btn:hover {
+  background-color: var(--surface-hover);
+  border-color: rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+
+/* Very subtle semantic colors on hover for text only */
+.rating-btn.again:hover .rating-btn-lbl { color: #e03131; }
+.rating-btn.hard:hover .rating-btn-lbl { color: #d97706; }
+.rating-btn.good:hover .rating-btn-lbl { color: var(--accent); }
+.rating-btn.easy:hover .rating-btn-lbl { color: #059669; }
+
+/* Learned Words Styling and Badges */
+.vocab-learned-badge {
+  display: inline-flex;
+  align-items: center;
+  background-color: transparent;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.vocab-words-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
+.vocab-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+}
+
+.vocab-card-hebrew-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  width: 100%;
+}
+
+.flashcards-session-wrapper,
+.flashcards-learned-wrapper {
+  animation: fadeIn 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  min-height: 340px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.vocab-empty-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 280px;
+  width: 100%;
+  padding: 40px 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.vocab-empty-icon {
+  opacity: 0.4;
+  margin-bottom: 16px;
+  color: var(--text-muted);
+}
+
+.vocab-empty-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: var(--text-main);
+}
+
+.vocab-empty-text {
+  font-size: 14px;
+  color: var(--text-muted);
+  max-width: 320px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Small Viewport Optimization */
+@media (max-width: 580px) {
+  .vocab-view-tabs {
+    display: flex;
+    width: 100%;
+  }
+  .vocab-filter-btn {
+    flex: 1;
+    padding: 8px 8px;
+    font-size: 12px;
+  }
+  .flashcard-rating-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .flashcard-card-scene {
+    height: 200px;
+  }
+  .flashcard-hebrew-word {
+    font-size: 32px;
+  }
+  .flashcard-translation-word {
+    font-size: 20px;
+  }
+  .flashcards-container {
+    padding: 20px 16px;
+  }
+}

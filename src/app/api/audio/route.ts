@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { buildProxiedAudioUrl, isAllowedAudioProxyUrl } from "@/lib/allowedAudioHosts";
 
 export async function GET(request: NextRequest) {
   const url = request.nextUrl.searchParams.get("url");
@@ -7,12 +8,16 @@ export async function GET(request: NextRequest) {
     return new NextResponse("Missing url parameter", { status: 400 });
   }
 
-  try {
-    // We add confirm=t to bypass Google Drive's virus scan prompt for large files
-    const fetchUrl = url.includes("drive.google.com") && !url.includes("confirm=t") 
-      ? `${url}&confirm=t` 
-      : url;
+  if (!isAllowedAudioProxyUrl(url)) {
+    return new NextResponse("URL not allowed", { status: 403 });
+  }
 
+  const fetchUrl = buildProxiedAudioUrl(url);
+  if (!fetchUrl) {
+    return new NextResponse("URL not allowed", { status: 403 });
+  }
+
+  try {
     const response = await fetch(fetchUrl, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
@@ -28,7 +33,6 @@ export async function GET(request: NextRequest) {
     headers.set("Content-Type", response.headers.get("content-type") || "audio/mpeg");
     headers.set("Accept-Ranges", "bytes");
 
-    // Pass along content length if available, to allow seeking
     const contentLength = response.headers.get("content-length");
     if (contentLength) {
       headers.set("Content-Length", contentLength);

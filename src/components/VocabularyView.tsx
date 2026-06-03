@@ -141,9 +141,11 @@ export default function VocabularyView({
         {vocabWords.length > 0 && (
           <div style={{ display: "flex", gap: "12px", marginTop: "16px", flexWrap: "wrap", alignItems: "center" }}>
             <div style={{ position: "relative", flex: "1 1 200px" }}>
-              <Search size={14} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "var(--text-tertiary)" }} />
+              <label htmlFor="vocab-search" className="sr-only">Search vocabulary</label>
+              <Search size={14} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "var(--text-tertiary)" }} aria-hidden="true" />
               <input
-                type="text"
+                id="vocab-search"
+                type="search"
                 placeholder="Search words..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -227,15 +229,15 @@ export default function VocabularyView({
       ) : (
         <div className="vocab-table-wrap">
           {/* ── Desktop Table ── */}
-          <div className="vocab-table">
+          <div className="vocab-table" role="table" aria-label="Saved vocabulary">
             {/* Header — columns: Source | Pronunciation | Translation | Verb | Hebrew | Actions */}
-            <div className="vocab-table-header">
-              <div className="vth-source">Source</div>
-              <div className="vth-pronunciation">Pronunc.</div>
-              <div className="vth-translation">Translation</div>
-              <div className="vth-verb">Verb form</div>
-              <div className="vth-hebrew">Hebrew</div>
-              <div className="vth-actions" />
+            <div className="vocab-table-header" role="row">
+              <div className="vth-source" role="columnheader">Source</div>
+              <div className="vth-pronunciation" role="columnheader">Pronunc.</div>
+              <div className="vth-translation" role="columnheader">Translation</div>
+              <div className="vth-verb" role="columnheader">Verb form</div>
+              <div className="vth-hebrew" role="columnheader">Hebrew</div>
+              <div className="vth-actions" role="columnheader" aria-label="Actions" />
             </div>
 
             {/* Rows */}
@@ -246,9 +248,10 @@ export default function VocabularyView({
                 <div key={vw.id} className="vocab-table-row-group">
                 <div
                   className={`vocab-table-row${isEditing ? " editing" : ""}${i === vocabWords.length - 1 && !isExpanded ? " last" : ""}`}
+                  role="row"
                 >
                   {/* Source — far left */}
-                  <div className="vtd-source">
+                  <div className="vtd-source" role="cell">
                     {vw.episodeUrl ? (
                       <a
                         href={vw.episodeUrl}
@@ -266,7 +269,7 @@ export default function VocabularyView({
                   </div>
 
                   {/* Pronunciation */}
-                  <div className="vtd-pronunciation">
+                  <div className="vtd-pronunciation" role="cell">
                      {isEditing ? (
                       <input
                         value={editValues.pronunciation}
@@ -286,7 +289,7 @@ export default function VocabularyView({
                   </div>
 
                   {/* Translation */}
-                  <div className="vtd-translation">
+                  <div className="vtd-translation" role="cell">
                     {isEditing ? (
                       <input
                         value={editValues.translation}
@@ -301,7 +304,7 @@ export default function VocabularyView({
                   </div>
 
                   {/* Verb form */}
-                  <div className="vtd-verb">
+                  <div className="vtd-verb" role="cell">
                     {isEditing ? (
                       <input
                         dir="rtl"
@@ -320,7 +323,7 @@ export default function VocabularyView({
                   </div>
 
                   {/* Hebrew word — rightmost data column */}
-                  <div className="vtd-hebrew">
+                  <div className="vtd-hebrew" role="cell">
                     {isEditing ? (
                       <input
                         dir="rtl"
@@ -338,7 +341,7 @@ export default function VocabularyView({
                   </div>
 
                   {/* Actions */}
-                  <div className="vtd-actions">
+                  <div className="vtd-actions" role="cell">
                     {isEditing ? (
                       <>
                         <button onClick={() => saveEdit(vw.id)} title="Save" className="vocab-action-btn save">
