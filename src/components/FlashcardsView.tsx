@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Brain,
   RotateCcw,
@@ -43,6 +43,7 @@ type FlashcardsViewProps = {
   submitReview: (vocabId: string, rating: FlashcardRating) => Promise<void>;
   unlearnWord: (vocabId: string) => Promise<void>;
   stats: FlashcardStats;
+  startSignal?: number;
   generateExamples: (word: VocabWord) => Promise<{ ok: boolean; message?: string }>;
   regenerateExample: (word: VocabWord, index: number) => Promise<{ ok: boolean; message?: string }>;
 };
@@ -55,6 +56,7 @@ export default function FlashcardsView({
   submitReview,
   unlearnWord,
   stats,
+  startSignal = 0,
   generateExamples,
   regenerateExample,
 }: FlashcardsViewProps) {
@@ -74,8 +76,21 @@ export default function FlashcardsView({
       setIsFlipped(false);
       setShowExamples(false);
       setSessionActive(true);
+      setViewTab("session");
     }
   };
+
+  // Launch a session when the sidebar "Start review" CTA bumps the signal.
+  useEffect(() => {
+    if (startSignal > 0 && sessionQueue.length > 0) {
+      setCurrentIndex(0);
+      setIsFlipped(false);
+      setShowExamples(false);
+      setSessionActive(true);
+      setViewTab("session");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startSignal]);
 
   const handleFlip = () => {
     setIsFlipped(!isFlipped);

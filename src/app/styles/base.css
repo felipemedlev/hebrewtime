@@ -1,13 +1,192 @@
 :root {
+  /* ── Neutral ramp ── */
+  --gray-50: #fdfdfc;
+  --gray-100: #fbfbfa;
+  --gray-150: #f1f1f0;
+  --gray-200: #eaeaea;
+  --gray-300: #e8e8e8;
+  --gray-350: #e2e2e2;
+  --gray-400: #d1d1d1;
+  --gray-450: #d8d8d8;
+  --gray-475: #d4d4d4;
+  --gray-500: #c8c8c8;
+  --gray-525: #cccccc;
+  --gray-550: #bbbbbb;
+  --gray-575: #aaaaaa;
+  --gray-600: #a1a1a1;
+  --gray-650: #b0b0b0;
+  --gray-700: #888888;
+  --gray-750: #444444;
+  --gray-800: #333333;
+  --gray-900: #111111;
+
+  /* ── Semantic colors (aliases) ── */
   --bg: #ffffff;
   --surface: #ffffff;
-  --surface-hover: #f1f1f0;
-  --border: #e8e8e8;
-  --text-main: #111111;
-  --text-muted: #888888;
-  --accent: #2e8eff;
+  --surface-hover: var(--gray-150);
+  --border: var(--gray-300);
+  --text-main: var(--gray-900);
+  --text-secondary: var(--gray-750);
+  --text-muted: var(--gray-700);
   --hebrew-bg: #fdfdfd;
   --en-bg: #ffffff;
+
+  /* ── Accent ── */
+  --accent: #2e8eff;
+  --accent-weak: rgba(46, 142, 255, 0.08);
+  --accent-soft: rgba(46, 142, 255, 0.1);
+  --accent-medium: rgba(46, 142, 255, 0.14);
+  --accent-border: rgba(46, 142, 255, 0.35);
+  --accent-border-soft: rgba(46, 142, 255, 0.2);
+  --accent-border-light: rgba(59, 130, 246, 0.25);
+  --accent-border-strong: rgba(59, 130, 246, 0.35);
+  --accent-surface: #f0f4ff;
+  --accent-highlight: rgba(46, 142, 255, 0.12);
+  --accent-subtle: rgba(46, 142, 255, 0.07);
+  --accent-resizer: rgba(46, 142, 255, 0.3);
+
+  /* ── Overlays ── */
+  --overlay-1: rgba(0, 0, 0, 0.01);
+  --overlay-2: rgba(0, 0, 0, 0.02);
+  --overlay-4: rgba(0, 0, 0, 0.04);
+  --overlay-5: rgba(0, 0, 0, 0.05);
+  --overlay-6: rgba(0, 0, 0, 0.06);
+  --overlay-8: rgba(0, 0, 0, 0.08);
+  --overlay-10: rgba(0, 0, 0, 0.1);
+  --overlay-12: rgba(0, 0, 0, 0.12);
+  --overlay-15: rgba(0, 0, 0, 0.15);
+  --overlay-30: rgba(0, 0, 0, 0.3);
+  --overlay-50: rgba(0, 0, 0, 0.5);
+
+  /* ── Status colors ── */
+  --color-danger: #e03131;
+  --color-danger-weak: rgba(224, 49, 49, 0.04);
+  --color-danger-surface: #fff2f2;
+  --color-danger-surface-strong: #ffeeee;
+  --color-danger-bright: #ff4444;
+  --color-warning: #d97706;
+  --color-warning-alt: #e67700;
+  --color-success: #059669;
+  --color-success-alt: #16a34a;
+  --color-success-bright: #2f9e44;
+  --color-success-surface: #ebfbee;
+  --color-success-weak: rgba(34, 197, 94, 0.1);
+  --color-info: #1971c2;
+  --color-purple: #862e9c;
+  --color-finished: #10b981;
+  --color-finished-weak: rgba(16, 185, 129, 0.1);
+  --color-finished-border: rgba(16, 185, 129, 0.3);
+
+  /* ── Spacing (4px base) ── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+  --space-9: 40px;
+  --space-10: 48px;
+  --space-11: 64px;
+  --space-12: 80px;
+
+  /* ── Radius ── */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-2xl: 14px;
+  --radius-3xl: 16px;
+  --radius-4xl: 20px;
+  --radius-pill: 999px;
+  --radius-full: 50%;
+
+  /* ── Shadows ── */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.01);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.02);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.06);
+  --shadow-xl: 0 10px 28px rgba(0, 0, 0, 0.08);
+  --shadow-2xl: 0 16px 48px rgba(0, 0, 0, 0.2);
+  --shadow-up: 0 -4px 32px rgba(0, 0, 0, 0.08);
+  --shadow-cta: 0 4px 16px rgba(0, 0, 0, 0.12);
+  --shadow-btn-hover: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-btn-active: 0 2px 8px rgba(0, 0, 0, 0.15);
+  --shadow-menu: 0 8px 24px rgba(0, 0, 0, 0.1);
+  --shadow-sidebar: 2px 0 24px rgba(0, 0, 0, 0.1);
+  --shadow-card-hover: 0 8px 32px rgba(0, 0, 0, 0.06);
+  --shadow-thumb: 0 1px 4px rgba(0, 0, 0, 0.2);
+  --shadow-thumb-hover: 0 2px 8px rgba(0, 0, 0, 0.25);
+  --shadow-thumb-fine: 0 0 0 4px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.2);
+
+  /* ── Typography ── */
+  --text-xs: 10px;
+  --text-sm: 11px;
+  --text-base-sm: 12px;
+  --text-base: 13px;
+  --text-md: 14px;
+  --text-lg: 15px;
+  --text-xl: 16px;
+  --text-2xl: 17px;
+  --text-3xl: 18px;
+  --text-4xl: 24px;
+  --text-5xl: 28px;
+  --text-6xl: 38px;
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --leading-tight: 1.15;
+  --leading-snug: 1.2;
+  --leading-normal: 1.4;
+  --leading-relaxed: 1.5;
+  --leading-loose: 1.6;
+  --leading-extra: 1.7;
+  --leading-reading: 1.8;
+
+  --tracking-tight: -0.02em;
+  --tracking-tighter: -0.025em;
+  --tracking-tightest: -0.03em;
+  --tracking-wide: 0.02em;
+  --tracking-wider: 0.04em;
+  --tracking-widest: 0.06em;
+  --tracking-caps: 0.08em;
+  --tracking-label: 0.1em;
+
+  /* ── Motion ── */
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 350ms;
+  --dur-slower: 400ms;
+  --dur-slowest: 500ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ── Layout ── */
+  --content-max-width: 900px;
+  --content-padding-x: var(--space-12);
+  --content-padding-x-mobile: var(--space-6);
+  --content-padding-y: var(--space-12);
+  --content-padding-y-mobile: var(--space-9);
+
+  /* ── Surfaces ── */
+  --color-white: #ffffff;
+  --overlay-white-15: rgba(255, 255, 255, 0.15);
+  --surface-glass: rgba(255, 255, 255, 0.9);
+  --surface-player: rgba(255, 255, 255, 0.97);
+  --surface-glass-strong: rgba(255, 255, 255, 0.92);
+  --surface-glass-subtle: rgba(255, 255, 255, 0.88);
+  --surface-sidebar: var(--gray-100);
+  --surface-editing: #fafaf9;
+  --surface-toast: rgba(17, 17, 17, 0.9);
+  --surface-modal-footer: var(--gray-50);
+  --surface-disabled: var(--gray-350);
+  --text-disabled: var(--gray-600);
 }
 
 html {
@@ -33,18 +212,18 @@ html, body {
 }
 
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: var(--radius-sm);
+  height: var(--radius-sm);
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #d1d1d1;
-  border-radius: 4px;
+  background: var(--gray-400);
+  border-radius: var(--radius-xs);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #a1a1a1;
+  background: var(--gray-600);
 }
 
 .app-container {
@@ -54,7 +233,6 @@ html, body {
   overflow: hidden;
   position: relative;
 }
-
 
 .sr-only {
   position: absolute;
@@ -68,8 +246,97 @@ html, body {
   border: 0;
 }
 
-.hebrew-word:focus-visible {
+/* ── Shared focus ring ── */
+.hebrew-word:focus-visible,
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+[role="button"]:focus-visible,
+.tab-btn:focus-visible,
+.ep-item:focus-visible,
+.vocab-filter-btn:focus-visible,
+.rating-btn:focus-visible,
+.vocab-action-btn:focus-visible,
+.example-phrase-regenerate-btn:focus-visible,
+.example-phrases-generate-btn:focus-visible,
+.flashcard-examples-toggle-btn:focus-visible,
+.learning-track-trigger:focus-visible,
+.learning-track-option:focus-visible,
+.mp-play-btn:focus-visible,
+.mp-mute-btn:focus-visible,
+.close-btn:focus-visible,
+.toggle-sidebar-btn:focus-visible,
+.english-toggle-btn:focus-visible,
+.nav-btn:focus-visible,
+.delete-btn:focus-visible,
+.onboarding-skip-btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-  border-radius: 2px;
+}
+
+.hebrew-word:focus-visible {
+  border-radius: var(--radius-xs);
+}
+
+/* ── Primary button base + hover recipe ── */
+.btn-primary,
+.save-btn,
+.subscription-prompt-cta,
+.flashcard-start-btn,
+.flashcard-reveal-btn {
+  background: var(--text-main);
+  color: var(--color-white);
+  border: none;
+  cursor: pointer;
+  transition: all var(--dur-base);
+}
+
+.btn-primary:hover:not(:disabled),
+.save-btn:hover:not(:disabled),
+.subscription-prompt-cta:hover,
+.flashcard-start-btn:hover,
+.flashcard-reveal-btn:hover,
+.onboarding-hero-cta:hover,
+.onboarding-footer-cta:hover {
+  background: #000000;
+  transform: translateY(-1px);
+}
+
+.btn-primary:active:not(:disabled),
+.save-btn:active:not(:disabled),
+.subscription-prompt-cta:active,
+.flashcard-start-btn:active,
+.flashcard-reveal-btn:active {
+  transform: translateY(0);
+}
+
+/* ── Shared animations ── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes spin {
+  100% { transform: rotate(360deg); }
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .flashcard-card-inner {
+    transition: none !important;
+  }
 }

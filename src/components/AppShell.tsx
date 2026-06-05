@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { PanelLeftClose, PanelLeft, BookOpen, Sparkles, X } from "lucide-react";
+import { PanelLeftClose, PanelLeft, BookOpen, Sparkles, X, Eye, EyeOff, RotateCcw, ListTree } from "lucide-react";
 import type { Episode, EpisodeListItem, Level, VocabWord } from "@/lib/types";
 import {
   buildLevelTrackMeta,
@@ -64,6 +64,7 @@ export default function AppShell({
   const [lastEpisodesByLevel, setLastEpisodesByLevel] = useState<Record<string, number>>({});
   const [isEpisodeLoading, setIsEpisodeLoading] = useState(false);
   const [episodeLoadError, setEpisodeLoadError] = useState<string | null>(null);
+  const [reviewStartSignal, setReviewStartSignal] = useState(0);
 
   const mainRef = useRef<HTMLElement>(null);
   const { vocabWords, addWord, deleteWord, updateWord } = useVocabulary();
@@ -379,6 +380,15 @@ export default function AppShell({
 
   const currentIndex = levelEpisodes.findIndex((e) => e.episode === currentEpNum);
 
+  const resumeEpNum = resolveResumeEpisode(
+    currentLevel,
+    episodeList,
+    lastEpisodesByLevel
+  );
+  const hasResumeProgress =
+    lastEpisodesByLevel[currentLevel] != null &&
+    levelEpisodes.some((e) => e.episode === lastEpisodesByLevel[currentLevel]);
+
   const handleNavigate = useCallback(
     (direction: "prev" | "next") => {
       const newIndex =
@@ -401,6 +411,11 @@ export default function AppShell({
         viewMode={effectiveViewMode}
         vocabCount={vocabWords.length}
         dueFlashcardsCount={stats.due}
+        flashcardStats={stats}
+        onStartReview={() => {
+          handleChangeViewMode("flashcards");
+          setReviewStartSignal((s) => s + 1);
+        }}
         isSidebarOpen={isSidebarOpen}
         onSelectEpisode={navigateToEpisode}
         onChangeViewMode={handleChangeViewMode}
@@ -427,58 +442,42 @@ export default function AppShell({
             )}
           </button>
 
-          <button
-            className={`english-toggle-btn ${isEnglishBlurred ? "active" : ""}`}
-            onClick={() => setIsEnglishBlurred((prev) => !prev)}
-            title={
-              isEnglishBlurred
-                ? "Show English translations"
-                : "Blur English translations"
-            }
-          >
-            {isEnglishBlurred ? "English Blurred" : "English Visible"}
-          </button>
+          {effectiveViewMode === "episodes" && episode && (
+            <button
+              className={`english-toggle-btn ${isEnglishBlurred ? "active" : ""}`}
+              onClick={() => setIsEnglishBlurred((prev) => !prev)}
+              aria-pressed={isEnglishBlurred}
+              title={
+                isEnglishBlurred
+                  ? "Show English translations"
+                  : "Hide English translations"
+              }
+            >
+              {isEnglishBlurred ? <EyeOff size={14} /> : <Eye size={14} />}
+              {isEnglishBlurred ? "English hidden" : "English shown"}
+            </button>
+          )}
 
-          <div style={{ marginLeft: "auto" }}>
+          <div className="topnav-actions">
             {!user ? (
               <button
+                className="topnav-login-btn"
                 onClick={() => setIsAuthModalOpen(true)}
-                style={{
-                  background: "var(--text-main)",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "6px",
-                  padding: "6px 12px",
-                  fontSize: "13px",
-                  fontWeight: 500,
-                  cursor: "pointer",
-                }}
               >
                 Log In
               </button>
             ) : (
-              <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-                <span style={{ fontSize: "13px", color: "var(--text-muted)", fontWeight: 500 }}>
+              <>
+                <span className="topnav-email" title={user.email}>
                   {user.email}
                 </span>
                 <button
+                  className="topnav-signout-btn"
                   onClick={() => supabase.auth.signOut()}
-                  style={{
-                    background: "transparent",
-                    color: "var(--text-muted)",
-                    border: "1px solid var(--border)",
-                    borderRadius: "6px",
-                    padding: "4px 10px",
-                    fontSize: "12px",
-                    fontWeight: 500,
-                    cursor: "pointer",
-                  }}
-                  onMouseOver={(e) => { e.currentTarget.style.color = "var(--text-main)"; e.currentTarget.style.borderColor = "#ccc"; }}
-                  onMouseOut={(e) => { e.currentTarget.style.color = "var(--text-muted)"; e.currentTarget.style.borderColor = "var(--border)"; }}
                 >
                   Sign Out
                 </button>
-              </div>
+              </>
             )}
           </div>
         </div>
@@ -529,23 +528,68 @@ export default function AppShell({
             submitReview={submitReview}
             unlearnWord={unlearnWord}
             stats={stats}
+            startSignal={reviewStartSignal}
             generateExamples={generateExamples}
             regenerateExample={regenerateExample}
           />
         ) : isEpisodeLoading ? (
           <div className="empty-state">
-            <BookOpen size={48} strokeWidth={1} />
+            <div className="empty-state-spinner" aria-hidden="true" />
             <p>Loading episode…</p>
           </div>
         ) : episodeLoadError && !episode ? (
           <div className="empty-state">
             <BookOpen size={48} strokeWidth={1} />
             <p>{episodeLoadError}</p>
+            <div className="empty-state-actions">
+              {currentEpNum != null && (
+                <button
+                  className="empty-state-btn primary"
+                  onClick={() => navigateToEpisode(currentLevel, currentEpNum)}
+                >
+                  <RotateCcw size={16} />
+                  Try again
+                </button>
+              )}
+              <button
+                className="empty-state-btn secondary"
+                onClick={() => setIsSidebarOpen(true)}
+              >
+                <ListTree size={16} />
+                Browse episodes
+              </button>
+            </div>
           </div>
         ) : !episode ? (
           <div className="empty-state">
             <BookOpen size={48} strokeWidth={1} />
-            <p>Select an episode from the sidebar to start reading.</p>
+            <p>
+              {levelEpisodes.length > 0
+                ? `Pick up where you left off in ${currentLevelName}, or browse the full list.`
+                : "No episodes are available for this level yet."}
+            </p>
+            {levelEpisodes.length > 0 && (
+              <div className="empty-state-actions">
+                {resumeEpNum != null && (
+                  <button
+                    className="empty-state-btn primary"
+                    onClick={() => navigateToEpisode(currentLevel, resumeEpNum)}
+                  >
+                    <BookOpen size={16} />
+                    {hasResumeProgress
+                      ? `Resume Episode ${String(resumeEpNum).padStart(2, "0")}`
+                      : "Start reading"}
+                  </button>
+                )}
+                <button
+                  className="empty-state-btn secondary"
+                  onClick={() => setIsSidebarOpen(true)}
+                >
+                  <ListTree size={16} />
+                  Browse episodes
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <div key={`episode-${episode.level}-${episode.episode}`}>

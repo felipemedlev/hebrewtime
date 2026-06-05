@@ -6,10 +6,10 @@
 @media (max-width: 800px) {
   .subscription-prompt {
     top: 56px;
-    width: calc(100% - 24px);
-    margin-top: 10px;
-    padding: 12px;
-    gap: 10px;
+    width: calc(100% - var(--space-6));
+    margin-top: var(--radius-lg);
+    padding: var(--space-3);
+    gap: var(--radius-lg);
     align-items: flex-start;
     flex-wrap: wrap;
   }
@@ -32,7 +32,7 @@
     width: 320px;
     max-width: 85vw;
     height: 100vh;
-    box-shadow: 2px 0 24px rgba(0,0,0,0.1);
+    box-shadow: var(--shadow-sidebar);
     transform: translateX(0);
     visibility: visible;
   }
@@ -41,18 +41,18 @@
   }
   .sidebar.closed {
     transform: translateX(-100%);
-    width: 320px; /* Keep standard width for smooth slide */
-    opacity: 1; /* Slide out instead of fade out */
+    width: 320px;
+    opacity: 1;
   }
 
   .ep-list {
-    padding-bottom: 140px; /* Allow reaching bottom episodes behind media player */
+    padding-bottom: 140px;
     overscroll-behavior-y: none;
   }
 
   .app-container.mobile-sidebar-open .main-content {
-    overflow: hidden; /* Prevent scrolling main content through overlay */
-    pointer-events: none; /* Bulletproof prevention of touch bleed to main content */
+    overflow: hidden;
+    pointer-events: none;
   }
 
   .close-mobile-btn {
@@ -66,11 +66,11 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0,0,0,0.3);
+    background: var(--overlay-30);
     backdrop-filter: blur(2px);
     z-index: 90;
     opacity: 1;
-    transition: opacity 0.3s ease;
+    transition: opacity var(--dur-slow) ease;
   }
   .sidebar-overlay.closed {
     opacity: 0;
@@ -78,59 +78,58 @@
   }
 
   .main-header {
-    padding: 20px 24px 10px 24px;
+    padding: var(--space-5) var(--content-padding-x-mobile) var(--radius-lg) var(--content-padding-x-mobile);
   }
   .content-grid {
-    padding: 10px 24px 60px 24px;
+    padding: var(--radius-lg) var(--content-padding-x-mobile) var(--content-padding-y-mobile) var(--content-padding-x-mobile);
   }
   .vocab-grid {
-    padding: 10px 24px 60px 24px;
+    padding: var(--radius-lg) var(--content-padding-x-mobile) var(--content-padding-y-mobile) var(--content-padding-x-mobile);
     grid-template-columns: 1fr;
   }
   .main-title {
-    font-size: 28px;
+    font-size: var(--text-5xl);
     line-height: 1.25;
   }
   .para-pair {
     grid-template-columns: 1fr;
-    gap: 16px;
-    padding: 24px 0;
+    gap: var(--space-4);
+    padding: var(--space-6) 0;
   }
   .text-hebrew {
     font-size: 21px;
   }
   .text-english {
-    font-size: 17px;
+    font-size: var(--text-2xl);
   }
   .english-toggle-btn {
-    margin-left: 8px;
-    padding: 6px 8px;
-    font-size: 11px;
+    margin-left: var(--radius-md);
+    padding: var(--radius-sm) var(--radius-md);
+    font-size: var(--text-sm);
   }
   .nav-controls {
     flex-direction: column;
-    gap: 12px;
+    gap: var(--space-3);
     margin-top: 30px;
     padding-top: 30px;
   }
   .nav-btn {
     justify-content: center;
-    padding: 14px 16px;
+    padding: var(--radius-2xl) var(--space-4);
   }
 
-  /* Vocabulary: hide table, show cards */
   .vocab-page-header {
-    padding: 24px 20px 16px 20px;
+    padding: var(--space-6) var(--space-5) var(--space-4) var(--space-5);
   }
   .vocab-table-wrap {
-    padding: 0 20px 60px 20px;
+    padding: 0 var(--space-5) var(--content-padding-y-mobile) var(--space-5);
   }
   .vocab-table { display: none; }
   .vocab-cards {
     display: block;
     border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 16px 20px;
+    border-radius: var(--radius-2xl);
+    padding: var(--space-4) var(--space-5);
     background: var(--surface);
   }
   .vocab-page-title {

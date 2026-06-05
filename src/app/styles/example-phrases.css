@@ -12,15 +12,15 @@
 }
 
 .vocab-table-examples-row {
-  padding: 0 16px 16px;
+  padding: 0 var(--space-4) var(--space-4);
   background: var(--surface-hover);
 }
 
 .vocab-examples-panel,
 .flashcard-examples-panel {
-  margin-top: 12px;
-  padding: 14px 16px;
-  border-radius: 10px;
+  margin-top: var(--space-3);
+  padding: var(--radius-2xl) var(--space-4);
+  border-radius: var(--radius-lg);
   border: 1px solid var(--border);
   background: var(--surface);
 }
@@ -28,19 +28,19 @@
 .flashcard-examples-panel {
   width: 100%;
   max-width: 480px;
-  margin: 16px auto 0;
+  margin: var(--space-4) auto 0;
 }
 
 .example-phrases-header {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 600;
+  gap: var(--radius-sm);
+  font-size: var(--text-base-sm);
+  font-weight: var(--font-weight-semibold);
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-bottom: 10px;
+  letter-spacing: var(--tracking-wider);
+  margin-bottom: var(--radius-lg);
 }
 
 .example-phrases-header-icon {
@@ -54,17 +54,17 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--radius-lg);
 }
 
 .example-phrase {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 8px;
+  gap: var(--radius-lg);
+  padding: var(--radius-lg) var(--space-3);
+  border-radius: var(--radius-md);
   background: var(--surface-hover);
-  border: 1px solid rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--overlay-4);
 }
 
 .example-phrase-content {
@@ -73,14 +73,14 @@
 }
 
 .example-phrase-hebrew {
-  font-size: 17px;
-  line-height: 1.5;
+  font-size: var(--text-2xl);
+  line-height: var(--leading-relaxed);
   color: var(--text-main);
-  margin: 0 0 4px 0;
+  margin: 0 0 var(--space-1) 0;
 }
 
 .example-phrase-english {
-  font-size: 13px;
+  font-size: var(--text-base);
   line-height: 1.45;
   color: var(--text-muted);
   margin: 0;
@@ -91,20 +91,20 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: var(--space-7);
+  height: var(--space-7);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--text-muted);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
 }
 
 .example-phrase-regenerate-btn:hover:not(:disabled) {
-  background: #f0f4ff;
+  background: var(--accent-surface);
   color: var(--accent);
-  border-color: rgba(59, 130, 246, 0.25);
+  border-color: var(--accent-border-light);
 }
 
 .example-phrase-regenerate-btn:disabled {
@@ -116,23 +116,23 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--radius-md);
   width: 100%;
-  padding: 10px 16px;
+  padding: var(--radius-lg) var(--space-4);
   border: 1px dashed var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 500;
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-medium);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
 }
 
 .example-phrases-generate-btn:hover:not(:disabled) {
-  background: #f0f4ff;
+  background: var(--accent-surface);
   color: var(--accent);
-  border-color: rgba(59, 130, 246, 0.35);
+  border-color: var(--accent-border-strong);
 }
 
 .example-phrases-generate-btn:disabled {
@@ -142,21 +142,17 @@
 
 .example-phrases-spinner {
   display: inline-block;
-  width: 14px;
-  height: 14px;
+  width: var(--text-md);
+  height: var(--text-md);
   border: 2px solid var(--border);
   border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: example-phrases-spin 0.7s linear infinite;
+  border-radius: var(--radius-full);
+  animation: spin 0.7s linear infinite;
 }
 
 .example-phrases-spinner.small {
-  width: 12px;
-  height: 12px;
-}
-
-@keyframes example-phrases-spin {
-  to { transform: rotate(360deg); }
+  width: var(--text-base-sm);
+  height: var(--text-base-sm);
 }
 
 .flashcard-pre-reveal-actions,
@@ -164,7 +160,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: var(--radius-lg);
   width: 100%;
 }
 
@@ -172,29 +168,29 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 8px 14px;
+  gap: var(--radius-sm);
+  padding: var(--radius-md) var(--radius-2xl);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 500;
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-medium);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
 }
 
 .flashcard-examples-toggle-btn:hover:not(:disabled),
 .flashcard-examples-toggle-btn.active {
-  background: #f0f4ff;
+  background: var(--accent-surface);
   color: var(--accent);
-  border-color: rgba(59, 130, 246, 0.25);
+  border-color: var(--accent-border-light);
 }
 
 .flashcard-examples-toggle-btn.compact {
-  margin-top: 4px;
-  padding: 6px 12px;
-  font-size: 12px;
+  margin-top: var(--space-1);
+  padding: var(--radius-sm) var(--space-3);
+  font-size: var(--text-base-sm);
 }
 
 .flashcard-examples-toggle-btn:disabled {
@@ -204,15 +200,15 @@
 
 @media (max-width: 580px) {
   .example-phrase-hebrew {
-    font-size: 15px;
+    font-size: var(--text-lg);
   }
 
   .example-phrase-english {
-    font-size: 12px;
+    font-size: var(--text-base-sm);
   }
 
   .flashcard-pre-reveal-actions {
-    gap: 8px;
+    gap: var(--radius-md);
   }
 
   .flashcard-examples-toggle-btn,

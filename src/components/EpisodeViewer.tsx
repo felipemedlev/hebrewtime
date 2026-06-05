@@ -165,6 +165,33 @@ export default function EpisodeViewer({
     return () => window.removeEventListener("playerTimeUpdate", handleTimeUpdate);
   }, []);
 
+  // Keyboard shortcuts: ←/→ to move between episodes (ignored while typing or in a modal).
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (modal.isOpen) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        target?.isContentEditable
+      ) {
+        return;
+      }
+      if (e.key === "ArrowLeft" && hasPrev) {
+        e.preventDefault();
+        onNavigate("prev");
+      } else if (e.key === "ArrowRight" && hasNext) {
+        e.preventDefault();
+        onNavigate("next");
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [hasPrev, hasNext, onNavigate, modal.isOpen]);
+
   const activePosition = useMemo(
     () => findActivePosition(episode.hebrew_paragraphs, currentTime),
     [episode.hebrew_paragraphs, currentTime]
@@ -291,20 +318,10 @@ export default function EpisodeViewer({
           ) : null}
           <span>•</span>
           <button
+            type="button"
             onClick={onToggleFinished}
-            style={{
-              background: "transparent",
-              border: "none",
-              color: isFinished ? "#10b981" : "var(--text-muted)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: "4px",
-              padding: 0,
-              fontSize: "14px",
-              fontFamily: "inherit",
-              fontWeight: 500,
-            }}
+            className={`finish-inline-btn ${isFinished ? "finished" : ""}`}
+            aria-pressed={isFinished}
           >
             <CheckCircle size={14} />
             {isFinished ? "Finished" : "Mark as finished"}
@@ -362,53 +379,41 @@ export default function EpisodeViewer({
                 {eng ? (
                   eng
                 ) : (
-                  <span style={{ color: "#aaa", fontStyle: "italic" }}>
-                    No translation
-                  </span>
+                  <span className="text-english-empty">No translation</span>
                 )}
               </div>
             </div>
           );
         })}
 
-        <div style={{ display: "flex", justifyContent: "center", margin: "2rem 0" }}>
-          <button
-            onClick={onToggleFinished}
-            style={{
-              background: isFinished ? "rgba(16, 185, 129, 0.1)" : "var(--bg-secondary)",
-              border: `1px solid ${isFinished ? "rgba(16, 185, 129, 0.3)" : "var(--border-color)"}`,
-              color: isFinished ? "#10b981" : "var(--text-primary)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              padding: "12px 24px",
-              borderRadius: "24px",
-              fontSize: "16px",
-              fontFamily: "inherit",
-              fontWeight: 500,
-              transition: "all 0.2s ease",
-            }}
-          >
-            <CheckCircle size={20} />
-            {isFinished ? "Episode Finished" : "Mark as finished"}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={onToggleFinished}
+          className={`finish-episode-btn ${isFinished ? "finished" : ""}`}
+          aria-pressed={isFinished}
+        >
+          <CheckCircle size={20} />
+          {isFinished ? "Episode Finished" : "Mark as finished"}
+        </button>
 
         <div className="nav-controls">
           <button
             className="nav-btn"
             onClick={() => onNavigate("prev")}
             disabled={!hasPrev}
+            title="Previous episode (←)"
           >
             <ChevronLeft size={16} />
             Previous Episode
+            <kbd className="nav-btn-kbd" aria-hidden="true">←</kbd>
           </button>
           <button
             className="nav-btn"
             onClick={() => onNavigate("next")}
             disabled={!hasNext}
+            title="Next episode (→)"
           >
+            <kbd className="nav-btn-kbd" aria-hidden="true">→</kbd>
             Next Episode
             <ChevronRight size={16} />
           </button>

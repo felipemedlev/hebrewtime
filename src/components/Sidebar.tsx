@@ -1,8 +1,22 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
-import { Search, BookOpen, Bookmark, X, LogOut, LogIn, CheckCircle, Brain } from "lucide-react";
-import type { EpisodeListItem, LevelTrackMeta } from "@/lib/types";
+import {
+  Search,
+  BookOpen,
+  Bookmark,
+  X,
+  LogOut,
+  LogIn,
+  CheckCircle,
+  Brain,
+  Lock,
+  Play,
+  GraduationCap,
+  Clock,
+  Sparkles,
+} from "lucide-react";
+import type { EpisodeListItem, LevelTrackMeta, FlashcardStats } from "@/lib/types";
 import LearningTrackSelector from "./LearningTrackSelector";
 import { finishedKey } from "@/lib/levelTracks";
 import { useUser } from "@/hooks/useUser";
@@ -17,10 +31,12 @@ type SidebarProps = {
   viewMode: "episodes" | "vocabulary" | "flashcards";
   vocabCount: number;
   dueFlashcardsCount?: number;
+  flashcardStats?: FlashcardStats;
   isSidebarOpen: boolean;
   onSelectEpisode: (level: string, num: number) => void;
   onChangeViewMode: (mode: "episodes" | "vocabulary" | "flashcards") => void;
   onClose: () => void;
+  onStartReview?: () => void;
   onOpenAuthModal?: () => void;
   isPremium?: boolean;
   isAdmin?: boolean;
@@ -38,10 +54,12 @@ export default function Sidebar({
   viewMode,
   vocabCount,
   dueFlashcardsCount = 0,
+  flashcardStats,
   isSidebarOpen,
   onSelectEpisode,
   onChangeViewMode,
   onClose,
+  onStartReview,
   onOpenAuthModal,
   isPremium = false,
   isAdmin = false,
@@ -115,6 +133,16 @@ export default function Sidebar({
     onChangeLevel(level);
   };
 
+  const isLocked = !isPremium && !isLoadingEntitlements;
+
+  const startReview = () => {
+    if (onStartReview) {
+      onStartReview();
+    } else {
+      onChangeViewMode("flashcards");
+    }
+  };
+
   return (
     <>
       {/* Mobile Overlay */}
@@ -148,42 +176,30 @@ export default function Sidebar({
               Episodes
             </button>
             <button
-              className={`tab-btn ${viewMode === "vocabulary" ? "active" : ""}`}
+              className={`tab-btn ${viewMode === "vocabulary" ? "active" : ""} ${isLocked ? "locked" : ""}`}
               onClick={() => onChangeViewMode("vocabulary")}
-              title={!isPremium && !isLoadingEntitlements ? "Join subscription to unlock vocabulary" : undefined}
+              title={isLocked ? "Join subscription to unlock vocabulary" : undefined}
               role="tab"
               aria-selected={viewMode === "vocabulary"}
               id="sidebar-tab-vocabulary"
               aria-controls="sidebar-panel"
             >
-              <Bookmark
-                size={14}
-                style={{
-                  display: "inline",
-                  marginRight: "4px",
-                  verticalAlign: "text-bottom",
-                }}
-              />
+              <Bookmark size={14} />
               Vocab
+              {isLocked && <Lock size={11} className="tab-lock-icon" aria-label="Premium" />}
             </button>
             <button
-              className={`tab-btn ${viewMode === "flashcards" ? "active" : ""}`}
+              className={`tab-btn ${viewMode === "flashcards" ? "active" : ""} ${isLocked ? "locked" : ""}`}
               onClick={() => onChangeViewMode("flashcards")}
-              title={!isPremium && !isLoadingEntitlements ? "Join subscription to unlock flashcards" : undefined}
+              title={isLocked ? "Join subscription to unlock flashcards" : undefined}
               role="tab"
               aria-selected={viewMode === "flashcards"}
               id="sidebar-tab-flashcards"
               aria-controls="sidebar-panel"
             >
-              <Brain
-                size={14}
-                style={{
-                  display: "inline",
-                  marginRight: "4px",
-                  verticalAlign: "text-bottom",
-                }}
-              />
+              <Brain size={14} />
               Review
+              {isLocked && <Lock size={11} className="tab-lock-icon" aria-label="Premium" />}
             </button>
           </div>
 
@@ -231,109 +247,112 @@ export default function Sidebar({
                     .trim()}
                 </span>
                 {finishedEpisodes.has(finishedKey(currentLevel, ep.episode)) && (
-                  <CheckCircle size={14} style={{ marginLeft: "auto", color: "#10b981", flexShrink: 0 }} />
+                  <CheckCircle size={14} className="ep-check" />
                 )}
               </button>
             ))}
             {filteredEpisodes.length === 0 && (
-              <div
-                style={{
-                  padding: "16px",
-                  textAlign: "center",
-                  color: "var(--text-muted)",
-                  fontSize: "13px",
-                }}
-              >
-                No episodes found.
-              </div>
+              <div className="ep-empty">No episodes found.</div>
             )}
           </div>
         ) : viewMode === "vocabulary" ? (
           <div className="ep-list" id="sidebar-panel" role="tabpanel" aria-labelledby="sidebar-tab-vocabulary">
-            <div
-              style={{
-                padding: "16px",
-                color: "var(--text-muted)",
-                fontSize: "13px",
-                lineHeight: "1.6",
-              }}
-            >
-              <p>
-                You have <strong>{vocabCount}</strong> words saved.
-              </p>
-              <p style={{ marginTop: "12px" }}>
-                They are displayed in the main area to the right.
-              </p>
+            <div className="sidebar-info">
+              <p className="sidebar-info-heading">Vocabulary</p>
+              <div className="sidebar-stats">
+                <div className="sidebar-stat">
+                  <span className="sidebar-stat-label">
+                    <Bookmark size={14} /> Saved words
+                  </span>
+                  <span className="sidebar-stat-value">{vocabCount}</span>
+                </div>
+                <div className={`sidebar-stat ${dueFlashcardsCount > 0 ? "highlight" : ""}`}>
+                  <span className="sidebar-stat-label">
+                    <Clock size={14} /> Due for review
+                  </span>
+                  <span className="sidebar-stat-value">{dueFlashcardsCount}</span>
+                </div>
+                <div className="sidebar-stat">
+                  <span className="sidebar-stat-label">
+                    <GraduationCap size={14} /> Learned
+                  </span>
+                  <span className="sidebar-stat-value">{flashcardStats?.learned ?? 0}</span>
+                </div>
+              </div>
+              {dueFlashcardsCount > 0 ? (
+                <button className="sidebar-cta" onClick={startReview}>
+                  <Play size={14} /> Review {dueFlashcardsCount} due {dueFlashcardsCount === 1 ? "word" : "words"}
+                </button>
+              ) : (
+                <p className="sidebar-info-note">
+                  {vocabCount > 0
+                    ? "Click any Hebrew word while reading to add more to your list."
+                    : "Click any Hebrew word while reading to save your first word."}
+                </p>
+              )}
             </div>
           </div>
         ) : (
           <div className="ep-list" id="sidebar-panel" role="tabpanel" aria-labelledby="sidebar-tab-flashcards">
-            <div
-              style={{
-                padding: "16px",
-                color: "var(--text-muted)",
-                fontSize: "13px",
-                lineHeight: "1.6",
-              }}
-            >
-              <p>
-                Spaced repetition session.
-              </p>
+            <div className="sidebar-info">
+              <p className="sidebar-info-heading">Spaced repetition</p>
+              <div className="sidebar-stats">
+                <div className={`sidebar-stat ${dueFlashcardsCount > 0 ? "highlight" : ""}`}>
+                  <span className="sidebar-stat-label">
+                    <Clock size={14} /> Due now
+                  </span>
+                  <span className="sidebar-stat-value">{dueFlashcardsCount}</span>
+                </div>
+                <div className="sidebar-stat">
+                  <span className="sidebar-stat-label">
+                    <Sparkles size={14} /> New
+                  </span>
+                  <span className="sidebar-stat-value">{flashcardStats?.newCount ?? 0}</span>
+                </div>
+                <div className="sidebar-stat">
+                  <span className="sidebar-stat-label">
+                    <GraduationCap size={14} /> Learned
+                  </span>
+                  <span className="sidebar-stat-value">{flashcardStats?.learned ?? 0}</span>
+                </div>
+              </div>
               {dueFlashcardsCount > 0 ? (
-                <p style={{ marginTop: "12px" }}>
-                  You have <strong style={{ color: "var(--accent)" }}>{dueFlashcardsCount}</strong> words ready for review!
-                </p>
+                <button className="sidebar-cta" onClick={startReview}>
+                  <Play size={14} /> Start review
+                </button>
               ) : (
-                <p style={{ marginTop: "12px" }}>
-                  All caught up! No due flashcards right now.
+                <p className="sidebar-info-note">
+                  {vocabCount > 0
+                    ? "All caught up — no cards are due right now."
+                    : "Save words while reading to build your review deck."}
                 </p>
               )}
             </div>
           </div>
         )}
 
-        <div style={{ marginTop: "auto", borderTop: "1px solid var(--border)", padding: "12px 16px" }}>
+        <div className="sidebar-footer">
           {isAdmin && (
-            <button
-              onClick={onOpenAdminModal}
-              style={{
-                width: "100%",
-                marginBottom: "10px",
-                background: "var(--surface)",
-                border: "1px solid var(--border)",
-                borderRadius: "8px",
-                padding: "8px",
-                fontSize: "12px",
-                fontWeight: 600,
-                color: "var(--text-main)",
-                cursor: "pointer",
-              }}
-            >
+            <button className="sidebar-admin-btn" onClick={onOpenAdminModal}>
               Open Admin Panel
             </button>
           )}
           {user ? (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ fontSize: "12px", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "160px" }}>
+            <div className="sidebar-account">
+              <span className="sidebar-email" title={user.email}>
                 {user.email}
               </span>
-              <button 
+              <button
+                className="sidebar-signout-btn"
                 onClick={handleSignOut}
                 title="Sign Out"
-                style={{ background: "transparent", border: "none", color: "var(--text-muted)", cursor: "pointer", display: "flex", alignItems: "center", padding: "4px", borderRadius: "6px" }}
-                onMouseOver={(e) => { e.currentTarget.style.color = "var(--text-main)"; e.currentTarget.style.background = "rgba(0,0,0,0.05)"; }}
-                onMouseOut={(e) => { e.currentTarget.style.color = "var(--text-muted)"; e.currentTarget.style.background = "transparent"; }}
+                aria-label="Sign out"
               >
                 <LogOut size={16} />
               </button>
             </div>
           ) : (
-            <button
-              onClick={onOpenAuthModal}
-              style={{ width: "100%", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "8px", padding: "8px", fontSize: "13px", fontWeight: 500, color: "var(--text-main)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", transition: "all 0.2s" }}
-              onMouseOver={(e) => { e.currentTarget.style.background = "var(--surface-hover)"; e.currentTarget.style.borderColor = "#d1d1d1"; }}
-              onMouseOut={(e) => { e.currentTarget.style.background = "var(--surface)"; e.currentTarget.style.borderColor = "var(--border)"; }}
-            >
+            <button className="sidebar-login-btn" onClick={onOpenAuthModal}>
               <LogIn size={15} />
               Log In / Sign Up
             </button>
