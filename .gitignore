@@ -39,3 +39,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# pipeline checkpoints
+/scripts/.checkpoints/
+/scripts/.checkpoints/*.mp3
+
+# GCP service account keys (never commit)
+/secrets/
+gcp-service-account.json
+*-service-account*.json

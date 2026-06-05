@@ -1,0 +1,236 @@
+{
+  "level": "advanced",
+  "display": {
+    "name": "Advanced",
+    "cefr": "B2",
+    "sort_order": 3
+  },
+  "narrator": {
+    "name": "Eitan",
+    "name_hebrew": "איתן",
+    "persona": "A curious Israeli man in his late 30s living in Haifa. He speaks in rich, natural modern Hebrew with thoughtful observations, cultural nuance, and a conversational podcast style. He challenges advanced learners with authentic phrasing while staying clear and listenable.",
+    "intro_episode_1": "He introduces himself as Eitan (איתן) and explains that this series is for learners who can follow everyday Hebrew and now want depth, nuance, and more authentic Israeli speech."
+  },
+  "tts": {
+    "language_code": "he-IL",
+    "model_name": "gemini-3.1-flash-tts-preview",
+    "voice_name": "Achernar",
+    "prompt": "Read aloud in a natural, thoughtful podcast tone. Use clear articulation, authentic rhythm, and moderate speed suitable for advanced Hebrew learners.",
+    "speaking_rate": 1.0,
+    "pitch": 0
+  },
+  "generation": {
+    "target_duration_minutes": 10,
+    "target_paragraph_count": 34,
+    "target_word_count_min": 1050,
+    "target_word_count_max": 1250,
+    "level_description": "advanced Hebrew for B2 learners who can follow everyday speech and are ready for idiomatic phrasing, layered opinions, cultural references, nuanced connectors, and more complex sentence structure",
+    "narrator_instruction": "First person, reflective, sharp but warm - as if Eitan is thinking aloud with an intelligent listener who wants authentic Hebrew",
+    "language_guidance": "Modern spoken Hebrew with richer syntax, natural digressions, idioms in context, varied tenses, concise explanations, and occasional abstract vocabulary grounded in concrete stories",
+    "vocabulary_guidance": "Introduce advanced expressions and nuanced words through context; avoid turning the episode into a lecture, and keep enough narrative clarity that learners can follow the thread.",
+    "core_vocab": [
+      "במובן מסוים", "לכאורה", "דווקא", "בעיקרון", "בפועל", "בדיעבד", "במקרה", "ככל הנראה",
+      "להתמודד", "להתעקש", "להתפשר", "להבחין", "להשפיע", "להעריך", "לשקול", "להסיק",
+      "מורכב", "משמעותי", "זמני", "עקרוני", "מעשי", "מובן מאליו", "עדין", "חריג",
+      "תפיסה", "גישה", "הקשר", "מסקנה", "פער", "הרגל", "זהות", "אחריות",
+      "לעומת זאת", "עם זאת", "אף על פי כן", "מעבר לזה", "כתוצאה מכך", "בשלב מסוים"
+    ],
+    "useful_chunks": [
+      "אם מסתכלים על זה רגע מהצד", "זה נשמע פשוט, אבל זה לא כל כך פשוט",
+      "יש פה פער מעניין", "אני אומר את זה בזהירות", "זו לא רק שאלה של...",
+      "מה שמסבך את העניין הוא...", "בפועל זה נראה אחרת", "בדיעבד הבנתי ש...",
+      "אפשר להתווכח על זה", "אני לא בטוח שיש תשובה אחת", "זה חלק מהיופי של השפה"
+    ],
+    "style_rules": [
+      "Every episode should feel like an authentic reflective podcast monologue, not a lesson or essay outline.",
+      "Start from one concrete scene and gradually widen into a cultural, linguistic, or personal observation.",
+      "Use idioms and advanced connectors naturally, and make their meaning clear through the surrounding story.",
+      "Include nuance and mild tension: two possible interpretations, a tradeoff, or a question without a perfect answer.",
+      "Avoid heavy politics, academic jargon, and rare literary Hebrew that would not appear in intelligent spoken conversation.",
+      "English paragraphs should be natural translations that preserve nuance, not literal word-for-word glosses."
+    ],
+    "openai_model": "gpt-5.5"
+  },
+  "episodes": [
+    {
+      "episode_number": 1,
+      "title_en": "Welcome to Advanced Hebrew",
+      "topic": "Introducing Eitan and the move from understanding Hebrew to thinking inside Hebrew",
+      "narrative_hook": "Eitan records after a train ride to Haifa and reflects on the moment when Hebrew stops being only information and starts becoming a way to notice the world.",
+      "new_vocab": ["להעמיק", "ניואנס", "אותנטי", "להבחין", "מובן מאליו", "תפיסה", "להתנסח", "קצב", "הקשר", "דיוק"],
+      "useful_phrases": ["זה לא רק להבין מילים", "יש פה ניואנס קטן", "בואו נלך צעד אחד עמוק יותר", "עברית מתחילה לחשוב איתכם"],
+      "review_vocab": []
+    },
+    {
+      "episode_number": 2,
+      "title_en": "The Art of Disagreeing",
+      "topic": "Disagreement, tact, and how Israelis argue without always fighting",
+      "narrative_hook": "A conversation in a cafe sounds like an argument to tourists, but Eitan notices it is actually a warm and precise disagreement between friends.",
+      "new_vocab": ["להתווכח", "להסכים", "להסתייג", "טון", "חד", "ישיר", "להקשיב", "עמדה", "לשכנע", "לרכך"],
+      "useful_phrases": ["אני מבין מה אתה אומר, אבל...", "אפשר לראות את זה אחרת", "אני לא לגמרי מסכים", "זה תלוי איך מנסחים את זה"],
+      "review_vocab": ["גישה", "הקשר", "מורכב", "אפשר להתווכח על זה"]
+    },
+    {
+      "episode_number": 3,
+      "title_en": "A Voice Message Instead of a Call",
+      "topic": "Modern communication, voice messages, and spoken Hebrew rhythm",
+      "narrative_hook": "Eitan receives a two-minute voice message that could have been one sentence and thinks about why voice messages reveal so much about spoken Hebrew.",
+      "new_vocab": ["הודעה קולית", "להקליט", "להיסחף", "לקצר", "לפרט", "הפסקה", "אינטונציה", "כוונה", "להבהיר", "לרמוז"],
+      "useful_phrases": ["בקיצור, מה שרציתי להגיד...", "אני שולח לך הודעה כי...", "זה יצא יותר ארוך ממה שתכננתי", "שומעים את זה בקול"],
+      "review_vocab": ["קצב", "להתנסח", "בפועל", "הקשר"]
+    },
+    {
+      "episode_number": 4,
+      "title_en": "When Memory Changes the Story",
+      "topic": "Memory, storytelling, and how people reshape experiences",
+      "narrative_hook": "At a family dinner, two relatives tell the same childhood story completely differently, and both versions sound true.",
+      "new_vocab": ["זיכרון", "גרסה", "להגזים", "לשחזר", "פרט", "אמין", "להשתנות", "להיזכר", "סיפור משפחתי", "בדיעבד"],
+      "useful_phrases": ["ככה אני זוכר את זה", "יכול להיות שאני מגזים", "בדיעבד זה נראה אחרת", "לכל אחד יש גרסה משלו"],
+      "review_vocab": ["מובן מסוים", "מסקנה", "להבחין", "מורכב"]
+    },
+    {
+      "episode_number": 5,
+      "title_en": "Noise, Silence, and City Life",
+      "topic": "Urban noise, personal boundaries, and the search for quiet",
+      "narrative_hook": "A construction drill under Eitan's window ruins his morning, but later he notices that complete silence makes him uncomfortable too.",
+      "new_vocab": ["רעש", "שקט", "גבול", "להתרגל", "מטרד", "מרחב", "להימלט", "להירגע", "עומס", "סביבה"],
+      "useful_phrases": ["זה עבר את הגבול", "אי אפשר לחשוב ככה", "מצד שני, שקט מוחלט מוזר לי", "העיר נכנסת לך הביתה"],
+      "review_vocab": ["בפועל", "הרגל", "פער", "עם זאת"]
+    },
+    {
+      "episode_number": 6,
+      "title_en": "What Does It Mean to Be Polite?",
+      "topic": "Politeness, directness, and cultural expectations in Hebrew",
+      "narrative_hook": "Eitan watches a cashier and a customer speak very directly, then realizes politeness in Hebrew is not always about soft words.",
+      "new_vocab": ["נימוס", "ישירות", "ציפייה", "לכבד", "להישמע", "גס", "עדין", "כוונה", "תרבותי", "מקובל"],
+      "useful_phrases": ["זה נשמע קצת ישיר", "הכוונה לא הייתה גסה", "ככה מקובל להגיד", "נימוס נראה אחרת בכל שפה"],
+      "review_vocab": ["טון", "להתנסח", "הקשר", "אני אומר את זה בזהירות"]
+    },
+    {
+      "episode_number": 7,
+      "title_en": "The Price of Convenience",
+      "topic": "Convenience, habits, apps, and everyday compromises",
+      "narrative_hook": "After ordering food through an app again, Eitan wonders when convenience becomes a habit we no longer choose consciously.",
+      "new_vocab": ["נוחות", "הרגל", "אפליקציה", "להזמין", "להתפתות", "לחסוך", "לשלם מחיר", "בחירה", "מודע", "להתפשר"],
+      "useful_phrases": ["זה נוח מדי", "אני משלם על זה מחיר", "לא חשבתי על זה עד הסוף", "במובן מסוים זו פשרה"],
+      "review_vocab": ["בפועל", "לשקול", "מסקנה", "מה שמסבך את העניין"]
+    },
+    {
+      "episode_number": 8,
+      "title_en": "Small Talk Is Not Small",
+      "topic": "Small talk, social trust, and the hidden work of casual conversation",
+      "narrative_hook": "A short conversation with a stranger at a bus stop becomes unexpectedly meaningful because of one personal detail.",
+      "new_vocab": ["שיחת חולין", "זר", "אמון", "להיפתח", "פרט אישי", "מביך", "להתחבר", "אקראי", "רגעי", "אנושי"],
+      "useful_phrases": ["זה התחיל כשיחת חולין", "לא התכוונתי להיפתח", "משהו בזה היה אנושי", "לפעמים שיחה קטנה לא קטנה בכלל"],
+      "review_vocab": ["קשר", "הקשר", "לכאורה", "בשלב מסוים"]
+    },
+    {
+      "episode_number": 9,
+      "title_en": "Reading Between the Lines",
+      "topic": "Implied meaning, hints, and indirect communication in Hebrew",
+      "narrative_hook": "Eitan gets a polite message that technically says yes, but everything between the lines says no.",
+      "new_vocab": ["לרמוז", "בין השורות", "משתמע", "להתחמק", "מסר", "דו-משמעי", "לפרש", "עדינות", "לכאורה", "כוונה"],
+      "useful_phrases": ["הוא לא אמר לא, אבל...", "צריך לקרוא בין השורות", "זה נשמע מנומס מדי", "המסר היה די ברור"],
+      "review_vocab": ["ניואנס", "להבחין", "טון", "הקשר"]
+    },
+    {
+      "episode_number": 10,
+      "title_en": "A Word That Refuses Translation",
+      "topic": "Words with cultural weight and why some Hebrew expressions resist translation",
+      "narrative_hook": "Eitan tries to translate a simple Hebrew expression for a friend and realizes the English translation misses the emotional weight.",
+      "new_vocab": ["תרגום", "מטען", "ביטוי", "לפספס", "מדויק", "רגשי", "תרבותי", "להעביר", "משמעות", "מקור"],
+      "useful_phrases": ["זה לא עובר טוב באנגלית", "יש למילה הזאת מטען", "התרגום מפספס משהו", "צריך להבין את ההקשר"],
+      "review_vocab": ["דיוק", "הקשר", "זה חלק מהיופי של השפה", "להסיק"]
+    },
+    {
+      "episode_number": 11,
+      "title_en": "Waiting as a Cultural Experience",
+      "topic": "Queues, patience, improvisation, and public behavior",
+      "narrative_hook": "A line at a government office becomes a small theater of frustration, jokes, negotiation, and unexpected solidarity.",
+      "new_vocab": ["תור", "להמתין", "סבלנות", "לאלתר", "פקיד", "מסמך", "להתעצבן", "להירגע", "סולידריות", "בירוקרטיה"],
+      "useful_phrases": ["מי האחרון בתור?", "זה מתקדם לאט", "אין מה לעשות, צריך לחכות", "פתאום כולם נהיו חברים"],
+      "review_vocab": ["בפועל", "להתמודד", "אחריות", "עם זאת"]
+    },
+    {
+      "episode_number": 12,
+      "title_en": "The Problem with Good Advice",
+      "topic": "Advice, responsibility, and knowing when not to interfere",
+      "narrative_hook": "Eitan gives a friend advice that sounds wise in the moment, then regrets it when he realizes he did not understand the whole picture.",
+      "new_vocab": ["עצה", "להתערב", "אחריות", "כוונה טובה", "להצטער", "תמונה מלאה", "לשפוט", "להקשיב", "זהיר", "להודות"],
+      "useful_phrases": ["לא הבנתי את כל התמונה", "אמרתי את זה מכוונה טובה", "אולי לא הייתי צריך להתערב", "קל לתת עצות מבחוץ"],
+      "review_vocab": ["בדיעבד", "מסקנה", "להעריך", "אני אומר את זה בזהירות"]
+    },
+    {
+      "episode_number": 13,
+      "title_en": "Homesickness Without Leaving Home",
+      "topic": "Nostalgia, change, and missing older versions of familiar places",
+      "narrative_hook": "Eitan walks through a street he knows well and feels nostalgic for a version of the neighborhood that no longer exists.",
+      "new_vocab": ["געגוע", "נוסטלגיה", "שכונה", "להשתנות", "להיעלם", "ישן", "חדש", "זיכרון", "להתרפק", "שייך"],
+      "useful_phrases": ["זה כבר לא אותו מקום", "אני מתגעגע למשהו שכבר השתנה", "יש בזה משהו עצוב", "אולי ככה ערים עובדות"],
+      "review_vocab": ["זהות", "זיכרון", "בדיעבד", "במובן מסוים"]
+    },
+    {
+      "episode_number": 14,
+      "title_en": "How Israelis Tell Jokes",
+      "topic": "Humor, timing, irony, and jokes that depend on shared context",
+      "narrative_hook": "A joke at work makes everyone laugh except one person, and Eitan explores what humor requires beyond vocabulary.",
+      "new_vocab": ["בדיחה", "הומור", "אירוניה", "עוקץ", "תזמון", "להיעלב", "להצחיק", "רמז", "הקשר משותף", "גבול"],
+      "useful_phrases": ["זה היה בצחוק", "יש בזה עוקץ", "לא כולם הבינו את הבדיחה", "הומור תלוי בהקשר"],
+      "review_vocab": ["טון", "לרמוז", "עדין", "להבחין"]
+    },
+    {
+      "episode_number": 15,
+      "title_en": "The Moment Before a Decision",
+      "topic": "Decision-making, uncertainty, and the language of hesitation",
+      "narrative_hook": "Before accepting a new project, Eitan notices that the hardest part is not choosing, but admitting what he is afraid of.",
+      "new_vocab": ["החלטה", "התלבטות", "חוסר ודאות", "סיכון", "להעז", "לשקול", "להתחייב", "חשש", "אפשרות", "להכריע"],
+      "useful_phrases": ["אני עדיין מתלבט", "יש פה סיכון", "מצד אחד זה מפתה", "בשלב מסוים צריך להכריע"],
+      "review_vocab": ["להתפשר", "מסקנה", "אחריות", "אני לא בטוח שיש תשובה אחת"]
+    },
+    {
+      "episode_number": 16,
+      "title_en": "Why Tone Changes Everything",
+      "topic": "Tone of voice, intention, misunderstanding, and repair",
+      "narrative_hook": "A sentence that should have been harmless sounds cold in a message, and Eitan thinks about how much Hebrew depends on tone.",
+      "new_vocab": ["טון", "להישמע", "קר", "חם", "כוונה", "אי הבנה", "לתקן", "להבהיר", "רגישות", "פרשנות"],
+      "useful_phrases": ["זה לא מה שהתכוונתי", "זה נשמע אחרת בהודעה", "הטון משנה הכול", "בוא נבהיר רגע"],
+      "review_vocab": ["לפרש", "רמז", "הקשר", "להתנסח"]
+    },
+    {
+      "episode_number": 17,
+      "title_en": "A Language Learner's Identity",
+      "topic": "Accent, identity, belonging, and the emotional side of fluency",
+      "narrative_hook": "Eitan talks with an immigrant friend who speaks excellent Hebrew but still feels that her accent tells her story before she does.",
+      "new_vocab": ["מבטא", "זהות", "שייכות", "זר", "להיטמע", "להישאר", "לייצג", "סיפור אישי", "ביטחון", "קבלה"],
+      "useful_phrases": ["המבטא הוא חלק מהסיפור", "לא חייבים להישמע כמו כולם", "שייכות לא מגיעה ביום אחד", "יש בזה גם כוח"],
+      "review_vocab": ["אותנטי", "להעריך", "מורכב", "זו לא רק שאלה של"]
+    },
+    {
+      "episode_number": 18,
+      "title_en": "The Hidden Rules of Hosting",
+      "topic": "Hosting, generosity, boundaries, and unspoken expectations",
+      "narrative_hook": "A dinner invitation becomes a lesson in unspoken rules: what to bring, when to leave, and how many times to refuse dessert.",
+      "new_vocab": ["אירוח", "נדיבות", "ציפייה", "להציע", "לסרב", "להתעקש", "מחווה", "לא נעים", "גבול", "מנהג"],
+      "useful_phrases": ["לא היית צריך להביא כלום", "רק משהו קטן", "אני באמת כבר שבע", "בכל זאת, תיקח עוד קצת"],
+      "review_vocab": ["נימוס", "תרבותי", "להתפשר", "בפועל"]
+    },
+    {
+      "episode_number": 19,
+      "title_en": "Changing Your Mind Out Loud",
+      "topic": "Changing opinions, public consistency, and intellectual humility",
+      "narrative_hook": "Eitan catches himself defending an old opinion he no longer believes, just because he said it confidently in the past.",
+      "new_vocab": ["לשנות דעה", "להודות", "עקביות", "אגו", "להגן", "עמדה", "להשתכנע", "צניעות", "להתפתח", "להחזיק בדעה"],
+      "useful_phrases": ["שיניתי את דעתי", "פעם חשבתי אחרת", "קשה להודות בזה", "אולי טעיתי"],
+      "review_vocab": ["להסיק", "מסקנה", "אפשר להתווכח על זה", "עם זאת"]
+    },
+    {
+      "episode_number": 20,
+      "title_en": "What Fluency Actually Feels Like",
+      "topic": "Rethinking fluency, progress, and continuing beyond the advanced series",
+      "narrative_hook": "Eitan ends the series by describing fluency not as perfection, but as the ability to stay present in the conversation even when things are unclear.",
+      "new_vocab": ["שטף", "שליטה", "דיוק", "נוכחות", "להיתקע", "להמשיך", "להשתפר", "סבלנות", "תהליך", "בשלות"],
+      "useful_phrases": ["שטף הוא לא שלמות", "אפשר להיתקע ולהמשיך", "אתם כבר בתוך השיחה", "זה תהליך שלא באמת נגמר"],
+      "review_vocab": ["להעמיק", "ניואנס", "אותנטי", "זהות", "הקשר", "מסקנה", "בפועל", "זה חלק מהיופי של השפה"]
+    }
+  ]
+}

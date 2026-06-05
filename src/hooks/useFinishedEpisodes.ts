@@ -2,28 +2,53 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from "@/lib/supabase";
 import { useUser } from "./useUser";
 
+export type FinishedEpisodeRef = {
+  level: string;
+  episode: number;
+};
+
+function toKey(level: string, episode: number): string {
+  return `${level}:${episode}`;
+}
+
+function parseStoredFinished(raw: unknown): Set<string> {
+  const keys = new Set<string>();
+  if (!Array.isArray(raw)) return keys;
+
+  for (const item of raw) {
+    if (typeof item === "number") {
+      keys.add(toKey("intermediate", item));
+      continue;
+    }
+    if (item && typeof item === "object") {
+      const obj = item as { level?: string; episode?: number; episode_number?: number };
+      const level = obj.level ?? "intermediate";
+      const episode = obj.episode ?? obj.episode_number;
+      if (typeof episode === "number") {
+        keys.add(toKey(level, episode));
+      }
+    }
+  }
+  return keys;
+}
+
 export function useFinishedEpisodes() {
-  const [finishedEpisodes, setFinishedEpisodes] = useState<Set<number>>(new Set());
+  const [finishedEpisodes, setFinishedEpisodes] = useState<Set<string>>(new Set());
   const { user } = useUser();
   const hasUploadedLocal = useRef(false);
 
-  // Initial load from local storage
   useEffect(() => {
     const stored = window.localStorage.getItem('finished-episodes');
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          // eslint-disable-next-line react-hooks/set-state-in-effect
-          setFinishedEpisodes(new Set(parsed));
-        }
+        setFinishedEpisodes(parseStoredFinished(parsed));
       } catch {
         // ignore
       }
     }
   }, []);
 
-  // Sync with Supabase on auth state change
   useEffect(() => {
     if (!user) {
       hasUploadedLocal.current = false;
@@ -32,49 +57,90 @@ export function useFinishedEpisodes() {
 
     supabase
       .from('finished_episodes')
-      .select('episode_number')
+      .select('level_slug, episode_number')
       .then(({ data, error }) => {
         if (!error && data) {
           setFinishedEpisodes(prev => {
             const next = new Set(prev);
-            const dbEpisodes = new Set(data.map(row => row.episode_number));
-            
-            // Upload local episodes that are not in the DB yet
+            const dbKeys = new Set(
+              data.map(row => toKey(row.level_slug ?? 'intermediate', row.episode_number))
+            );
+
             if (!hasUploadedLocal.current) {
               hasUploadedLocal.current = true;
-              const missingInDb = Array.from(next).filter(ep => !dbEpisodes.has(ep));
+              const missingInDb = Array.from(next).filter(key => !dbKeys.has(key));
               if (missingInDb.length > 0) {
-                const inserts = missingInDb.map(ep => ({ user_id: user.id, episode_number: ep }));
+                const inserts = missingInDb.map(key => {
+                  const [level, epStr] = key.split(':');
+                  return {
+                    user_id: user.id,
+                    level_slug: level,
+                    episode_number: parseInt(epStr, 10),
+                  };
+                });
                 supabase.from('finished_episodes').insert(inserts).then();
               }
             }
 
-            // Merge DB episodes into local state
-            data.forEach(row => next.add(row.episode_number));
-            window.localStorage.setItem('finished-episodes', JSON.stringify(Array.from(next)));
+            data.forEach(row => {
+              next.add(toKey(row.level_slug ?? 'intermediate', row.episode_number));
+            });
+            window.localStorage.setItem(
+              'finished-episodes',
+              JSON.stringify(
+                Array.from(next).map(key => {
+                  const [level, epStr] = key.split(':');
+                  return { level, episode: parseInt(epStr, 10) };
+                })
+              )
+            );
             return next;
           });
         }
       });
   }, [user]);
 
-  const toggleFinished = useCallback(async (epNum: number) => {
+  const isFinished = useCallback(
+    (level: string, epNum: number) => finishedEpisodes.has(toKey(level, epNum)),
+    [finishedEpisodes]
+  );
+
+  const toggleFinished = useCallback(async (level: string, epNum: number) => {
+    const key = toKey(level, epNum);
     setFinishedEpisodes((prev) => {
       const next = new Set(prev);
-      const isFinished = next.has(epNum);
-      
-      if (isFinished) {
-        next.delete(epNum);
+      const wasFinished = next.has(key);
+
+      if (wasFinished) {
+        next.delete(key);
       } else {
-        next.add(epNum);
+        next.add(key);
       }
-      window.localStorage.setItem('finished-episodes', JSON.stringify(Array.from(next)));
-      
+
+      window.localStorage.setItem(
+        'finished-episodes',
+        JSON.stringify(
+          Array.from(next).map(k => {
+            const [lvl, epStr] = k.split(':');
+            return { level: lvl, episode: parseInt(epStr, 10) };
+          })
+        )
+      );
+
       if (user) {
-        if (isFinished) {
-          supabase.from('finished_episodes').delete().eq('user_id', user.id).eq('episode_number', epNum).then();
+        if (wasFinished) {
+          supabase
+            .from('finished_episodes')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('level_slug', level)
+            .eq('episode_number', epNum)
+            .then();
         } else {
-          supabase.from('finished_episodes').insert({ user_id: user.id, episode_number: epNum }).then();
+          supabase
+            .from('finished_episodes')
+            .insert({ user_id: user.id, level_slug: level, episode_number: epNum })
+            .then();
         }
       }
 
@@ -82,5 +148,5 @@ export function useFinishedEpisodes() {
     });
   }, [user]);
 
-  return { finishedEpisodes, toggleFinished };
+  return { finishedEpisodes, isFinished, toggleFinished };
 }

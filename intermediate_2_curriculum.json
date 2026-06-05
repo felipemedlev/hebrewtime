@@ -1,0 +1,235 @@
+{
+  "level": "intermediate-2",
+  "display": {
+    "name": "Intermediate 2",
+    "cefr": "B1",
+    "sort_order": 2
+  },
+  "narrator": {
+    "name": "Maya",
+    "name_hebrew": "מאיה",
+    "persona": "A thoughtful Israeli woman in her early 30s living in Jerusalem. She speaks naturally and clearly in modern Hebrew, with enough complexity to challenge intermediate learners while still making the story easy to follow. She uses first person consistently across all episodes.",
+    "intro_episode_1": "She introduces herself as Maya (מאיה) and explains that this series is for learners who already understand everyday Hebrew and want richer, more natural speech."
+  },
+  "tts": {
+    "language_code": "he-IL",
+    "model_name": "gemini-3.1-flash-tts-preview",
+    "voice_name": "Achernar",
+    "prompt": "Read aloud in a warm, natural podcast tone. Speak clearly at an intermediate learner pace: not too slow, with natural rhythm and emotion.",
+    "speaking_rate": 1.0,
+    "pitch": 0
+  },
+  "generation": {
+    "target_duration_minutes": 10,
+    "target_paragraph_count": 36,
+    "target_word_count_min": 950,
+    "target_word_count_max": 1150,
+    "level_description": "intermediate Hebrew for B1 learners who know basic daily vocabulary and are ready for richer connectors, opinions, short explanations, and more natural spoken phrasing",
+    "narrator_instruction": "First person, conversational, thoughtful, and personal - as if Maya is speaking directly to an intermediate learner who wants real Israeli Hebrew",
+    "language_guidance": "Modern spoken Hebrew with natural connectors, simple subordinate clauses, useful past/future forms, and occasional common idioms explained through context",
+    "vocabulary_guidance": "Introduce a focused set of intermediate words and expressions; keep enough familiar vocabulary so the episode remains understandable without becoming a textbook lesson.",
+    "core_vocab": [
+      "בעצם", "דווקא", "כמעט", "בערך", "למרות", "בגלל", "כדי", "אולי", "כנראה", "בינתיים",
+      "מרגישה", "חושבת", "זוכרת", "מבינה", "מחליטה", "מנסה", "מצליחה", "מספיקה",
+      "חשוב", "אפשרי", "רגיל", "מוזר", "מעניין", "נעים", "לחוץ", "שקט",
+      "מצב", "חוויה", "סיבה", "רעיון", "אפשרות", "החלטה", "שיחה", "קשר",
+      "לפני", "אחרי", "בזמן", "במקום", "לעומת", "בנוסף", "בסוף", "בהתחלה"
+    ],
+    "useful_chunks": [
+      "מצד אחד... מצד שני...", "מה שאני אוהבת זה...", "זה מזכיר לי ש...", "אני לא בטוחה ש...",
+      "בואו נחשוב על זה רגע", "יש בזה משהו", "זה תלוי", "אם להיות כנה",
+      "בסופו של דבר", "כמו שאומרים בעברית", "לא תמיד קל", "אבל זה בדיוק העניין"
+    ],
+    "style_rules": [
+      "Every episode should feel like a real personal essay or story from Maya, not a vocabulary list.",
+      "Use natural spoken Hebrew connectors and short reflective comments, but keep sentence structure clear.",
+      "Include one everyday scene plus one broader thought about Israeli life, language learning, or culture.",
+      "Repeat useful expressions in different contexts without sounding mechanical.",
+      "Avoid rare literary Hebrew, heavy politics, and advanced academic language.",
+      "English paragraphs should translate the meaning naturally, not word-for-word."
+    ],
+    "openai_model": "gpt-5.4"
+  },
+  "episodes": [
+    {
+      "episode_number": 1,
+      "title_en": "Welcome to Intermediate 2",
+      "topic": "Introducing Maya and setting expectations for a richer intermediate Hebrew series",
+      "narrative_hook": "Maya records the first episode after a walk in Jerusalem and thinks about the moment when Hebrew starts to feel less like a class and more like a living language.",
+      "new_vocab": ["רמה", "להתקדם", "טבעי", "קצב", "אתגר", "ביטחון", "להתרגל", "טעויות", "הבנה", "שיחה"],
+      "useful_phrases": ["ברוכים הבאים", "זה תלוי בקצב שלכם", "לא צריך להבין כל מילה", "העיקר להמשיך להקשיב"],
+      "review_vocab": []
+    },
+    {
+      "episode_number": 2,
+      "title_en": "A Conversation with a Neighbor",
+      "topic": "Small talk, neighborly help, and polite everyday Hebrew",
+      "narrative_hook": "Maya meets an older neighbor in the stairwell, helps carry a bag, and notices how much culture hides in a two-minute conversation.",
+      "new_vocab": ["שכן", "שכנה", "מדרגות", "לעזור", "להציע", "מנומס", "בדרך כלל", "להכיר", "יחסים", "בניין"],
+      "useful_phrases": ["אפשר לעזור?", "איזה יופי לראות אותך", "לא נעים לי לבקש", "בשמחה"],
+      "review_vocab": ["שיחה", "קשר", "נעים", "בעצם"]
+    },
+    {
+      "episode_number": 3,
+      "title_en": "When Plans Change",
+      "topic": "Changing plans, explaining reasons, and reacting naturally",
+      "narrative_hook": "A friend cancels dinner at the last minute, and Maya has to decide whether to be annoyed or enjoy an unexpected free evening.",
+      "new_vocab": ["לבטל", "תוכנית", "ברגע האחרון", "להתאכזב", "להסתדר", "במקום", "סיבה", "גמיש", "להודיע", "להגיב"],
+      "useful_phrases": ["לא נורא", "זה קורה", "נמצא זמן אחר", "מצד אחד... מצד שני..."],
+      "review_vocab": ["אולי", "בסוף", "החלטה", "אפשרות"]
+    },
+    {
+      "episode_number": 4,
+      "title_en": "At the Pharmacy",
+      "topic": "Describing symptoms, asking for advice, and understanding instructions",
+      "narrative_hook": "Maya wakes up with a sore throat before a busy day and goes to a pharmacy where she needs to explain exactly what she feels.",
+      "new_vocab": ["בית מרקחת", "כאב גרון", "שיעול", "מרשם", "רוקח", "רוקחת", "מינון", "תופעת לוואי", "להקל", "הוראות"],
+      "useful_phrases": ["כואב לי כשאני בולעת", "יש משהו בלי מרשם?", "כמה פעמים ביום?", "אם זה לא עובר"],
+      "review_vocab": ["מרגישה", "מצב", "חשוב", "בגלל"]
+    },
+    {
+      "episode_number": 5,
+      "title_en": "A Friday Morning Errand",
+      "topic": "Friday rhythm in Israel, errands, pressure, and priorities",
+      "narrative_hook": "Maya tries to finish three errands before everything closes on Friday and realizes that the city has its own clock.",
+      "new_vocab": ["סידורים", "להספיק", "נסגר", "תור", "לחץ", "קניות", "אווירה", "שישי", "לפני שבת", "עדיף"],
+      "useful_phrases": ["אני חייבת להספיק", "עוד רגע הכול נסגר", "אין לי כוח לתור", "בסוף ויתרתי"],
+      "review_vocab": ["בינתיים", "בסוף", "לחוץ", "החלטה"]
+    },
+    {
+      "episode_number": 6,
+      "title_en": "Learning from a Mistake",
+      "topic": "Language mistakes, embarrassment, and confidence",
+      "narrative_hook": "Maya remembers a funny mistake she made in another language and connects it to the courage learners need when speaking Hebrew.",
+      "new_vocab": ["טעות", "מבוכה", "להתבייש", "לתקן", "להסביר", "אומץ", "להשתפר", "מבטא", "כוונה", "להמשיך"],
+      "useful_phrases": ["התכוונתי להגיד", "זה יצא קצת מצחיק", "לא קרה כלום", "ככה לומדים"],
+      "review_vocab": ["להתקדם", "ביטחון", "שיחה", "לא תמיד קל"]
+    },
+    {
+      "episode_number": 7,
+      "title_en": "Apartment Hunting",
+      "topic": "Looking for an apartment, comparing options, and asking practical questions",
+      "narrative_hook": "Maya helps a friend visit two apartments and notices how every apartment has one perfect thing and one impossible thing.",
+      "new_vocab": ["לחפש דירה", "שכר דירה", "חוזה", "בעל בית", "מרפסת", "קומה", "רועש", "משופץ", "מתאים", "להשוות"],
+      "useful_phrases": ["כמה שכר הדירה?", "מה כולל המחיר?", "זה קצת יקר לי", "צריך לחשוב על זה"],
+      "review_vocab": ["מצד אחד", "מצד שני", "אפשרות", "החלטה"]
+    },
+    {
+      "episode_number": 8,
+      "title_en": "A Family Meal",
+      "topic": "Family conversations, interruptions, opinions, and warmth",
+      "narrative_hook": "At a family lunch, everyone talks at once, and Maya explains why this chaos can feel both tiring and loving.",
+      "new_vocab": ["ארוחה משפחתית", "להפריע", "דעה", "להתווכח", "להקשיב", "קרוב", "רעש", "חום", "בדיחה", "נושא"],
+      "useful_phrases": ["רגע, תני לי לסיים", "אני מבינה מה את אומרת", "יש בזה משהו", "בואו נחליף נושא"],
+      "review_vocab": ["שיחה", "קשר", "רגיל", "מעניין"]
+    },
+    {
+      "episode_number": 9,
+      "title_en": "The Bus Driver Knows Everyone",
+      "topic": "Public transportation, repeated routines, and local community",
+      "narrative_hook": "Maya rides the same bus for a week and realizes the driver recognizes half the passengers by their habits.",
+      "new_vocab": ["נהג", "נוסעים", "קבוע", "תחנה", "מסלול", "איחור", "להחליף", "להגיע", "להכיר בפנים", "הרגל"],
+      "useful_phrases": ["אני יורדת בתחנה הבאה", "הקו הזה תמיד מאחר", "אתה מגיע למרכז?", "אני כבר מכירה את הדרך"],
+      "review_vocab": ["בדרך כלל", "בינתיים", "חוויה", "דווקא"]
+    },
+    {
+      "episode_number": 10,
+      "title_en": "Choosing the Right Word",
+      "topic": "Similar Hebrew words, nuance, and choosing what sounds natural",
+      "narrative_hook": "Maya pauses while writing a message because two Hebrew words are both correct, but only one sounds natural in the situation.",
+      "new_vocab": ["מילה", "משמעות", "הבדל", "נשמע", "מדויק", "הקשר", "בחירה", "ניואנס", "להשתמש", "דוגמה"],
+      "useful_phrases": ["איך אומרים את זה טבעי?", "זה תלוי בהקשר", "המילה הזאת קצת חזקה", "יש הבדל קטן"],
+      "review_vocab": ["טבעי", "להסביר", "להבין", "בעצם"]
+    },
+    {
+      "episode_number": 11,
+      "title_en": "A Rainy Day in Jerusalem",
+      "topic": "Weather, mood, plans, and atmosphere",
+      "narrative_hook": "A sudden winter rain changes Maya's plans and turns a regular day into a quiet afternoon at home.",
+      "new_vocab": ["גשם", "מעיל", "רטוב", "מזג אוויר", "תחזית", "להירטב", "להתייבש", "אווירה", "חלון", "שקט"],
+      "useful_phrases": ["לא בדקתי את התחזית", "נהייתי כולי רטובה", "יש משהו נעים בגשם", "התוכניות השתנו"],
+      "review_vocab": ["במקום", "מצב", "נעים", "אולי"]
+    },
+    {
+      "episode_number": 12,
+      "title_en": "Working from a Cafe",
+      "topic": "Remote work, concentration, noise, and Israeli cafe culture",
+      "narrative_hook": "Maya tries to work from a cafe, but the table next to her is more interesting than her laptop.",
+      "new_vocab": ["לעבוד מרחוק", "להתרכז", "שקע", "מחשב נייד", "רעש", "הזמנה", "מלצרית", "לקוח", "להפריע", "סבלנות"],
+      "useful_phrases": ["יש פה שקע?", "אפשר לשבת כאן?", "קשה לי להתרכז", "אני מזמינה עוד קפה"],
+      "review_vocab": ["בינתיים", "שיחה", "מעניין", "דווקא"]
+    },
+    {
+      "episode_number": 13,
+      "title_en": "Saying No Politely",
+      "topic": "Boundaries, invitations, and polite refusal",
+      "narrative_hook": "Maya gets invited to something she does not want to attend and thinks about how to say no without hurting anyone.",
+      "new_vocab": ["להזמין", "לסרב", "בנימוס", "גבול", "לא נעים", "להעליב", "עומס", "להעדיף", "להסכים", "כנות"],
+      "useful_phrases": ["תודה שחשבת עליי", "הפעם זה לא מסתדר", "אני צריכה לנוח", "אולי בפעם אחרת"],
+      "review_vocab": ["אם להיות כנה", "לא בטוחה", "החלטה", "קשר"]
+    },
+    {
+      "episode_number": 14,
+      "title_en": "A Small Argument",
+      "topic": "Disagreement, apologies, and repairing a conversation",
+      "narrative_hook": "A small disagreement with a friend becomes bigger than expected, and Maya has to decide how to reopen the conversation.",
+      "new_vocab": ["ויכוח", "להיפגע", "להתנצל", "כוונה", "אי הבנה", "להרגיע", "צד", "להודות", "לפתור", "יחסים"],
+      "useful_phrases": ["לא התכוונתי לפגוע", "אולי לא הבנתי נכון", "בואי נדבר על זה", "אני מצטערת"],
+      "review_vocab": ["מצד אחד", "מצד שני", "שיחה", "סיבה"]
+    },
+    {
+      "episode_number": 15,
+      "title_en": "Buying Something Second Hand",
+      "topic": "Second-hand shopping, messaging sellers, and negotiating",
+      "narrative_hook": "Maya tries to buy a used bookshelf online and discovers that the real challenge is coordinating pickup.",
+      "new_vocab": ["יד שנייה", "מוכר", "קונה", "מצב טוב", "מחיר", "להוריד", "איסוף", "זמין", "למדוד", "מדף"],
+      "useful_phrases": ["זה עדיין רלוונטי?", "אפשר להוריד קצת במחיר?", "מתי נוח לאסוף?", "מה המידות?"],
+      "review_vocab": ["אפשרות", "להציע", "להסתדר", "בסוף"]
+    },
+    {
+      "episode_number": 16,
+      "title_en": "Remembering a Teacher",
+      "topic": "Education, influence, and how teachers shape language confidence",
+      "narrative_hook": "Maya remembers a teacher who corrected her gently and explains why the way we correct people matters.",
+      "new_vocab": ["מורה", "להשפיע", "לתקן", "לעודד", "סבלנות", "גישה", "ביקורת", "התקדמות", "זיכרון", "שיטה"],
+      "useful_phrases": ["היא ידעה לעודד", "זה נתן לי ביטחון", "לא כל תיקון עוזר", "אני זוכרת את זה עד היום"],
+      "review_vocab": ["טעות", "ביטחון", "להשתפר", "חשוב"]
+    },
+    {
+      "episode_number": 17,
+      "title_en": "Holiday Preparations",
+      "topic": "Preparing for a holiday, hosting, food, and expectations",
+      "narrative_hook": "Before a holiday meal, Maya volunteers to bring one simple dish and somehow ends up responsible for three things.",
+      "new_vocab": ["חג", "להתארח", "לארח", "מנה", "אחריות", "להכין", "רשימה", "מסורת", "ציפייה", "להסתבך"],
+      "useful_phrases": ["מה להביא?", "אני יכולה להכין משהו", "זה יותר עבודה ממה שחשבתי", "העיקר שנהיה ביחד"],
+      "review_vocab": ["ארוחה משפחתית", "לחץ", "להספיק", "בסופו של דבר"]
+    },
+    {
+      "episode_number": 18,
+      "title_en": "Finding Quiet in a Loud City",
+      "topic": "City life, noise, personal routines, and mental space",
+      "narrative_hook": "After a noisy day, Maya searches for a quiet corner and realizes that quiet is sometimes something you create, not something you find.",
+      "new_vocab": ["שקט", "רעש", "עיר", "פינה", "לנשום", "להירגע", "שגרה", "מרחב", "עומס", "להתרחק"],
+      "useful_phrases": ["אני צריכה רגע שקט", "העיר לא עוצרת", "מצאתי פינה קטנה", "זה עזר לי לנשום"],
+      "review_vocab": ["אווירה", "מצב", "נעים", "במקום"]
+    },
+    {
+      "episode_number": 19,
+      "title_en": "What Makes Hebrew Sound Natural",
+      "topic": "Natural spoken Hebrew, filler words, rhythm, and listening habits",
+      "narrative_hook": "Maya listens to a short voice message from a friend and breaks down why it sounds so natural even though the words are simple.",
+      "new_vocab": ["טבעי", "קצב", "הפסקה", "מילוי", "כאילו", "נו", "להדגיש", "טון", "הקשבה", "הרגל"],
+      "useful_phrases": ["שימו לב לקצב", "לא כל מילה חשובה באותה מידה", "זה נשמע טבעי יותר", "ככה אנשים באמת מדברים"],
+      "review_vocab": ["מילה", "הקשר", "נשמע", "בעצם"]
+    },
+    {
+      "episode_number": 20,
+      "title_en": "Looking Back and Moving Forward",
+      "topic": "Reviewing the series, reflecting on progress, and continuing toward advanced Hebrew",
+      "narrative_hook": "Maya looks back at the series and connects the everyday stories to the bigger goal of feeling comfortable inside Hebrew.",
+      "new_vocab": ["להסתכל אחורה", "להמשיך קדימה", "התקדמות", "מטרה", "דרך", "שלב", "להעמיק", "להרגיש בנוח", "סיכום", "המשך"],
+      "useful_phrases": ["עברנו דרך יפה", "אתם מבינים יותר ממה שנדמה לכם", "השלב הבא הוא להקשיב עוד", "נתראה בהמשך"],
+      "review_vocab": ["להתקדם", "ביטחון", "טבעי", "שיחה", "קשר", "חוויה", "בסופו של דבר", "לא תמיד קל"]
+    }
+  ]
+}

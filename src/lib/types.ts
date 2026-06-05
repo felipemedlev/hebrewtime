@@ -1,10 +1,36 @@
-export type ParagraphTiming = {
+export type SentenceTiming = {
   text: string;
   start: number;
   end: number;
 };
 
+export type ParagraphTiming = {
+  text: string;
+  start: number;
+  end: number;
+  sentences?: SentenceTiming[];
+};
+
+export type Level = {
+  slug: string;
+  name: string;
+  cefr?: string | null;
+  sortOrder: number;
+};
+
+export type LevelTrackMeta = {
+  slug: string;
+  name: string;
+  cefr: string | null;
+  episodeCount: number;
+  finishedCount: number;
+  resumeEpisode: number | null;
+  isActive: boolean;
+};
+
 export type Episode = {
+  id: string;
+  level: string;
   episode: number;
   url: string;
   audio_url?: string;
@@ -15,8 +41,14 @@ export type Episode = {
 };
 
 export type EpisodeListItem = {
+  level: string;
   episode: number;
   title: string;
+};
+
+export type FinishedEpisodeKey = {
+  level: string;
+  episode: number;
 };
 
 export type ExamplePhrase = {

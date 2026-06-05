@@ -42,7 +42,150 @@
   border-bottom: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
+}
+
+.learning-track-selector {
+  position: relative;
+  width: 100%;
+}
+
+.learning-track-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.learning-track-trigger:hover {
+  border-color: #d1d1d1;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.learning-track-trigger-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.learning-track-trigger-title,
+.learning-track-option-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.learning-track-name,
+.learning-track-option-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.learning-track-cefr {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: rgba(46, 142, 255, 0.1);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+.learning-track-trigger-meta,
+.learning-track-option-meta {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.learning-track-dot {
+  opacity: 0.6;
+}
+
+.learning-track-chevron {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform 0.2s;
+}
+
+.learning-track-chevron.open {
+  transform: rotate(180deg);
+}
+
+.learning-track-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 80;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: min(320px, 50vh);
+  overflow-y: auto;
+}
+
+.learning-track-option {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  padding: 10px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.learning-track-option:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.learning-track-option.active {
+  background: rgba(46, 142, 255, 0.08);
+}
+
+.learning-track-check {
+  margin-left: auto;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.learning-track-progress {
+  margin-top: 8px;
+  height: 3px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.learning-track-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 0.2s;
 }
 
 .sidebar-title {

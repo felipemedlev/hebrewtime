@@ -1,0 +1,8 @@
+openai>=1.0
+python-dotenv
+requests
+beautifulsoup4
+google-auth
+google-cloud-texttospeech>=2.29.0
+pydub
+audioop-lts; python_version >= "3.13"

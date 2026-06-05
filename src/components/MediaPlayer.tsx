@@ -3,10 +3,13 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { ChevronDown, ChevronUp, Radio, Play, Pause, Volume2, VolumeX } from "lucide-react";
 
+import { resolveEpisodeAudioSrc } from "@/lib/episodeAudio";
+
 type MediaPlayerProps = {
   audioUrl: string | null;
   episodeTitle: string | null;
   episodeNum: number | null;
+  episodeLevel?: string | null;
   isSidebarOpen?: boolean;
 };
 
@@ -23,6 +26,7 @@ export default function MediaPlayer({
   audioUrl,
   episodeTitle,
   episodeNum,
+  episodeLevel = null,
   isSidebarOpen = false,
 }: MediaPlayerProps) {
   const [isExpanded, setIsExpanded] = useState(true);
@@ -32,6 +36,7 @@ export default function MediaPlayer({
   const [isMuted, setIsMuted] = useState(false);
   const [isScrubbing, setIsScrubbing] = useState(false);
   const [scrubPreviewTime, setScrubPreviewTime] = useState<number | null>(null);
+  const [playbackError, setPlaybackError] = useState<string | null>(null);
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const seekRef = useRef<HTMLInputElement>(null);
@@ -48,6 +53,7 @@ export default function MediaPlayer({
     setCurrentTime(0);
     setDuration(0);
     setScrubPreviewTime(null);
+    setPlaybackError(null);
   }, [audioUrl]);
 
   // Audio event listeners
@@ -68,12 +74,18 @@ export default function MediaPlayer({
     const onPause = () => setIsPlaying(false);
     const onEnded = () => setIsPlaying(false);
 
+    const onError = () => {
+      setPlaybackError("Unable to load audio for this episode.");
+      setIsPlaying(false);
+    };
+
     audio.addEventListener("timeupdate", onTimeUpdate);
     audio.addEventListener("durationchange", onDurationChange);
     audio.addEventListener("loadedmetadata", onDurationChange);
     audio.addEventListener("play",  onPlay);
     audio.addEventListener("pause", onPause);
     audio.addEventListener("ended", onEnded);
+    audio.addEventListener("error", onError);
 
     return () => {
       audio.removeEventListener("timeupdate", onTimeUpdate);
@@ -82,14 +94,22 @@ export default function MediaPlayer({
       audio.removeEventListener("play",  onPlay);
       audio.removeEventListener("pause", onPause);
       audio.removeEventListener("ended", onEnded);
+      audio.removeEventListener("error", onError);
     };
   }, [isScrubbing]);
 
-  const togglePlay = useCallback(() => {
+  const togglePlay = useCallback(async () => {
     const audio = audioRef.current;
     if (!audio) return;
-    if (audio.paused) audio.play();
-    else audio.pause();
+    if (audio.paused) {
+      try {
+        await audio.play();
+      } catch {
+        setPlaybackError("Unable to play audio for this episode.");
+      }
+    } else {
+      audio.pause();
+    }
   }, []);
 
   const toggleMute = useCallback(() => {
@@ -129,9 +149,8 @@ export default function MediaPlayer({
 
   if (!audioUrl) return null;
 
-  const resolvedUrl = audioUrl.includes("drive.google.com")
-    ? `/api/audio?url=${encodeURIComponent(audioUrl)}`
-    : audioUrl;
+  const resolvedUrl = resolveEpisodeAudioSrc(audioUrl, episodeLevel, episodeNum);
+  if (!resolvedUrl) return null;
 
   return (
     <div className={`media-player-bar ${isExpanded ? "expanded" : "collapsed"} ${isSidebarOpen ? "sidebar-open" : ""}`}>
@@ -155,7 +174,9 @@ export default function MediaPlayer({
                 EP {String(episodeNum).padStart(2, "0")}
               </span>
             )}
-            <span className="media-player-title">{episodeTitle ?? "Loading…"}</span>
+            <span className="media-player-title">
+              {playbackError ?? episodeTitle ?? "Loading…"}
+            </span>
           </div>
         </div>
         <button

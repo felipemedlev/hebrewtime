@@ -1,0 +1,228 @@
+ {
+  "level": "beginner",
+  "narrator": {
+    "name": "Noa",
+    "name_hebrew": "נועה",
+    "persona": "A warm, friendly Israeli woman in her late 20s living in Tel Aviv. She speaks slowly and clearly in modern spoken Hebrew, addressing listeners directly as a friend learning Hebrew. She uses first person consistently across all episodes.",
+    "intro_episode_1": "She introduces herself as Noa (נועה) and welcomes listeners to the beginner series."
+  },
+  "tts": {
+    "language_code": "he-IL",
+    "model_name": "gemini-3.1-flash-tts-preview",
+    "voice_name": "Achernar",
+    "prompt": "Read aloud in a warm, welcoming, conversational tone. Speak slowly and clearly for Hebrew learners.",
+    "speaking_rate": 1.0,
+    "pitch": 0
+  },
+  "generation": {
+    "target_duration_minutes": 10,
+    "target_paragraph_count": 40,
+    "target_word_count_min": 850,
+    "target_word_count_max": 1000,
+    "core_vocab": [
+      "אני", "אתה", "את", "הוא", "היא", "אנחנו", "אתם", "הם",
+      "זה", "זאת", "יש", "אין", "כן", "לא", "גם", "רק", "מאוד", "קצת",
+      "פה", "שם", "עכשיו", "היום", "מחר", "אתמול", "תמיד", "לפעמים",
+      "רוצה", "צריך", "יכולה", "יכול", "אוהבת", "אוהב", "חושבת", "חושב",
+      "הולכת", "הולך", "באה", "בא", "עושה", "עושה", "אומרת", "אומר",
+      "עם", "בלי", "ב", "ל", "על", "של", "שלי", "שלך", "שלנו",
+      "מה", "מי", "איפה", "מתי", "למה", "כמה", "איך"
+    ],
+    "useful_chunks": [
+      "מה שלומך?", "מה קורה?", "אני רוצה...", "אני צריכה...", "יש לי...",
+      "אין לי...", "אני לא יודעת", "אני מבינה קצת", "זה בסדר", "לאט לאט",
+      "אפשר...?", "כמה זה עולה?", "איפה התחנה?", "אני בדרך", "נתראה אחר כך"
+    ],
+    "style_rules": [
+      "Every episode should feel like a real personal story from Noa, not a vocabulary list.",
+      "Open with a small scene from Noa's day, include one tiny problem or decision, and end with a warm reflection.",
+      "Use natural spoken Hebrew fillers sparingly: אז, טוב, באמת, רגע, כאילו, נכון.",
+      "Repeat useful words in different contexts, but avoid robotic repetition.",
+      "Prefer the most useful beginner words over rare nouns, literary verbs, or textbook phrases.",
+      "Keep grammar mostly present tense and simple past/future only when useful."
+    ],
+    "openai_model": "gpt-5.5"
+  },
+  "episodes": [
+    {
+      "episode_number": 1,
+      "title_en": "Welcome — Meet Noa",
+      "topic": "Introducing Noa and the beginner podcast series",
+      "narrative_hook": "Noa records the first episode at her kitchen table with coffee, a little nervous but excited to meet the listener.",
+      "new_vocab": ["שלום", "אני", "אתם", "קוראים", "לי", "שמי", "עברית", "קצת", "לאט", "ביחד", "היום", "מתחילים"],
+      "useful_phrases": ["שלום, קוראים לי נועה", "אני מדברת לאט", "אנחנו לומדים ביחד", "לאט לאט"],
+      "review_vocab": []
+    },
+    {
+      "episode_number": 2,
+      "title_en": "My Morning Routine",
+      "topic": "Daily morning habits — waking up, breakfast, getting ready",
+      "narrative_hook": "Noa wakes up late, tries to leave the house on time, and talks through the small choices of her morning.",
+      "new_vocab": ["בוקר", "קמה", "מתעוררת", "שותה", "אוכלת", "קפה", "מים", "לחם", "יוצאת", "הולכת", "מהר", "לאט"],
+      "useful_phrases": ["אני קמה בבוקר", "אני שותה קפה", "אני יוצאת מהבית", "יש לי זמן"],
+      "review_vocab": ["שלום", "אני", "שמי", "נועה"]
+    },
+    {
+      "episode_number": 3,
+      "title_en": "My Apartment in Tel Aviv",
+      "topic": "Describing home — rooms, size, neighborhood",
+      "narrative_hook": "Noa gives the listener a casual tour of her small apartment and explains what she likes and does not like about it.",
+      "new_vocab": ["בית", "דירה", "חדר", "סלון", "מטבח", "קטן", "גדול", "יפה", "גרה", "אוהבת", "חלון", "שכנים"],
+      "useful_phrases": ["אני גרה בתל אביב", "הדירה שלי קטנה", "יש לי חדר אחד", "אני אוהבת את הבית שלי"],
+      "review_vocab": ["בוקר", "אני", "יוצא", "יוצאת"]
+    },
+    {
+      "episode_number": 4,
+      "title_en": "At the Supermarket",
+      "topic": "Shopping for groceries — prices, common foods",
+      "narrative_hook": "Noa goes to the supermarket with a short list, forgets one thing, and has a simple conversation at checkout.",
+      "new_vocab": ["סופר", "קונה", "צריכה", "רוצה", "חלב", "לחם", "ביצים", "ירקות", "כמה", "עולה", "שקל", "שקית"],
+      "useful_phrases": ["אני צריכה לקנות", "כמה זה עולה?", "יש לי שקית", "אני משלמת בכרטיס"],
+      "review_vocab": ["אוכל", "אוכלת", "דירה", "מטבח"]
+    },
+    {
+      "episode_number": 5,
+      "title_en": "Taking the Bus",
+      "topic": "Public transportation — bus stops, tickets, directions",
+      "narrative_hook": "Noa needs to get across town, waits at the wrong bus stop, and asks someone for help.",
+      "new_vocab": ["אוטובוס", "תחנה", "קו", "נוסעת", "יורדת", "עולה", "רחוב", "ימין", "שמאל", "איפה", "מתי", "כרטיס"],
+      "useful_phrases": ["איפה התחנה?", "מתי האוטובוס בא?", "אני יורדת פה", "אני בדרך"],
+      "review_vocab": ["יוצא", "יוצאת", "תל אביב", "כמה"]
+    },
+    {
+      "episode_number": 6,
+      "title_en": "At a Café",
+      "topic": "Ordering drinks and paying at a café",
+      "narrative_hook": "Noa sits in a neighborhood café, orders something simple, and listens to the sounds around her.",
+      "new_vocab": ["בית קפה", "קפה", "תה", "מים", "חשבון", "בבקשה", "תודה", "יושבת", "מזמינה", "טעים", "עוד", "אפשר"],
+      "useful_phrases": ["אפשר קפה בבקשה?", "אני רוצה מים", "אפשר חשבון?", "תודה רבה"],
+      "review_vocab": ["שותה", "שותה", "כמה", "עולה", "שקל"]
+    },
+    {
+      "episode_number": 7,
+      "title_en": "Meeting Friends",
+      "topic": "Making plans and spending time with friends",
+      "narrative_hook": "Noa makes a plan with a friend, changes the time, and talks about why friendship helps language learning.",
+      "new_vocab": ["חבר", "חברה", "חברים", "נפגשת", "ביחד", "מדברת", "שואלת", "עונה", "כיף", "בסדר", "מאוחר", "מוקדם"],
+      "useful_phrases": ["רוצה להיפגש?", "מתי נוח לך?", "זה בסדר", "נתראה אחר כך"],
+      "review_vocab": ["בית קפה", "יושב", "יושבת", "תודה"]
+    },
+    {
+      "episode_number": 8,
+      "title_en": "My Family",
+      "topic": "Talking about parents, siblings, and family life",
+      "narrative_hook": "Noa calls her mother while cooking dinner and tells the listener about her family in a personal way.",
+      "new_vocab": ["משפחה", "אמא", "אבא", "אח", "אחות", "בן", "בת", "ילדים", "מתקשרת", "מדברת", "אוהבת", "מתגעגעת"],
+      "useful_phrases": ["יש לי אח", "אני מדברת עם אמא", "המשפחה שלי גרה...", "אני מתגעגעת"],
+      "review_vocab": ["חבר", "חברה", "ביחד", "אני"]
+    },
+    {
+      "episode_number": 9,
+      "title_en": "At Work",
+      "topic": "Describing a typical workday and office life",
+      "narrative_hook": "Noa has a busy workday with emails, a meeting, and a small moment when she needs a break.",
+      "new_vocab": ["עובדת", "עבודה", "משרד", "מחשב", "פגישה", "מייל", "עסוקה", "עייפה", "היום", "מחר", "צריכה", "הפסקה"],
+      "useful_phrases": ["אני בעבודה", "יש לי פגישה", "אני צריכה הפסקה", "מחר יום חדש"],
+      "review_vocab": ["בוקר", "יוצא", "יוצאת", "מדבר", "מדברת"]
+    },
+    {
+      "episode_number": 10,
+      "title_en": "Studying Hebrew",
+      "topic": "Learning Hebrew — classes, difficulty, motivation",
+      "narrative_hook": "Noa remembers learning a language herself and gives the listener gentle, practical advice.",
+      "new_vocab": ["לומדת", "שיעור", "מורה", "קשה", "קל", "מבינה", "מילה", "משפט", "טעות", "שוב", "זוכרת", "מתאמנת"],
+      "useful_phrases": ["אני מבינה קצת", "אפשר להגיד שוב?", "זה קשה אבל אפשרי", "אני עושה טעויות"],
+      "review_vocab": ["עובד", "עובדת", "חבר", "חברה", "מדבר", "מדברת"]
+    },
+    {
+      "episode_number": 11,
+      "title_en": "Israeli Weather",
+      "topic": "Seasons, heat, rain, and what to wear",
+      "narrative_hook": "Noa leaves the house dressed wrong for the weather and laughs about how weather changes plans.",
+      "new_vocab": ["מזג אוויר", "חם", "קר", "גשם", "שמש", "רוח", "קיץ", "חורף", "לובשת", "מעיל", "חולצה", "נעים"],
+      "useful_phrases": ["חם לי", "קר לי", "יש שמש", "יורד גשם", "מזג האוויר נעים"],
+      "review_vocab": ["היום", "מחר", "יוצא", "יוצאת", "תל אביב"]
+    },
+    {
+      "episode_number": 12,
+      "title_en": "Shabbat",
+      "topic": "Shabbat traditions — rest, family meals, atmosphere",
+      "narrative_hook": "Noa describes Friday afternoon in Tel Aviv as the city slows down before Shabbat dinner.",
+      "new_vocab": ["שבת", "שישי", "ערב", "ארוחה", "מנוחה", "שקט", "משפחה", "חלה", "נרות", "מכינה", "שולחן", "מיוחד"],
+      "useful_phrases": ["שבת שלום", "ביום שישי בערב", "אני מכינה ארוחה", "יש שקט בעיר"],
+      "review_vocab": ["משפחה", "אמא", "אבא", "אוכל", "אוכלת", "ביחד"]
+    },
+    {
+      "episode_number": 13,
+      "title_en": "Rosh Hashanah",
+      "topic": "Jewish holidays — Rosh Hashanah customs and food",
+      "narrative_hook": "Noa goes to a holiday meal and explains the simple foods and greetings she hears around the table.",
+      "new_vocab": ["חג", "שנה", "חדשה", "מתוק", "תפוח", "דבש", "ברכה", "אורחים", "שולחן", "שמחה", "מסורת", "חשוב"],
+      "useful_phrases": ["שנה טובה", "חג שמח", "אני מביאה משהו", "שנה מתוקה"],
+      "review_vocab": ["שבת", "משפחה", "ארוחה", "בית", "מיוחד"]
+    },
+    {
+      "episode_number": 14,
+      "title_en": "At a Restaurant",
+      "topic": "Ordering food, reading a menu, talking to a waiter",
+      "narrative_hook": "Noa meets a friend at a restaurant, chooses a dish, and explains a small misunderstanding with the waiter.",
+      "new_vocab": ["מסעדה", "תפריט", "מנה", "טעים", "מלצר", "מלצרית", "רעבה", "מזמינה", "סלט", "מרק", "אפשר", "חשבון"],
+      "useful_phrases": ["אני רעבה", "מה את ממליצה?", "אני מזמינה סלט", "אפשר חשבון בבקשה?"],
+      "review_vocab": ["בבקשה", "תודה", "כמה", "עולה", "שקל", "אוכל", "אוכלת"]
+    },
+    {
+      "episode_number": 15,
+      "title_en": "At the Doctor",
+      "topic": "Feeling sick, visiting a clinic, basic health vocabulary",
+      "narrative_hook": "Noa wakes up with a sore throat, calls the clinic, and explains how to say what hurts.",
+      "new_vocab": ["רופא", "רופאה", "כואב", "גרון", "ראש", "תרופה", "בריאה", "חולה", "מרגישה", "תור", "קופת חולים", "עזרה"],
+      "useful_phrases": ["כואב לי הראש", "אני לא מרגישה טוב", "יש לי תור", "אני צריכה עזרה"],
+      "review_vocab": ["בבקשה", "תודה", "היום", "מחר", "בית"]
+    },
+    {
+      "episode_number": 16,
+      "title_en": "At the Shuk",
+      "topic": "Shopping at an open-air market — bargaining, fresh produce",
+      "narrative_hook": "Noa walks through the shuk, hears sellers calling out, and buys fruit for the weekend.",
+      "new_vocab": ["שוק", "פירות", "ירקות", "זול", "יקר", "טרי", "קילו", "מוכר", "מוכרת", "ריח", "צבע", "טעימה"],
+      "useful_phrases": ["כמה עולה קילו?", "זה טרי?", "אני רוצה חצי קילו", "אפשר לטעום?"],
+      "review_vocab": ["קונה", "כמה", "עולה", "שקל", "טעים", "ירקות"]
+    },
+    {
+      "episode_number": 17,
+      "title_en": "Making Plans",
+      "topic": "Scheduling meetups — tomorrow, evening, invitations",
+      "narrative_hook": "Noa tries to plan an evening with friends while everyone is busy, so she negotiates time and place.",
+      "new_vocab": ["רוצה", "בוא", "בואי", "נפגש", "ערב", "מוקדם", "מאוחר", "זמן", "מתי", "איפה", "אולי", "בטח"],
+      "useful_phrases": ["רוצה להיפגש היום?", "אולי מחר?", "יש לך זמן?", "בטח, מתאים לי"],
+      "review_vocab": ["חבר", "חברה", "מחר", "היום", "כיף", "ביחד"]
+    },
+    {
+      "episode_number": 18,
+      "title_en": "Being an Olah Chadasha",
+      "topic": "Immigration experience — new country, missing home, adapting",
+      "narrative_hook": "Noa tells a gentle story about a new immigrant friend who is learning Hebrew and building a life in Israel.",
+      "new_vocab": ["עולה", "חדשה", "ארץ", "בית", "שפה", "קשה", "מתגעגעת", "מצליחה", "לבד", "עוזרת", "מכירה", "חיים"],
+      "useful_phrases": ["אני חדשה בארץ", "אני לומדת עברית", "זה קשה אבל אני מנסה", "אני מכירה אנשים חדשים"],
+      "review_vocab": ["לומד", "לומדת", "עברית", "תל אביב", "משפחה", "חברים"]
+    },
+    {
+      "episode_number": 19,
+      "title_en": "Israeli Culture and Slang",
+      "topic": "Everyday slang and cultural expressions Israelis use",
+      "narrative_hook": "Noa hears slang at a café and explains which words are useful and when to use them naturally.",
+      "new_vocab": ["סבבה", "יאללה", "אחלה", "מה קורה", "בסדר", "באמת", "נכון", "רגע", "טוב", "וואו", "ככה", "בטח"],
+      "useful_phrases": ["מה קורה?", "הכול בסדר", "יאללה, בואי", "סבבה, תודה"],
+      "review_vocab": ["חבר", "חברה", "כיף", "ביחד", "מדבר", "מדברת"]
+    },
+    {
+      "episode_number": 20,
+      "title_en": "Series Recap and Goodbye",
+      "topic": "Reviewing key vocabulary and themes from the series; encouraging continued learning",
+      "new_vocab": [],
+      "narrative_hook": "Noa looks back at the journey with the listener and revisits the places, people, and useful phrases from the series.",
+      "useful_phrases": ["כל הכבוד", "אנחנו ממשיכים", "אני גאה בכם", "נתראה בפרק הבא"],
+      "review_vocab": ["שלום", "תודה", "לומד", "לומדת", "עברית", "חבר", "חברה", "משפחה", "בית", "תל אביב", "סבבה", "יאללה"]
+    }
+  ]
+}

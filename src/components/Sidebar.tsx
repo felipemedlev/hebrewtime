@@ -2,18 +2,23 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import { Search, BookOpen, Bookmark, X, LogOut, LogIn, CheckCircle, Brain } from "lucide-react";
-import type { EpisodeListItem } from "@/lib/types";
+import type { EpisodeListItem, LevelTrackMeta } from "@/lib/types";
+import LearningTrackSelector from "./LearningTrackSelector";
+import { finishedKey } from "@/lib/levelTracks";
 import { useUser } from "@/hooks/useUser";
 import { supabase } from "@/lib/supabase";
 
 type SidebarProps = {
+  levelTracks: LevelTrackMeta[];
+  onChangeLevel: (level: string) => void;
   episodes: EpisodeListItem[];
+  currentLevel: string;
   currentEpNum: number | null;
   viewMode: "episodes" | "vocabulary" | "flashcards";
   vocabCount: number;
   dueFlashcardsCount?: number;
   isSidebarOpen: boolean;
-  onSelectEpisode: (num: number) => void;
+  onSelectEpisode: (level: string, num: number) => void;
   onChangeViewMode: (mode: "episodes" | "vocabulary" | "flashcards") => void;
   onClose: () => void;
   onOpenAuthModal?: () => void;
@@ -21,11 +26,14 @@ type SidebarProps = {
   isAdmin?: boolean;
   isLoadingEntitlements?: boolean;
   onOpenAdminModal?: () => void;
-  finishedEpisodes: Set<number>;
+  finishedEpisodes: Set<string>;
 };
 
 export default function Sidebar({
+  levelTracks,
+  onChangeLevel,
   episodes,
+  currentLevel,
   currentEpNum,
   viewMode,
   vocabCount,
@@ -96,10 +104,16 @@ export default function Sidebar({
   };
 
   const filteredEpisodes = useMemo(() => {
+    const levelEpisodes = episodes.filter((ep) => ep.level === currentLevel);
     const q = searchQuery.toLowerCase();
-    if (!q) return episodes;
-    return episodes.filter((ep) => ep.title.toLowerCase().includes(q));
-  }, [searchQuery, episodes]);
+    if (!q) return levelEpisodes;
+    return levelEpisodes.filter((ep) => ep.title.toLowerCase().includes(q));
+  }, [searchQuery, episodes, currentLevel]);
+
+  const handleChangeLevel = (level: string) => {
+    setSearchQuery("");
+    onChangeLevel(level);
+  };
 
   return (
     <>
@@ -173,6 +187,13 @@ export default function Sidebar({
             </button>
           </div>
 
+          {viewMode === "episodes" && levelTracks.length > 0 && (
+            <LearningTrackSelector
+              tracks={levelTracks}
+              onSelectLevel={handleChangeLevel}
+            />
+          )}
+
           {viewMode === "episodes" && (
             <div className="search-wrapper">
               <label htmlFor="sidebar-episode-search" className="sr-only">
@@ -197,7 +218,7 @@ export default function Sidebar({
               <button
                 key={ep.episode}
                 className={`ep-item ${ep.episode === currentEpNum ? "active" : ""}`}
-                onClick={() => onSelectEpisode(ep.episode)}
+                onClick={() => onSelectEpisode(currentLevel, ep.episode)}
               >
                 <span className="ep-num">
                   {String(ep.episode).padStart(2, "0")}
@@ -209,7 +230,7 @@ export default function Sidebar({
                     .split("-")[0]
                     .trim()}
                 </span>
-                {finishedEpisodes.has(ep.episode) && (
+                {finishedEpisodes.has(finishedKey(currentLevel, ep.episode)) && (
                   <CheckCircle size={14} style={{ marginLeft: "auto", color: "#10b981", flexShrink: 0 }} />
                 )}
               </button>

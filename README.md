@@ -2,12 +2,15 @@
 
 HebrewTime is a beautiful, bilingual web-based reader for the Hebrew Time podcast. It provides an elegant Notion/Apple-like reading experience with side-by-side Hebrew and English paragraphs.
 
-The application allows intermediate Hebrew learners to read podcast transcripts and click on any word to get a contextual, AI-powered translation (complete with Nekudot) and save it to their personal vocabulary list. Premium users can also generate AI example sentences for saved words to see everyday usage in context. Since word translation and example-phrase generation use OpenAI credits, translation, vocabulary, and flashcards are gated behind a premium subscription prompt shown in-app at $10/month.
+The platform supports multiple learning levels — **Beginner** (A1), **Intermediate** (B1 legacy), **Intermediate 2** (B1 generated), and **Advanced** (B2 generated) — each with its own episode series. Beginner, Intermediate 2, and Advanced episodes are AI-generated (~10 minutes each, narrated by a consistent persona) with sentence-level audio highlighting. Legacy Intermediate content comes from the original Hebrew Time podcast.
+
+The application allows Hebrew learners to read podcast transcripts and click on any word to get a contextual, AI-powered translation (complete with Nekudot) and save it to their personal vocabulary list. Premium users can also generate AI example sentences for saved words to see everyday usage in context. Since word translation and example-phrase generation use OpenAI credits, translation, vocabulary, and flashcards are gated behind a premium subscription prompt shown in-app at $10/month.
 
 ## Key Features
 
+- **Multi-Level Learning Tracks**: Switch between **Beginner**, **Intermediate**, **Intermediate 2**, and **Advanced** in the sidebar. Each level has its own numbered episode list; vocabulary and flashcards are shared across levels.
 - **Bilingual Interface**: Smooth side-by-side Hebrew and English paragraphs.
-- **Audio-Synchronized Highlighting**: As the podcast audio plays, the current Hebrew paragraph is automatically highlighted and smoothly scrolled into view, allowing learners to easily follow along. This is powered by high-performance custom DOM events that sync the UI at 60fps without heavy React re-renders. Note: Currently, only episodes that have been processed with the Whisper timestamp synchronization script (e.g., Episode 1) will feature this highlighting.
+- **Audio-Synchronized Highlighting**: As the podcast audio plays, the current Hebrew sentence (generated tracks) or paragraph (Intermediate legacy) is automatically highlighted and smoothly scrolled into view. Generated episodes use sentence-level timestamps from the pipeline; intermediate Episode 1+ may use paragraph-level Whisper sync.
 - **Focus Mode for Hebrew Reading**: A top-bar toggle lets users blur all English transcript text on demand, so learners can practice Hebrew-first reading. The preference is saved in local storage.
 - **Mark Episodes as Finished**: Users can mark episodes they've completed. This state is synced to the Supabase database for authenticated users (and stored in local storage) and represented by a green checkmark in the sidebar and an elegant button at the end of the episode text.
 - **Scroll Position Persistence**: The application remembers your exact scroll position when switching between episodes, the vocabulary list, and flashcards, so you never lose your place.
@@ -37,7 +40,7 @@ The application allows intermediate Hebrew learners to read podcast transcripts 
 - **Admin Premium Controls**: Admin users can grant/revoke premium access by email from an in-app admin modal. When premium access is granted, the system automatically sends a Supabase invite email to the user, allowing them to sign up and access their premium features immediately.
 - **First-Time Onboarding Landing Page**: After a user's first successful login, a full-screen onboarding overlay introduces the platform's core value proposition and main features (bilingual reading, click-to-translate, vocabulary/flashcards, audio-synced highlighting). Users can complete it via "Start reading" or dismiss it with "Skip for now". Once completed or skipped, onboarding never reappears on any device. Non-authenticated visitors never see it. Completion is persisted in Supabase user metadata (`user_metadata.onboarded`) — no database migration required.
 
-- **Precision Audio Player**: Persistent bottom audio player with a fully custom UI built on top of HTML5 `<audio>` for reliable cross-platform playback (supports both direct `.mp3` files and Google Drive fallbacks). Key improvements for mobile:
+- **Precision Audio Player**: Persistent bottom audio player with a fully custom UI built on top of HTML5 `<audio>` for reliable cross-platform playback (supports Google Drive audio and Supabase Storage episode audio via server-side proxy routes). Key improvements for mobile:
   - **Large-touch-target seek bar**: The scrub thumb is 28 px on mobile (vs the browser default of ~6 px), making it easy to tap and drag on iPhone without misses.
   - **Custom play/pause and mute controls** with animated press feedback, eliminating the cramped native browser chrome.
   - **Live time display** (elapsed / total) that updates in real-time while scrubbing.
@@ -55,13 +58,15 @@ This project is built with **Next.js 16** (App Router) and **React 19**, focusin
 - **Icons**: `lucide-react`
 - **Database & Auth**: Supabase (PostgreSQL) and `@supabase/supabase-js`.
 - **Data Fetching/AI**: OpenAI API (`gpt-5.4-mini`) for on-the-fly contextual word translations and lazy-generated example phrases (both premium-only).
-- **Scraper**: Python 3 (`requests`, `beautifulsoup4`, `openai`).
+- **Scraper**: Python 3 (`requests`, `beautifulsoup4`, `openai`) for legacy Squarespace intermediate transcripts.
+- **Content Pipeline**: Python scripts for AI-generated beginner, Intermediate 2, and Advanced episodes (OpenAI script → sentence-level Gemini 3.1 Flash TTS timing → Supabase Storage + DB).
+- **Episode Storage**: Supabase PostgreSQL (`levels`, `episodes`) + Supabase Storage (`episode-audio` bucket).
 
 ### Core Architecture
 Following a recent refactor, the app utilizes Next.js Server Components and dynamic API routes for optimal performance:
 
-- **Server-Side Data Layer (`src/lib/episodes.ts`)**: Loads the 1.4MB `episodes.json` dataset directly from the filesystem on the server, ensuring the client bundle remains tiny.
-- **Dynamic API Routes (`/api/episode/[id]/route.ts`)**: Statically generates all episode endpoints at build time using `generateStaticParams`, eliminating runtime file system reads and providing instant JSON responses when navigating between episodes.
+- **Server-Side Data Layer (`src/lib/episodes.ts`)**: Loads episodes from Supabase PostgreSQL (published rows only), level-aware, using `no-store` reads so regenerated episodes appear immediately. Replaces the legacy `episodes.json` filesystem read.
+- **Dynamic API Routes (`/api/episode/[level]/[id]/route.ts`)**: Fresh JSON endpoints per level and episode number. `/api/levels` returns available learning tracks.
 - **Component Breakdown (`src/components/`)**:
   - `AppShell.tsx`: The main responsive client wrapper managing state/layout, view gating, sticky $10/month subscription prompts for blocked premium actions, English blur toggle, example-phrase orchestration (`generateExamples` / `regenerateExample`), and first-time onboarding overlay rendering.
   - `Sidebar.tsx`: Navigation, search, and tab switching.
@@ -92,10 +97,15 @@ NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ADMIN_EMAILS=admin1@example.com,admin2@example.com
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/gcp-service-account.json
+SUPABASE_AUDIO_BUCKET=episode-audio
 ```
 
 Notes:
-- `SUPABASE_SERVICE_ROLE_KEY` is required for secure server-side premium checks and admin premium management.
+- `SUPABASE_SERVICE_ROLE_KEY` is required for secure server-side premium checks, admin premium management, and server-side episode loading.
+- `GOOGLE_APPLICATION_CREDENTIALS` must point to a GCP service account JSON key. Gemini TTS does **not** accept API keys — OAuth2 only.
+- Enable **Cloud Text-to-Speech API** and **Vertex AI API** on the GCP project; grant the service account **`roles/aiplatform.user`** (includes `aiplatform.endpoints.predict` required by Gemini TTS).
+- `SUPABASE_AUDIO_BUCKET` defaults to `episode-audio` if unset.
 - `ADMIN_EMAILS` is a comma-separated list of emails allowed to open the in-app Premium Users admin modal.
 
 ### 2. Supabase Database Setup
@@ -212,6 +222,15 @@ If you created the database before premium-aware RLS was added, run the full mig
 
 If you created `flashcard_progress` before FSRS columns were added, run [`supabase/fsrs-migration.sql`](supabase/fsrs-migration.sql) in the Supabase SQL Editor. Existing SM-2 rows are migrated automatically on the next review in the app.
 
+**Multi-level episodes:** Run [`supabase/beginner-track-migration.sql`](supabase/beginner-track-migration.sql) to add `levels`, `episodes`, and `level_slug` on `finished_episodes`. Then migrate legacy intermediate content:
+
+```bash
+pip install -r requirements.txt
+python scripts/migrate_episodes_to_supabase.py
+```
+
+Create a Supabase Storage bucket named `episode-audio` (Dashboard → Storage). The app can read public bucket URLs directly, but generated Supabase audio is also supported through the authenticated server route `/api/episode-audio/[level]/[id]`, so the bucket does not have to be exposed directly to the browser.
+
 **Admin note:** `ADMIN_EMAILS` unlocks premium features in server actions and the UI, but vocabulary/flashcard writes are enforced in Postgres via `premium_users`. Grant admin accounts a row in `premium_users` (via the admin panel or a one-time `INSERT`) so they can save vocabulary.
 
 Optional helper trigger (keeps `updated_at` current on updates):
@@ -245,6 +264,7 @@ EXECUTE FUNCTION public.set_updated_at();
 **Security notes:**
 - OpenAI server actions (`translateWord`, `generateExamplePhrases`) enforce auth/premium checks, per-user rate limits, and input length bounds in `src/lib/actionGuards.ts`.
 - The audio proxy at `/api/audio` only accepts HTTPS Google Drive URLs (`src/lib/allowedAudioHosts.ts`); all other hosts are rejected.
+- Supabase Storage episode audio is streamed through `/api/episode-audio/[level]/[id]` with the service role key kept server-side.
 
 ### 4. Updating Episodes (Python Scraper)
 
@@ -299,7 +319,165 @@ The script:
 - Uses sequence matching to align the Whisper segments back to the exact, original `hebrew_paragraphs` (without altering the original text).
 - Replaces the string paragraphs in `episodes.json` with timestamp objects: `{ text: "...", start: 0.0, end: 5.5 }`.
 
-*Currently, this script is configured as a test specifically for Episode 1.*
+*Legacy note: `sync_episode_1.py` defaults to intermediate Episode 1 and writes to `episodes.json`. Re-run migration after syncing if using Supabase.*
+
+### 5.1 Generated Episode Pipeline
+
+Generate AI episodes with [`scripts/generate_episodes.py`](scripts/generate_episodes.py). The recommended workflow is script-first: generate and review the Hebrew/English scripts, then run TTS/upload from those stored scripts.
+
+#### One-time setup
+
+```bash
+pip install -r requirements.txt
+python3 scripts/verify_gcp_tts.py
+```
+
+Make sure `.env` has `OPENAI_API_KEY`, Supabase keys, `SUPABASE_AUDIO_BUCKET`, and `GOOGLE_APPLICATION_CREDENTIALS` pointing to a GCP service account JSON file.
+
+#### Recommended workflow
+
+```bash
+# 1. Generate scripts only.
+# Output: scripts/generated/beginner_scripts.json
+python3 scripts/generate_episodes.py --level beginner --scripts-only
+
+# Intermediate 2 output: scripts/generated/intermediate-2_scripts.json
+python3 scripts/generate_episodes.py --level intermediate-2 --curriculum intermediate_2_curriculum.json --scripts-only
+
+# Advanced output: scripts/generated/advanced_scripts.json
+python3 scripts/generate_episodes.py --level advanced --curriculum advanced_curriculum.json --scripts-only
+
+# 2. Review/edit scripts/generated/beginner_scripts.json if needed.
+#    For Intermediate 2, review/edit scripts/generated/intermediate-2_scripts.json.
+#    For Advanced, review/edit scripts/generated/advanced_scripts.json.
+
+# 3. Generate audio, direct sentence timestamps, upload to Supabase, and upsert DB rows.
+python3 scripts/generate_episodes.py --level beginner --audio-only
+python3 scripts/generate_episodes.py --level intermediate-2 --curriculum intermediate_2_curriculum.json --audio-only
+python3 scripts/generate_episodes.py --level advanced --curriculum advanced_curriculum.json --audio-only
+```
+
+#### Useful recipes
+
+```bash
+# Generate scripts with a specific OpenAI model for script writing only.
+python3 scripts/generate_episodes.py --level beginner --scripts-only --script-model gpt-5.5
+
+# Generate scripts from episode 8 onward, preserving earlier scripts as context.
+python3 scripts/generate_episodes.py --level beginner --from-episode 8 --scripts-only
+
+# Generate audio/upload from episode 8 onward using existing stored scripts.
+python3 scripts/generate_episodes.py --level beginner --from-episode 8 --audio-only
+
+# Regenerate one script from scratch.
+python3 scripts/generate_episodes.py --level beginner --episode 3 --scripts-only --force --script-model gpt-5.5
+
+# Regenerate audio/upload for one episode from the stored script.
+python3 scripts/generate_episodes.py --level beginner --episode 3 --audio-only --force
+
+# Legacy all-in-one mode: script + audio + upload in one run.
+python3 scripts/generate_episodes.py --level beginner --episode 3 --force
+```
+
+#### CLI flags
+
+| Flag | Purpose |
+|------|---------|
+| `--level beginner` | Selects the level/curriculum. |
+| `--episode 3` | Runs only one episode. Cannot be combined with `--from-episode`. |
+| `--from-episode 8` | Runs every matching episode from 8 onward. |
+| `--scripts-only` | Generates/stores Hebrew + English scripts only; skips TTS, upload, and DB upsert. |
+| `--audio-only` | Uses pre-generated scripts from the script bank; skips OpenAI script generation. |
+| `--script-model MODEL` | Overrides the OpenAI model for script generation only. Does not affect Gemini TTS. |
+| `--script-bank PATH` | Uses a custom script-bank JSON path instead of `scripts/generated/{level}_scripts.json`. |
+| `--force` | Regenerates even if a script/checkpoint/DB row already exists. |
+| `--curriculum PATH` | Uses a custom curriculum file instead of `beginner_curriculum.json`. Required for `intermediate-2` and `advanced`. |
+
+Curriculum configs:
+- [`beginner_curriculum.json`](beginner_curriculum.json) (~20 A1 episodes, narrator persona Noa, gradual vocab).
+- [`intermediate_2_curriculum.json`](intermediate_2_curriculum.json) (~20 B1 episodes, narrator persona Maya, richer spoken Hebrew).
+- [`advanced_curriculum.json`](advanced_curriculum.json) (~20 B2 episodes, narrator persona Eitan, authentic advanced Hebrew).
+
+**Current generation stack:**
+- Script model: configured in each curriculum under `generation.openai_model`.
+- Override script model per run with `--script-model MODEL_NAME`; this only affects OpenAI script generation, not Gemini TTS.
+- Audio model: `gemini-3.1-flash-tts-preview`.
+- Voice: `Achernar`, `he-IL`.
+- Timing: direct sentence-level TTS timing. The script splits each Hebrew paragraph into sentences, synthesizes each sentence separately, concatenates the audio, and stores exact `start` / `end` timestamps while building the MP3. Generated episodes do **not** use Whisper for primary synchronization.
+
+**Content quality controls:**
+- Episodes target ~10 minutes with `target_word_count_min` / `target_word_count_max` and `target_paragraph_count`.
+- The curriculum defines level-specific `core_vocab`, reusable `useful_chunks`, and per-episode `narrative_hook` / `useful_phrases` so episodes feel like natural personal stories rather than vocabulary lists.
+- Scripts are persisted in `scripts/generated/{level}_scripts.json`. When generating a later script, the model receives continuity context from the most recent prior scripts (opening scene, closing note, useful phrases, and vocabulary to reinforce).
+- Existing generated episodes must be regenerated with `--force` after changing curriculum or prompt rules.
+
+**Script-first workflow:**
+```bash
+# Generate or refresh all scripts with previous-episode context
+python3 scripts/generate_episodes.py --level beginner --scripts-only --force
+
+# Generate/refresh episode 5 onward with a stronger script model
+python3 scripts/generate_episodes.py --level beginner --from-episode 5 --scripts-only --force --script-model gpt-5.5
+
+# Review/edit scripts/generated/beginner_scripts.json if needed
+
+# Create audio/timestamps/upload using the stored scripts only
+python3 scripts/generate_episodes.py --level beginner --audio-only --force
+```
+
+**Intermediate 2 script-first workflow:**
+```bash
+# Generate or refresh all Intermediate 2 scripts
+python3 scripts/generate_episodes.py --level intermediate-2 --curriculum intermediate_2_curriculum.json --scripts-only --force
+
+# Generate/refresh episode 5 onward with a stronger script model
+python3 scripts/generate_episodes.py --level intermediate-2 --curriculum intermediate_2_curriculum.json --from-episode 5 --scripts-only --force --script-model gpt-5.5
+
+# Review/edit scripts/generated/intermediate-2_scripts.json if needed
+
+# Create audio/timestamps/upload using the stored scripts only
+python3 scripts/generate_episodes.py --level intermediate-2 --curriculum intermediate_2_curriculum.json --audio-only --force
+```
+
+**Advanced script-first workflow:**
+```bash
+# Generate or refresh all Advanced scripts
+python3 scripts/generate_episodes.py --level advanced --curriculum advanced_curriculum.json --scripts-only --force
+
+# Generate/refresh episode 5 onward with a stronger script model
+python3 scripts/generate_episodes.py --level advanced --curriculum advanced_curriculum.json --from-episode 5 --scripts-only --force --script-model gpt-5.5
+
+# Review/edit scripts/generated/advanced_scripts.json if needed
+
+# Create audio/timestamps/upload using the stored scripts only
+python3 scripts/generate_episodes.py --level advanced --curriculum advanced_curriculum.json --audio-only --force
+```
+
+**Checkpoint behavior:**
+- `scripts/generated/{level}_scripts.json` is the durable script bank and should be reviewed before audio generation.
+- `scripts/.checkpoints/{level}-01.json` stores the script, `alignment_method`, sentence timings, and audio duration.
+- `scripts/.checkpoints/{level}-01.mp3` stores synthesized audio. When both audio and timings exist, reruns reuse them unless `--force` is passed.
+- New direct-timed episodes should have `"alignment_method": "direct_sentence_tts"` in the checkpoint JSON.
+
+**Regeneration examples:**
+```bash
+# Regenerate one episode from scratch after prompt/curriculum changes
+python3 scripts/generate_episodes.py --level beginner --episode 1 --force
+
+# Generate missing episodes, skipping rows already in Supabase
+python3 scripts/generate_episodes.py --level beginner
+
+# Regenerate all beginner episodes
+python3 scripts/generate_episodes.py --level beginner --force
+```
+
+**TTS troubleshooting:**
+- Gemini TTS does not accept API keys. Use `GOOGLE_APPLICATION_CREDENTIALS` pointing to a GCP service account JSON file.
+- The same GCP project must have **Cloud Text-to-Speech API** and **Vertex AI API** enabled, and the service account needs `roles/aiplatform.user`.
+- If Vertex reports a usage-guidelines false positive for a sentence, `generate_episodes.py` retries with a neutral prompt, no prompt, and sanitized punctuation before failing with the exact sentence.
+- Python 3.13 removed `audioop`; `requirements.txt` includes `audioop-lts` for pydub compatibility.
+
+Detailed task docs: [`docs/beginner-track/`](docs/beginner-track/).
 
 ### 6. Password Recovery (Forgot Password)
 Password reset is implemented using Supabase Email Auth:
@@ -432,9 +610,19 @@ WHERE email = 'your@email.com';
 ## File Structure Highlights
 
 - `/scraper.py` - Core scraping and paragraph translation logic.
-- `/scripts/sync_episode_1.py` - OpenAI Whisper audio-transcript synchronization tool (Episode 1 test).
-- `apply_scraping_patch.py` - Efficiently patches `episodes.json` (translating only missing paragraph(s) anywhere in the text).
-- `/episodes.json` - The generated dataset used by the web application.
+- `/scripts/sync_episode_1.py` - Whisper alignment (uses `scripts/lib/alignment.py`).
+- `/scripts/generate_episodes.py` - AI generated-level episode pipeline (OpenAI → sentence-level Gemini TTS timing → Supabase).
+- `/scripts/verify_gcp_tts.py` - Verifies GCP credentials, Vertex AI permissions, and Gemini 3.1 Flash TTS access.
+- `/scripts/migrate_episodes_to_supabase.py` - One-time `episodes.json` → Supabase migration.
+- `/beginner_curriculum.json` - 20-episode beginner curriculum and TTS/narrator config.
+- `/intermediate_2_curriculum.json` - 20-episode generated Intermediate 2 curriculum and TTS/narrator config.
+- `/advanced_curriculum.json` - 20-episode generated Advanced curriculum and TTS/narrator config.
+- `/docs/beginner-track/` - Implementation task specs for the beginner level track.
+- `/episodes.json` - Legacy intermediate dataset (migration source; app reads Supabase after migration).
+- `/src/app/api/episode/[level]/[id]/route.ts` - Level-aware episode JSON API (dynamic/no-store so regenerated episodes appear immediately).
+- `/src/app/api/episode-audio/[level]/[id]/route.ts` - Supabase Storage audio proxy using server-side service role auth.
+- `/src/app/api/levels/route.ts` - Available learning levels API.
+- `/supabase/beginner-track-migration.sql` - Levels, episodes tables, finished_episodes level migration.
 - `/src/app/page.tsx` - The main server-rendered entrypoint.
 - `/src/app/actions.ts` - Server actions for premium checks, admin premium management, `translateWord`, and `generateExamplePhrases` (OpenAI).
 - `/src/app/update-password/page.tsx` - Password reset callback (recovery redirect session via `getSession()`, then `updateUser()`).

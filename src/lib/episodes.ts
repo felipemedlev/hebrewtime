@@ -1,56 +1,226 @@
 import fs from "fs";
 import path from "path";
-import type { Episode, EpisodeListItem } from "./types";
+import type { Episode, EpisodeListItem, Level, ParagraphTiming } from "./types";
 
-function loadEpisodes(): Episode[] {
-  const filePath = path.join(process.cwd(), "episodes.json");
-  const raw = fs.readFileSync(filePath, "utf-8");
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const data = JSON.parse(raw) as any[];
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  const episodesMap = new Map<number, Episode>();
+type EpisodeRow = {
+  id: string;
+  level_slug: string;
+  episode_number: number;
+  title: string;
+  url: string;
+  audio_url: string | null;
+  hebrew_text: string;
+  hebrew_paragraphs: unknown;
+  english_paragraphs: unknown;
+  is_published: boolean;
+};
 
-  data.forEach((ep) => {
-    const epNum = Number(ep.episode);
-    if (isNaN(epNum)) return;
+type LevelRow = {
+  slug: string;
+  name: string;
+  cefr: string | null;
+  sort_order: number;
+};
 
-    let normalizedTitle = ep.title;
-    const bracketMatch = normalizedTitle.match(/^\[(\d+)\]\s*(.*)/);
-    if (bracketMatch) {
-      normalizedTitle = `Episode ${bracketMatch[1]}: ${bracketMatch[2]}`;
-    }
+function getServiceHeaders(): HeadersInit | null {
+  if (!supabaseUrl || !supabaseServiceRoleKey) return null;
+  return {
+    "Content-Type": "application/json",
+    apikey: supabaseServiceRoleKey,
+    Authorization: `Bearer ${supabaseServiceRoleKey}`,
+  };
+}
 
-    episodesMap.set(epNum, {
-      ...ep,
-      episode: epNum,
-      title: normalizedTitle,
-    });
+async function supabaseFetch<T>(path: string): Promise<T | null> {
+  const headers = getServiceHeaders();
+  if (!headers || !supabaseUrl) return null;
+
+  const res = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
+    headers,
+    cache: "no-store",
   });
 
-  return Array.from(episodesMap.values()).sort((a, b) => a.episode - b.episode);
-}
-
-let cachedEpisodes: Episode[] | null = null;
-
-function getAll(): Episode[] {
-  if (!cachedEpisodes) {
-    cachedEpisodes = loadEpisodes();
+  if (!res.ok) {
+    console.error(`Supabase fetch failed (${path}):`, res.status, await res.text());
+    return null;
   }
-  return cachedEpisodes;
+
+  return (await res.json()) as T;
 }
 
-export function getAllEpisodesList(): EpisodeListItem[] {
-  return getAll().map((ep) => ({
+function normalizeTitle(title: string, episodeNumber: number): string {
+  let normalizedTitle = title;
+  const bracketMatch = normalizedTitle.match(/^\[(\d+)\]\s*(.*)/);
+  if (bracketMatch) {
+    normalizedTitle = `Episode ${bracketMatch[1]}: ${bracketMatch[2]}`;
+  }
+  if (!/^Episode\s/i.test(normalizedTitle)) {
+    normalizedTitle = `Episode ${String(episodeNumber).padStart(2, "0")}: ${normalizedTitle}`;
+  }
+  return normalizedTitle;
+}
+
+function mapParagraphs(raw: unknown): Episode["hebrew_paragraphs"] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((item) => {
+    if (typeof item === "string") return item;
+    if (item && typeof item === "object" && "text" in item) {
+      return item as ParagraphTiming;
+    }
+    return String(item);
+  });
+}
+
+function mapEpisodeRow(row: EpisodeRow): Episode {
+  return {
+    id: row.id,
+    level: row.level_slug,
+    episode: row.episode_number,
+    url: row.url ?? "",
+    audio_url: row.audio_url ?? undefined,
+    title: normalizeTitle(row.title, row.episode_number),
+    hebrew_paragraphs: mapParagraphs(row.hebrew_paragraphs),
+    hebrew_text: row.hebrew_text ?? "",
+    english_paragraphs: Array.isArray(row.english_paragraphs)
+      ? (row.english_paragraphs as string[])
+      : [],
+  };
+}
+
+let legacyCache: Episode[] | null = null;
+
+function loadLegacyEpisodes(): Episode[] {
+  if (legacyCache) return legacyCache;
+
+  try {
+    const filePath = path.join(process.cwd(), "episodes.json");
+    const raw = fs.readFileSync(filePath, "utf-8");
+    const data = JSON.parse(raw) as Array<Record<string, unknown>>;
+
+    const mapped = data
+      .map((ep) => {
+        const episodeNumber = Number(ep.episode);
+        if (Number.isNaN(episodeNumber)) return null;
+        return {
+          id: `legacy-intermediate-${episodeNumber}`,
+          level: "intermediate",
+          episode: episodeNumber,
+          url: String(ep.url ?? ""),
+          audio_url: ep.audio_url ? String(ep.audio_url) : undefined,
+          title: normalizeTitle(String(ep.title ?? ""), episodeNumber),
+          hebrew_paragraphs: mapParagraphs(ep.hebrew_paragraphs),
+          hebrew_text: String(ep.hebrew_text ?? ""),
+          english_paragraphs: Array.isArray(ep.english_paragraphs)
+            ? (ep.english_paragraphs as string[])
+            : [],
+        } satisfies Episode;
+      })
+      .filter((ep) => ep !== null) as Episode[];
+
+    legacyCache = mapped.sort((a, b) => a.episode - b.episode);
+  } catch {
+    legacyCache = [];
+  }
+
+  return legacyCache ?? [];
+}
+
+function legacyEpisodesForLevel(level: string): Episode[] {
+  return loadLegacyEpisodes().filter((ep) => ep.level === level);
+}
+
+export async function getLevels(): Promise<Level[]> {
+  const rows = await supabaseFetch<LevelRow[]>(
+    "levels?select=slug,name,cefr,sort_order&order=sort_order.asc"
+  );
+
+  if (!rows || rows.length === 0) {
+    return [
+      { slug: "beginner", name: "Beginner", cefr: "A1", sortOrder: 0 },
+      { slug: "intermediate", name: "Intermediate", cefr: "B1", sortOrder: 1 },
+    ];
+  }
+
+  const episodeParams = await getAllPublishedEpisodeParams();
+  const levelsWithEpisodes = new Set(episodeParams.map((param) => param.level));
+  const visibleRows = rows.filter((row) => levelsWithEpisodes.has(row.slug));
+
+  return visibleRows.map((row) => ({
+    slug: row.slug,
+    name: row.name,
+    cefr: row.cefr,
+    sortOrder: row.sort_order,
+  }));
+}
+
+export async function getDefaultLevel(): Promise<string> {
+  const levels = await getLevels();
+  const hasBeginner = levels.some((l) => l.slug === "beginner");
+  const beginnerList = await getEpisodesList("beginner");
+  if (hasBeginner && beginnerList.length > 0) return "beginner";
+  return levels[0]?.slug ?? "intermediate";
+}
+
+export async function getEpisodesList(level: string): Promise<EpisodeListItem[]> {
+  const rows = await supabaseFetch<EpisodeRow[]>(
+    `episodes?select=id,level_slug,episode_number,title&level_slug=eq.${encodeURIComponent(level)}&is_published=eq.true&order=episode_number.asc`
+  );
+
+  if (rows && rows.length > 0) {
+    return rows.map((row) => ({
+      level: row.level_slug,
+      episode: row.episode_number,
+      title: normalizeTitle(row.title, row.episode_number),
+    }));
+  }
+
+  return legacyEpisodesForLevel(level).map((ep) => ({
+    level: ep.level,
     episode: ep.episode,
     title: ep.title,
   }));
 }
 
-export function getEpisode(num: number): Episode | null {
-  return getAll().find((ep) => ep.episode === num) || null;
+export async function getAllPublishedEpisodeParams(): Promise<
+  { level: string; id: string }[]
+> {
+  const rows = await supabaseFetch<Pick<EpisodeRow, "level_slug" | "episode_number">[]>(
+    "episodes?select=level_slug,episode_number&is_published=eq.true&order=level_slug.asc,episode_number.asc"
+  );
+
+  if (rows && rows.length > 0) {
+    return rows.map((row) => ({
+      level: row.level_slug,
+      id: String(row.episode_number),
+    }));
+  }
+
+  return loadLegacyEpisodes().map((ep) => ({
+    level: ep.level,
+    id: String(ep.episode),
+  }));
 }
 
-export function getFirstEpisodeNum(): number | null {
-  const all = getAll();
-  return all.length > 0 ? all[0].episode : null;
+export async function getEpisode(level: string, num: number): Promise<Episode | null> {
+  const rows = await supabaseFetch<EpisodeRow[]>(
+    `episodes?select=*&level_slug=eq.${encodeURIComponent(level)}&episode_number=eq.${num}&is_published=eq.true&limit=1`
+  );
+
+  if (rows && rows.length > 0) return mapEpisodeRow(rows[0]);
+
+  return legacyEpisodesForLevel(level).find((ep) => ep.episode === num) ?? null;
+}
+
+export async function getFirstEpisodeNum(level: string): Promise<number | null> {
+  const list = await getEpisodesList(level);
+  return list.length > 0 ? list[0].episode : null;
+}
+
+export async function getAllEpisodesList(): Promise<EpisodeListItem[]> {
+  const levels = await getLevels();
+  const lists = await Promise.all(levels.map((l) => getEpisodesList(l.slug)));
+  return lists.flat();
 }

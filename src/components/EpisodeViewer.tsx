@@ -1,14 +1,15 @@
 "use client";
 
 import { ExternalLink, ChevronLeft, ChevronRight, CheckCircle } from "lucide-react";
-import type { Episode } from "@/lib/types";
+import type { Episode, ParagraphTiming } from "@/lib/types";
 import { translateWord } from "@/app/actions";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import TranslationModal from "./TranslationModal";
 import { supabase } from "@/lib/supabase";
 
 type EpisodeViewerProps = {
   episode: Episode;
+  levelDisplayName?: string;
   hasPrev: boolean;
   hasNext: boolean;
   onNavigate: (direction: "prev" | "next") => void;
@@ -43,8 +44,87 @@ type ModalState = {
   isTranslating: boolean;
 };
 
+type ActivePosition = {
+  paragraphIndex: number;
+  sentenceIndex: number | null;
+};
+
+function isParagraphTiming(p: string | ParagraphTiming): p is ParagraphTiming {
+  return typeof p === "object" && p !== null && "text" in p;
+}
+
+function findActivePosition(
+  paragraphs: Episode["hebrew_paragraphs"],
+  currentTime: number
+): ActivePosition | null {
+  for (let i = 0; i < paragraphs.length; i++) {
+    const para = paragraphs[i];
+    if (!isParagraphTiming(para)) continue;
+
+    const inParagraph =
+      (i === 0 && currentTime < para.start) ||
+      (currentTime >= para.start && currentTime <= para.end);
+
+    if (!inParagraph) continue;
+
+    if (para.sentences && para.sentences.length > 0) {
+      for (let j = 0; j < para.sentences.length; j++) {
+        const sent = para.sentences[j];
+        const inSentence =
+          (j === 0 && currentTime < sent.start) ||
+          (currentTime >= sent.start && currentTime <= sent.end);
+        if (inSentence) {
+          return { paragraphIndex: i, sentenceIndex: j };
+        }
+      }
+      return { paragraphIndex: i, sentenceIndex: 0 };
+    }
+
+    return { paragraphIndex: i, sentenceIndex: null };
+  }
+  return null;
+}
+
+function renderHebrewTokens(
+  text: string,
+  eng: string | undefined,
+  onWordClick: (word: string, heb: string, eng: string) => void
+) {
+  return text.split(/(\s+)/).map((token, idx) => {
+    if (token.trim() === "") {
+      return <span key={idx}>{token}</span>;
+    }
+    const cleanWord = token.replace(
+      /^[.,;:!?(){}\[\]"'\-]+|[.,;:!?(){}\[\]"'\-]+$/g,
+      ""
+    );
+    return (
+      <span
+        key={idx}
+        className={cleanWord ? "hebrew-word" : ""}
+        role={cleanWord ? "button" : undefined}
+        tabIndex={cleanWord ? 0 : undefined}
+        onClick={() => {
+          if (cleanWord) onWordClick(token, text, eng || "");
+        }}
+        onKeyDown={(event) => {
+          if (!cleanWord) return;
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onWordClick(token, text, eng || "");
+          }
+        }}
+        aria-label={cleanWord ? `Translate ${cleanWord}` : undefined}
+      >
+        {token}
+      </span>
+    );
+  });
+}
+
 export default function EpisodeViewer({
   episode,
+  levelDisplayName,
   hasPrev,
   hasNext,
   onNavigate,
@@ -73,38 +153,44 @@ export default function EpisodeViewer({
 
   const [currentTime, setCurrentTime] = useState(0);
   const paragraphRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const lastActiveIndex = useRef<number>(-1);
+  const sentenceRefs = useRef<(HTMLSpanElement | null)[][]>([]);
+  const lastActiveKey = useRef<string>("");
 
-  // Sync with media player
   useEffect(() => {
-    const handleTimeUpdate = (e: any) => {
-      setCurrentTime(e.detail);
+    const handleTimeUpdate = (e: Event) => {
+      const detail = (e as CustomEvent<number>).detail;
+      setCurrentTime(detail);
     };
     window.addEventListener("playerTimeUpdate", handleTimeUpdate);
     return () => window.removeEventListener("playerTimeUpdate", handleTimeUpdate);
   }, []);
 
-  // Auto-scroll logic
-  useEffect(() => {
-    // Find active index
-    const activeIndex = episode.hebrew_paragraphs.findIndex((p, idx) => {
-      if (typeof p === "string") return false;
-      // Highlight first paragraph even if audio is in intro (before first timestamp)
-      if (idx === 0 && currentTime < p.start) return true;
-      return currentTime >= p.start && currentTime <= p.end;
-    });
+  const activePosition = useMemo(
+    () => findActivePosition(episode.hebrew_paragraphs, currentTime),
+    [episode.hebrew_paragraphs, currentTime]
+  );
 
-    if (activeIndex !== -1 && activeIndex !== lastActiveIndex.current) {
-      lastActiveIndex.current = activeIndex;
-      const el = paragraphRefs.current[activeIndex];
-      if (el) {
-        el.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
-      }
+  useEffect(() => {
+    if (!activePosition) return;
+
+    const key =
+      activePosition.sentenceIndex !== null
+        ? `${activePosition.paragraphIndex}:${activePosition.sentenceIndex}`
+        : `${activePosition.paragraphIndex}`;
+
+    if (key === lastActiveKey.current) return;
+    lastActiveKey.current = key;
+
+    if (activePosition.sentenceIndex !== null) {
+      const el =
+        sentenceRefs.current[activePosition.paragraphIndex]?.[activePosition.sentenceIndex];
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
     }
-  }, [currentTime, episode.hebrew_paragraphs]);
+
+    const el = paragraphRefs.current[activePosition.paragraphIndex];
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [activePosition]);
 
   const handleWordClick = async (
     word: string,
@@ -168,7 +254,6 @@ export default function EpisodeViewer({
   const handleSave = async () => {
     if (!modal.translation) return;
 
-    // Use the lemma (base dictionary form) returned by the AI, falling back to the clicked word
     const wordToSave = modal.lemmaWord || modal.word;
 
     const result = await onWordSaved({
@@ -185,18 +270,27 @@ export default function EpisodeViewer({
     }
   };
 
+  const levelLabel =
+    levelDisplayName ??
+    episode.level.charAt(0).toUpperCase() + episode.level.slice(1);
+  const episodeMeta = `${levelLabel} · Episode ${String(episode.episode).padStart(2, "0")}`;
+
   return (
     <>
       <div className="main-header">
         <h2 className="main-title font-serif">{episode.title}</h2>
         <div className="main-meta">
-          <span>Episode {String(episode.episode).padStart(2, "0")}</span>
+          <span>{episodeMeta}</span>
+          {episode.url ? (
+            <>
+              <span>•</span>
+              <a href={episode.url} target="_blank" rel="noopener noreferrer">
+                Original Post <ExternalLink size={12} />
+              </a>
+            </>
+          ) : null}
           <span>•</span>
-          <a href={episode.url} target="_blank" rel="noopener noreferrer">
-            Original Post <ExternalLink size={12} />
-          </a>
-          <span>•</span>
-          <button 
+          <button
             onClick={onToggleFinished}
             style={{
               background: "transparent",
@@ -220,55 +314,49 @@ export default function EpisodeViewer({
 
       <div className="content-grid">
         {episode.hebrew_paragraphs.map((hebObj, i) => {
-          const isSynced = typeof hebObj === "object";
+          const isSynced = isParagraphTiming(hebObj);
           const heb = isSynced ? hebObj.text : hebObj;
-          const isActive = isSynced && (
-            (i === 0 && currentTime < hebObj.start) || 
-            (currentTime >= hebObj.start && currentTime <= hebObj.end)
-          );
           const eng = episode.english_paragraphs?.[i];
-          
+          const hasSentences = isSynced && hebObj.sentences && hebObj.sentences.length > 0;
+
+          const isParagraphActive =
+            activePosition?.paragraphIndex === i &&
+            (activePosition.sentenceIndex === null || !hasSentences);
+
+          if (!sentenceRefs.current[i]) {
+            sentenceRefs.current[i] = [];
+          }
+
           return (
-            <div 
-              key={i} 
+            <div
+              key={i}
               ref={(el) => {
                 paragraphRefs.current[i] = el;
               }}
-              className={`para-pair ${isActive ? "active-paragraph" : ""}`}
+              className={`para-pair ${isParagraphActive ? "active-paragraph" : ""}`}
             >
               <div className="text-hebrew font-serif" dir="rtl">
-                {heb.split(/(\s+)/).map((token, idx) => {
-                  if (token.trim() === "") {
-                    return <span key={idx}>{token}</span>;
-                  }
-                  const cleanWord = token.replace(
-                    /^[.,;:!?(){}\[\]"'\-]+|[.,;:!?(){}\[\]"'\-]+$/g,
-                    ""
-                  );
-                  return (
-                    <span
-                      key={idx}
-                      className={cleanWord ? "hebrew-word" : ""}
-                      role={cleanWord ? "button" : undefined}
-                      tabIndex={cleanWord ? 0 : undefined}
-                      onClick={() => {
-                        if (cleanWord) handleWordClick(token, heb, eng);
-                      }}
-                      onKeyDown={(event) => {
-                        if (!cleanWord) return;
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          handleWordClick(token, heb, eng);
-                        }
-                      }}
-                      aria-label={
-                        cleanWord ? `Translate ${cleanWord}` : undefined
-                      }
-                    >
-                      {token}
-                    </span>
-                  );
-                })}
+                {hasSentences ? (
+                  hebObj.sentences!.map((sent, j) => {
+                    const isSentenceActive =
+                      activePosition?.paragraphIndex === i &&
+                      activePosition.sentenceIndex === j;
+                    return (
+                      <span
+                        key={j}
+                        ref={(el) => {
+                          sentenceRefs.current[i][j] = el;
+                        }}
+                        className={`sentence-span ${isSentenceActive ? "active-sentence" : ""}`}
+                      >
+                        {renderHebrewTokens(sent.text, eng, handleWordClick)}
+                        {j < hebObj.sentences!.length - 1 ? " " : ""}
+                      </span>
+                    );
+                  })
+                ) : (
+                  renderHebrewTokens(heb, eng, handleWordClick)
+                )}
               </div>
               <div className={`text-english ${isEnglishBlurred ? "blurred" : ""}`}>
                 {eng ? (
@@ -284,7 +372,7 @@ export default function EpisodeViewer({
         })}
 
         <div style={{ display: "flex", justifyContent: "center", margin: "2rem 0" }}>
-          <button 
+          <button
             onClick={onToggleFinished}
             style={{
               background: isFinished ? "rgba(16, 185, 129, 0.1)" : "var(--bg-secondary)",

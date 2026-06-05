@@ -1,8 +1,14 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { PanelLeftClose, PanelLeft, BookOpen, Sparkles, X } from "lucide-react";
-import type { Episode, EpisodeListItem, VocabWord } from "@/lib/types";
+import type { Episode, EpisodeListItem, Level, VocabWord } from "@/lib/types";
+import {
+  buildLevelTrackMeta,
+  readLastEpisodesByLevel,
+  resolveResumeEpisode,
+  writeLastEpisodeForLevel,
+} from "@/lib/levelTracks";
 import Sidebar from "./Sidebar";
 import EpisodeViewer from "./EpisodeViewer";
 import VocabularyView from "./VocabularyView";
@@ -21,11 +27,19 @@ import { useOnboarding } from "@/hooks/useOnboarding";
 import { generateExamplePhrases } from "@/app/actions";
 
 type AppShellProps = {
+  levels: Level[];
+  defaultLevel: string;
   episodeList: EpisodeListItem[];
   initialEpisode: Episode | null;
 };
 
-export default function AppShell({ episodeList, initialEpisode }: AppShellProps) {
+export default function AppShell({
+  levels,
+  defaultLevel,
+  episodeList,
+  initialEpisode,
+}: AppShellProps) {
+  const [currentLevel, setCurrentLevel] = useState(defaultLevel);
   const [episode, setEpisode] = useState<Episode | null>(initialEpisode);
   const [currentEpNum, setCurrentEpNum] = useState<number | null>(
     initialEpisode?.episode ?? null
@@ -47,6 +61,9 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
     vocabulary: 0,
     flashcards: 0,
   });
+  const [lastEpisodesByLevel, setLastEpisodesByLevel] = useState<Record<string, number>>({});
+  const [isEpisodeLoading, setIsEpisodeLoading] = useState(false);
+  const [episodeLoadError, setEpisodeLoadError] = useState<string | null>(null);
 
   const mainRef = useRef<HTMLElement>(null);
   const { vocabWords, addWord, deleteWord, updateWord } = useVocabulary();
@@ -61,8 +78,56 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
   const { user } = useUser();
   const { shouldShow: shouldShowOnboarding, dismiss: dismissOnboarding } = useOnboarding();
   const { entitlements, isLoading: isLoadingEntitlements, refresh: refreshEntitlements } = useEntitlements();
-  const { finishedEpisodes, toggleFinished } = useFinishedEpisodes();
+  const { finishedEpisodes, isFinished, toggleFinished } = useFinishedEpisodes();
 
+  const levelEpisodes = episodeList.filter((ep) => ep.level === currentLevel);
+
+  const levelTrackMeta = useMemo(
+    () =>
+      buildLevelTrackMeta(
+        levels,
+        episodeList,
+        finishedEpisodes,
+        currentLevel,
+        lastEpisodesByLevel
+      ),
+    [levels, episodeList, finishedEpisodes, currentLevel, lastEpisodesByLevel]
+  );
+
+  const currentLevelName =
+    levels.find((l) => l.slug === currentLevel)?.name ??
+    currentLevel.charAt(0).toUpperCase() + currentLevel.slice(1);
+
+  useEffect(() => {
+    const storedLastEpisodes = readLastEpisodesByLevel();
+    setLastEpisodesByLevel(storedLastEpisodes);
+
+    const storedLevel = window.localStorage.getItem("hebrewtime-level");
+    if (storedLevel && levels.some((l) => l.slug === storedLevel)) {
+      setCurrentLevel(storedLevel);
+      if (initialEpisode && storedLevel !== initialEpisode.level) {
+        const resumeEpisode = resolveResumeEpisode(
+          storedLevel,
+          episodeList,
+          storedLastEpisodes
+        );
+        if (resumeEpisode != null) {
+          void navigateToEpisode(storedLevel, resumeEpisode);
+        }
+      }
+    } else if (initialEpisode) {
+      writeLastEpisodeForLevel(initialEpisode.level, initialEpisode.episode);
+      setLastEpisodesByLevel((prev) => ({
+        ...prev,
+        [initialEpisode.level]: initialEpisode.episode,
+      }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem("hebrewtime-level", currentLevel);
+  }, [currentLevel]);
 
   // Responsive
   useEffect(() => {
@@ -257,49 +322,81 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
   }, [effectiveViewMode]);
 
   const navigateToEpisode = useCallback(
-    async (num: number) => {
+    async (level: string, num: number) => {
+      setCurrentLevel(level);
       setCurrentEpNum(num);
+      setEpisodeLoadError(null);
+      setIsEpisodeLoading(true);
       if (isMobile) setIsSidebarOpen(false);
 
-      // Reset scroll position for episodes when navigating to a new episode
       setScrollPositions((prev: Record<string, number>) => ({ ...prev, episodes: 0 }));
 
-      // Fetch episode data dynamically
       try {
-        const res = await fetch(`/api/episode/${num}`);
+        const res = await fetch(`/api/episode/${level}/${num}`, {
+          cache: "no-store",
+        });
         if (res.ok) {
           const data = await res.json();
           setEpisode(data);
+          writeLastEpisodeForLevel(level, num);
+          setLastEpisodesByLevel((prev) => ({ ...prev, [level]: num }));
+        } else {
+          setEpisodeLoadError("Could not load this episode. Please try again.");
+          showToast("Could not load this episode. Please try again.");
         }
       } catch {
-        // fall back silently
+        setEpisodeLoadError("Could not load this episode. Please try again.");
+        showToast("Could not load this episode. Please try again.");
+      } finally {
+        setIsEpisodeLoading(false);
       }
 
       setTimeout(() => {
         mainRef.current?.scrollTo({ top: 0, behavior: "smooth" });
       }, 50);
     },
-    [isMobile]
+    [isMobile, showToast]
   );
 
-  // Find current index for prev/next navigation
-  const currentIndex = episodeList.findIndex((e) => e.episode === currentEpNum);
+  const handleChangeLevel = useCallback(
+    async (level: string) => {
+      setCurrentLevel(level);
+      const resumeEpisode = resolveResumeEpisode(
+        level,
+        episodeList,
+        lastEpisodesByLevel
+      );
+      if (resumeEpisode != null) {
+        await navigateToEpisode(level, resumeEpisode);
+      } else {
+        setEpisode(null);
+        setCurrentEpNum(null);
+        setEpisodeLoadError(null);
+      }
+    },
+    [episodeList, navigateToEpisode, lastEpisodesByLevel]
+  );
+
+  const currentIndex = levelEpisodes.findIndex((e) => e.episode === currentEpNum);
 
   const handleNavigate = useCallback(
     (direction: "prev" | "next") => {
       const newIndex =
         direction === "prev" ? currentIndex - 1 : currentIndex + 1;
-      if (newIndex >= 0 && newIndex < episodeList.length) {
-        navigateToEpisode(episodeList[newIndex].episode);
+      if (newIndex >= 0 && newIndex < levelEpisodes.length) {
+        navigateToEpisode(currentLevel, levelEpisodes[newIndex].episode);
       }
     },
-    [currentIndex, episodeList, navigateToEpisode]
+    [currentIndex, levelEpisodes, navigateToEpisode, currentLevel]
   );
 
   return (
     <div className={`app-container ${isMobile && isSidebarOpen ? "mobile-sidebar-open" : ""}`}>
       <Sidebar
+        levelTracks={levelTrackMeta}
+        onChangeLevel={handleChangeLevel}
         episodes={episodeList}
+        currentLevel={currentLevel}
         currentEpNum={currentEpNum}
         viewMode={effectiveViewMode}
         vocabCount={vocabWords.length}
@@ -435,19 +532,32 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
             generateExamples={generateExamples}
             regenerateExample={regenerateExample}
           />
+        ) : isEpisodeLoading ? (
+          <div className="empty-state">
+            <BookOpen size={48} strokeWidth={1} />
+            <p>Loading episode…</p>
+          </div>
+        ) : episodeLoadError && !episode ? (
+          <div className="empty-state">
+            <BookOpen size={48} strokeWidth={1} />
+            <p>{episodeLoadError}</p>
+          </div>
         ) : !episode ? (
           <div className="empty-state">
             <BookOpen size={48} strokeWidth={1} />
             <p>Select an episode from the sidebar to start reading.</p>
           </div>
         ) : (
-          <div key={`episode-${episode.episode}`}>
+          <div key={`episode-${episode.level}-${episode.episode}`}>
             <EpisodeViewer
               episode={episode}
+              levelDisplayName={
+                levels.find((l) => l.slug === episode.level)?.name ?? currentLevelName
+              }
               hasPrev={currentIndex > 0}
               hasNext={
                 currentIndex !== -1 &&
-                currentIndex < episodeList.length - 1
+                currentIndex < levelEpisodes.length - 1
               }
               onNavigate={handleNavigate}
               onWordSaved={handleWordSaved}
@@ -458,8 +568,10 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
               onRequireAuth={() => setIsAuthModalOpen(true)}
               onRequireSubscription={() => showSubscriptionPrompt("translation")}
               isEnglishBlurred={isEnglishBlurred}
-              isFinished={finishedEpisodes.has(episode.episode)}
-              onToggleFinished={() => toggleFinished(episode.episode)}
+              isFinished={episode ? isFinished(episode.level, episode.episode) : false}
+              onToggleFinished={() => {
+                if (episode) toggleFinished(episode.level, episode.episode);
+              }}
             />
           </div>
         )}
@@ -473,6 +585,7 @@ export default function AppShell({ episodeList, initialEpisode }: AppShellProps)
         audioUrl={episode?.audio_url ?? null}
         episodeTitle={episode?.title ?? null}
         episodeNum={episode?.episode ?? null}
+        episodeLevel={episode?.level ?? currentLevel}
         isSidebarOpen={isSidebarOpen}
       />
 
