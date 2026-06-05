@@ -227,8 +227,7 @@ export default function EpisodeViewer({
     if (isLoadingEntitlements) return;
 
     if (!isAuthenticated) {
-      onToast("Log in to use word translation.");
-      onRequireAuth();
+      onRequireSubscription();
       return;
     }
     if (!isPremium) {
