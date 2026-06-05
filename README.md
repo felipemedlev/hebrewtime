@@ -8,11 +8,11 @@ The application allows Hebrew learners to read podcast transcripts and click on 
 
 ## Key Features
 
-- **Multi-Level Learning Tracks**: Switch between **Beginner**, **Intermediate**, **Intermediate 2**, and **Advanced** in the sidebar. Each level has its own numbered episode list; vocabulary and flashcards are shared across levels.
+- **Multi-Level Learning Tracks**: Switch between **Beginner**, **Intermediate**, **Intermediate 2**, and **Advanced** via a dropdown (`LearningTrackSelector`) in the sidebar. Each level has its own numbered episode list with per-level finished counts, resume episode, and progress bar. Vocabulary and flashcards are shared across levels. The selected level persists in local storage (`hebrewtime-level`); last-opened episode per level is stored in `hebrewtime-last-episode-by-level`.
 - **Bilingual Interface**: Smooth side-by-side Hebrew and English paragraphs.
-- **Audio-Synchronized Highlighting**: As the podcast audio plays, the current Hebrew sentence (generated tracks) or paragraph (Intermediate legacy) is automatically highlighted and smoothly scrolled into view. Generated episodes use sentence-level timestamps from the pipeline; intermediate Episode 1+ may use paragraph-level Whisper sync.
+- **Audio-Synchronized Highlighting**: As the podcast audio plays, the current Hebrew sentence is automatically highlighted and smoothly scrolled into view. Generated tracks (Beginner, Intermediate 2, Advanced) use sentence-level timestamps from the Gemini TTS pipeline. Legacy Intermediate episodes use Whisper alignment via `scripts/lib/alignment.py`, which can produce paragraph-level and sentence-level timings.
 - **Focus Mode for Hebrew Reading**: A top-bar toggle lets users blur all English transcript text on demand, so learners can practice Hebrew-first reading. The preference is saved in local storage.
-- **Mark Episodes as Finished**: Users can mark episodes they've completed. This state is synced to the Supabase database for authenticated users (and stored in local storage) and represented by a green checkmark in the sidebar and an elegant button at the end of the episode text.
+- **Mark Episodes as Finished**: Users can mark episodes they've completed. Finished state is tracked **per level** (`level:episode` keys), synced to Supabase `finished_episodes` with `level_slug` for authenticated users, and stored in local storage. Checkmarks appear in the sidebar and an elegant button at the end of the episode text.
 - **Scroll Position Persistence**: The application remembers your exact scroll position when switching between episodes, the vocabulary list, and flashcards, so you never lose your place.
 - **Premium-gated AI Translation**: Click any Hebrew word to translate it within the context of the sentence using OpenAI (gpt-5.4-mini). A specially tuned prompt ensures:
   - 100% grammatically correct Nekudot vocalization based on the exact contextual meaning.
@@ -65,10 +65,12 @@ This project is built with **Next.js 16** (App Router) and **React 19**, focusin
 ### Core Architecture
 Following a recent refactor, the app utilizes Next.js Server Components and dynamic API routes for optimal performance:
 
-- **Server-Side Data Layer (`src/lib/episodes.ts`)**: Loads episodes from Supabase PostgreSQL (published rows only), level-aware, using `no-store` reads so regenerated episodes appear immediately. Replaces the legacy `episodes.json` filesystem read.
-- **Dynamic API Routes (`/api/episode/[level]/[id]/route.ts`)**: Fresh JSON endpoints per level and episode number. `/api/levels` returns available learning tracks.
+- **Server-Side Data Layer (`src/lib/episodes.ts`)**: Primary source is Supabase PostgreSQL (`levels`, `episodes` — published rows only), level-aware, using `no-store` reads so regenerated episodes appear immediately. Falls back to `episodes.json` for legacy intermediate content when Supabase has no rows for a level (useful for local dev without env vars). Only levels with published episodes are shown. Default level is **beginner** when available.
+- **Level & Audio Helpers (`src/lib/levelTracks.ts`, `src/lib/episodeAudio.ts`)**: `levelTracks.ts` builds level metadata (finished counts, resume episode, progress). `episodeAudio.ts` routes Google Drive URLs through `/api/audio` and Supabase Storage URLs through `/api/episode-audio/[level]/[id]`.
+- **Dynamic API Routes (`/api/episode/[level]/[id]/route.ts`)**: Fresh JSON endpoints per level and episode number. `/api/levels` returns available learning tracks (cached for 1 hour).
 - **Component Breakdown (`src/components/`)**:
   - `AppShell.tsx`: The main responsive client wrapper managing state/layout, view gating, sticky $10/month subscription prompts for blocked premium actions, English blur toggle, example-phrase orchestration (`generateExamples` / `regenerateExample`), and first-time onboarding overlay rendering.
+  - `LearningTrackSelector.tsx`: Dropdown to switch learning levels with finished count, resume episode, and progress bar.
   - `Sidebar.tsx`: Navigation, search, and tab switching.
   - `EpisodeViewer.tsx`: Bilingual reading experience, word-click handling, and conditional blurring of English transcript text.
   - `VocabularyView.tsx`: Saved words in a desktop table / mobile card layout with search, filtering, inline editing, and expandable example-phrase panels.
@@ -83,7 +85,7 @@ Following a recent refactor, the app utilizes Next.js Server Components and dyna
   - `useEntitlements.ts`: Resolves auth/premium/admin status via server actions for gating translations, vocabulary, flashcards, and example phrases.
   - `useUser.ts`: Subscribes to Supabase auth events to track logged-in users.
   - `useOnboarding.ts`: Derives whether to show the first-login onboarding overlay from `user.user_metadata.onboarded` and persists dismissal via `supabase.auth.updateUser({ data: { onboarded: true } })`.
-  - `useFinishedEpisodes.ts`: Manages the state of read matching in local storage, powering the UI checkmarks across the app.
+  - `useFinishedEpisodes.ts`: Manages per-level finished state in local storage and syncs to Supabase `finished_episodes` (with `level_slug`) for authenticated users. Migrates legacy numeric-only localStorage entries to `intermediate:{episode}` keys.
 
 ## Setup & Local Development
 
@@ -98,12 +100,13 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ADMIN_EMAILS=admin1@example.com,admin2@example.com
 GOOGLE_APPLICATION_CREDENTIALS=/path/to/gcp-service-account.json
+GOOGLE_SERVICE_ACCOUNT_FILE=/path/to/gcp-service-account.json
 SUPABASE_AUDIO_BUCKET=episode-audio
 ```
 
 Notes:
 - `SUPABASE_SERVICE_ROLE_KEY` is required for secure server-side premium checks, admin premium management, and server-side episode loading.
-- `GOOGLE_APPLICATION_CREDENTIALS` must point to a GCP service account JSON key. Gemini TTS does **not** accept API keys — OAuth2 only.
+- `GOOGLE_APPLICATION_CREDENTIALS` (or `GOOGLE_SERVICE_ACCOUNT_FILE`) must point to a GCP service account JSON key. Gemini TTS does **not** accept API keys — OAuth2 only. A common local path is `secrets/gcp-service-account.json` (the `secrets/` directory is gitignored; see setup checklist below).
 - Enable **Cloud Text-to-Speech API** and **Vertex AI API** on the GCP project; grant the service account **`roles/aiplatform.user`** (includes `aiplatform.endpoints.predict` required by Gemini TTS).
 - `SUPABASE_AUDIO_BUCKET` defaults to `episode-audio` if unset.
 - `ADMIN_EMAILS` is a comma-separated list of emails allowed to open the in-app Premium Users admin modal.
@@ -196,15 +199,18 @@ USING (
 
 CREATE TABLE IF NOT EXISTS public.finished_episodes (
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  level_slug TEXT NOT NULL DEFAULT 'intermediate',
   episode_number INTEGER NOT NULL,
   finished_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  PRIMARY KEY (user_id, episode_number)
+  PRIMARY KEY (user_id, level_slug, episode_number)
 );
 ALTER TABLE public.finished_episodes ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view own finished episodes" ON public.finished_episodes FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can insert own finished episodes" ON public.finished_episodes FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can delete own finished episodes" ON public.finished_episodes FOR DELETE USING (auth.uid() = user_id);
 ```
+
+**Fresh installs:** After the vocabulary/premium tables above, run [`supabase/beginner-track-migration.sql`](supabase/beginner-track-migration.sql) to add `levels`, `episodes`, and upgrade `finished_episodes` for multi-level support. Existing projects that created `finished_episodes` with the old `(user_id, episode_number)` primary key should run that migration instead of recreating the table.
 
 If you already created the `vocabulary` table without example phrases or without an UPDATE policy, run this migration in the Supabase SQL Editor:
 
@@ -222,7 +228,7 @@ If you created the database before premium-aware RLS was added, run the full mig
 
 If you created `flashcard_progress` before FSRS columns were added, run [`supabase/fsrs-migration.sql`](supabase/fsrs-migration.sql) in the Supabase SQL Editor. Existing SM-2 rows are migrated automatically on the next review in the app.
 
-**Multi-level episodes:** Run [`supabase/beginner-track-migration.sql`](supabase/beginner-track-migration.sql) to add `levels`, `episodes`, and `level_slug` on `finished_episodes`. Then migrate legacy intermediate content:
+**Multi-level episodes:** If you have not already run it, apply [`supabase/beginner-track-migration.sql`](supabase/beginner-track-migration.sql). Then migrate legacy intermediate content:
 
 ```bash
 pip install -r requirements.txt
@@ -264,7 +270,7 @@ EXECUTE FUNCTION public.set_updated_at();
 **Security notes:**
 - OpenAI server actions (`translateWord`, `generateExamplePhrases`) enforce auth/premium checks, per-user rate limits, and input length bounds in `src/lib/actionGuards.ts`.
 - The audio proxy at `/api/audio` only accepts HTTPS Google Drive URLs (`src/lib/allowedAudioHosts.ts`); all other hosts are rejected.
-- Supabase Storage episode audio is streamed through `/api/episode-audio/[level]/[id]` with the service role key kept server-side.
+- Supabase Storage episode audio is streamed through `/api/episode-audio/[level]/[id]` using the server-side service role key (not end-user auth).
 
 ### 4. Updating Episodes (Python Scraper)
 
@@ -272,10 +278,10 @@ To fetch the latest podcast transcripts and auto-translate them to English:
 
 ```bash
 # Ensure you have your .env setup with OPENAI_API_KEY
-pip install requests beautifulsoup4 openai python-dotenv
+pip install -r requirements.txt
 python scraper.py
 ```
-This generates/updates `episodes.json` (used by the Next.js app). `episodes_checkpoint.json` is optional and is used only by the scraper/maintenance scripts for resume support.
+This generates/updates `episodes.json`, the **legacy intermediate archive** and migration source for the original Hebrew Time podcast. The Next.js app reads episodes from **Supabase** at runtime; `episodes.json` is used only as a local fallback when Supabase has no rows for a level. After scraping, re-run `scripts/migrate_episodes_to_supabase.py` to push changes to Supabase. `episodes_checkpoint.json` is optional and is used only by the scraper/maintenance scripts for resume support.
 
 #### Important: Missing transcript paragraphs (leading text outside `<p>` tags)
 Squarespace sometimes renders parts of the transcript (especially the opening paragraph, or text immediately following an image block) as leading text nodes before the first `<p>` tag inside its containing layout block. Older runs of the scraper missed these paragraphs (and downstream UI would appear to skip them).
@@ -317,7 +323,7 @@ The script:
 - Downloads the original audio file.
 - Transcribes the audio using OpenAI's `whisper-1` model with segment-level timestamp granularities.
 - Uses sequence matching to align the Whisper segments back to the exact, original `hebrew_paragraphs` (without altering the original text).
-- Replaces the string paragraphs in `episodes.json` with timestamp objects: `{ text: "...", start: 0.0, end: 5.5 }`.
+- Replaces string paragraphs in `episodes.json` with timestamp objects: `{ text: "...", start: 0.0, end: 5.5 }`. When `scripts/lib/alignment.py` splits paragraphs into sentences, each paragraph object may also include a `sentences[]` array with per-sentence timings.
 
 *Legacy note: `sync_episode_1.py` defaults to intermediate Episode 1 and writes to `episodes.json`. Re-run migration after syncing if using Supabase.*
 
@@ -332,7 +338,14 @@ pip install -r requirements.txt
 python3 scripts/verify_gcp_tts.py
 ```
 
-Make sure `.env` has `OPENAI_API_KEY`, Supabase keys, `SUPABASE_AUDIO_BUCKET`, and `GOOGLE_APPLICATION_CREDENTIALS` pointing to a GCP service account JSON file.
+Make sure `.env` has `OPENAI_API_KEY`, Supabase keys, `SUPABASE_AUDIO_BUCKET`, and `GOOGLE_APPLICATION_CREDENTIALS` (or `GOOGLE_SERVICE_ACCOUNT_FILE`) pointing to a GCP service account JSON file.
+
+**GCP credentials checklist** (place the JSON in `secrets/gcp-service-account.json` locally — the `secrets/` directory is gitignored):
+1. Enable **Cloud Text-to-Speech API** and **Vertex AI API** on the GCP project.
+2. Grant the service account **Vertex AI User** (`roles/aiplatform.user`).
+3. Ensure billing is enabled on the project.
+4. Set `GOOGLE_APPLICATION_CREDENTIALS` to the full path of the JSON file.
+5. Verify access: `python3 scripts/verify_gcp_tts.py`
 
 #### Recommended workflow
 
@@ -399,7 +412,7 @@ Curriculum configs:
 - [`advanced_curriculum.json`](advanced_curriculum.json) (~20 B2 episodes, narrator persona Eitan, authentic advanced Hebrew).
 
 **Current generation stack:**
-- Script model: configured in each curriculum under `generation.openai_model`.
+- Script model: configured per curriculum under `generation.openai_model` (defaults: `gpt-5.5` for beginner/advanced, `gpt-5.4` for intermediate-2).
 - Override script model per run with `--script-model MODEL_NAME`; this only affects OpenAI script generation, not Gemini TTS.
 - Audio model: `gemini-3.1-flash-tts-preview`.
 - Voice: `Achernar`, `he-IL`.
@@ -454,10 +467,11 @@ python3 scripts/generate_episodes.py --level advanced --curriculum advanced_curr
 ```
 
 **Checkpoint behavior:**
-- `scripts/generated/{level}_scripts.json` is the durable script bank and should be reviewed before audio generation.
+- `scripts/generated/{level}_scripts.json` is the durable script bank and should be reviewed before audio generation. **Commit these files** — they are the source of truth for `--audio-only` runs.
 - `scripts/.checkpoints/{level}-01.json` stores the script, `alignment_method`, sentence timings, and audio duration.
 - `scripts/.checkpoints/{level}-01.mp3` stores synthesized audio. When both audio and timings exist, reruns reuse them unless `--force` is passed.
 - New direct-timed episodes should have `"alignment_method": "direct_sentence_tts"` in the checkpoint JSON.
+- Checkpoints are **local-only** (gitignored). Canonical runtime data lives in Supabase Storage (`episode-audio/{level}/{NN}.mp3`) and the `episodes` table. Safe to delete `scripts/.checkpoints/` locally after verifying uploads, but regeneration will re-run TTS.
 
 **Regeneration examples:**
 ```bash
@@ -609,35 +623,64 @@ WHERE email = 'your@email.com';
 
 ## File Structure Highlights
 
-- `/scraper.py` - Core scraping and paragraph translation logic.
+### Content pipeline
+
+- `/scraper.py` - Core scraping and paragraph translation logic for legacy intermediate episodes.
+- `/apply_scraping_patch.py` - Patches missing transcript paragraphs in `episodes.json`.
+- `/patch_audio.py` - Normalizes/fixes episode `audio_url` values in `episodes.json`.
 - `/scripts/sync_episode_1.py` - Whisper alignment (uses `scripts/lib/alignment.py`).
 - `/scripts/generate_episodes.py` - AI generated-level episode pipeline (OpenAI → sentence-level Gemini TTS timing → Supabase).
 - `/scripts/verify_gcp_tts.py` - Verifies GCP credentials, Vertex AI permissions, and Gemini 3.1 Flash TTS access.
 - `/scripts/migrate_episodes_to_supabase.py` - One-time `episodes.json` → Supabase migration.
+- `/scripts/lib/alignment.py` - Whisper paragraph/sentence alignment helpers.
+- `/scripts/generated/` - Durable script banks (`beginner_scripts.json`, `intermediate-2_scripts.json`, `advanced_scripts.json`). Commit these; used by `--audio-only` runs.
+- `/scripts/.checkpoints/` - Local pipeline cache (gitignored). Disposable after Supabase verification.
 - `/beginner_curriculum.json` - 20-episode beginner curriculum and TTS/narrator config.
-- `/intermediate_2_curriculum.json` - 20-episode generated Intermediate 2 curriculum and TTS/narrator config.
+- `/intermediate_2_curriculum.json` - 20-episode generated Intermediate 2 curriculum (`--level intermediate-2`).
 - `/advanced_curriculum.json` - 20-episode generated Advanced curriculum and TTS/narrator config.
-- `/docs/beginner-track/` - Implementation task specs for the beginner level track.
-- `/episodes.json` - Legacy intermediate dataset (migration source; app reads Supabase after migration).
-- `/src/app/api/episode/[level]/[id]/route.ts` - Level-aware episode JSON API (dynamic/no-store so regenerated episodes appear immediately).
-- `/src/app/api/episode-audio/[level]/[id]/route.ts` - Supabase Storage audio proxy using server-side service role auth.
-- `/src/app/api/levels/route.ts` - Available learning levels API.
-- `/supabase/beginner-track-migration.sql` - Levels, episodes tables, finished_episodes level migration.
+- `/episodes.json` - Legacy intermediate archive and migration source; local fallback when Supabase is empty.
+- `/requirements.txt` - Python dependencies for scraper and content pipeline.
+- `/docs/beginner-track/` - Implementation task specs for the multi-level content pipeline.
+
+### App source
+
 - `/src/app/page.tsx` - The main server-rendered entrypoint.
 - `/src/app/actions.ts` - Server actions for premium checks, admin premium management, `translateWord`, and `generateExamplePhrases` (OpenAI).
 - `/src/app/update-password/page.tsx` - Password reset callback (recovery redirect session via `getSession()`, then `updateUser()`).
+- `/src/app/api/episode/[level]/[id]/route.ts` - Level-aware episode JSON API (dynamic/no-store so regenerated episodes appear immediately).
+- `/src/app/api/episode-audio/[level]/[id]/route.ts` - Supabase Storage audio proxy using server-side service role auth.
+- `/src/app/api/levels/route.ts` - Available learning levels API (1-hour cache).
 - `/src/app/api/audio/route.ts` - Google Drive-only audio proxy with host allowlist (bypasses Drive streaming restrictions).
+- `/src/lib/episodes.ts` - Server-side episode loader (Supabase primary, `episodes.json` fallback).
+- `/src/lib/levelTracks.ts` - Level metadata builder (finished counts, resume episode, progress).
+- `/src/lib/episodeAudio.ts` - Routes audio URLs to the correct proxy endpoint.
 - `/src/lib/actionGuards.ts` - Input bounds and in-memory rate limiting for OpenAI server actions.
 - `/src/lib/allowedAudioHosts.ts` - HTTPS allowlist used by the audio proxy.
-- `/supabase/premium-rls-migration.sql` - Premium-aware RLS migration for existing Supabase projects.
-- `/patch_audio.py` - Normalizes/fixes episode `audio_url` values in `episodes.json`.
+- `/src/lib/fsrs.ts` - FSRS scheduler wrapper (ts-fsrs) for review intervals and retrievability stats.
+- `/src/lib/types.ts` - Shared TypeScript types including `VocabWord`, `ExamplePhrase`, and flashcard types.
+- `/src/components/LearningTrackSelector.tsx` - Level-switching dropdown with progress and resume.
 - `/src/components/MediaPlayer.tsx` - Custom bottom audio player with large-touch-target seek bar for mobile.
 - `/src/components/AdminPremiumModal.tsx` - Admin-only UI to grant/revoke premium by email.
 - `/src/components/OnboardingOverlay.tsx` - Full-screen first-login onboarding landing page with feature cards and CSS mockups.
 - `/src/components/ExamplePhrasesPanel.tsx` - Shared UI for AI-generated example phrase lists (Vocabulary + Flashcards).
-- `/src/lib/fsrs.ts` - FSRS scheduler wrapper (ts-fsrs) for review intervals and retrievability stats.
-- `/supabase/fsrs-migration.sql` - Adds FSRS columns to `flashcard_progress` for existing Supabase projects.
-- `/src/lib/types.ts` - Shared TypeScript types including `VocabWord`, `ExamplePhrase`, and flashcard types.
-- `/src/app/globals.css` - Entry point that imports modular stylesheets from `/src/app/styles/`.
-- `/src/app/styles/` - Split design system: `base.css`, `sidebar.css`, `layout.css`, `vocabulary.css`, `modals.css`, `media-player.css`, `flashcards.css`, `example-phrases.css`, `onboarding.css`, and related partials.
 - `/src/hooks/useOnboarding.ts` - First-login onboarding visibility and Supabase user-metadata persistence.
+- `/src/app/globals.css` - Entry point that imports modular stylesheets from `/src/app/styles/`.
+- `/src/app/styles/` - Split design system: `base.css`, `sidebar.css`, `layout.css`, `vocabulary.css`, `vocabulary-interactive.css`, `responsive.css`, `modals.css`, `media-player.css`, `flashcards.css`, `example-phrases.css`, `onboarding.css`, and related partials.
+
+### Database migrations
+
+- `/supabase/beginner-track-migration.sql` - Levels, episodes tables, finished_episodes level migration.
+- `/supabase/premium-rls-migration.sql` - Premium-aware RLS migration for existing Supabase projects.
+- `/supabase/fsrs-migration.sql` - Adds FSRS columns to `flashcard_progress` for existing Supabase projects.
+
+## Artifact Hygiene
+
+| Path | Commit to git? | Role |
+|------|----------------|------|
+| `*_curriculum.json` | Yes | Pipeline source config (narrator, TTS, episode outlines). |
+| `scripts/generated/*_scripts.json` | Yes | Reviewed script bank; input for `--audio-only` runs. |
+| `episodes.json` | Yes | Legacy intermediate archive and migration source. |
+| `scripts/.checkpoints/` | No (gitignored) | Local pipeline cache (MP3 + alignment JSON). Safe to delete after Supabase verification; regeneration re-runs TTS. |
+| `secrets/` | No (gitignored) | GCP service account JSON keys. |
+| `__pycache__/`, `*.pyc` | No (gitignored) | Python bytecode. |
+| `episodes.json.bak.*`, `episodes_checkpoint.json` | No (gitignored) | Scraper resume/backup artifacts. |
