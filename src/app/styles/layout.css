@@ -28,23 +28,34 @@
   border-bottom: 1px solid var(--border);
 }
 
-.subscription-prompt {
-  position: sticky;
-  top: 58px;
-  z-index: 35;
-  margin: var(--space-3) auto 0 auto;
-  width: calc(100% - var(--space-9));
-  max-width: 980px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-2xl);
-  background: var(--surface-glass-strong);
-  backdrop-filter: blur(var(--radius-lg));
-  box-shadow: var(--shadow-xl);
-  padding: var(--radius-2xl) var(--space-4);
+.subscription-prompt-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 850;
   display: flex;
   align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  background: var(--overlay-30);
+  backdrop-filter: blur(var(--radius-sm));
+  -webkit-backdrop-filter: blur(var(--radius-sm));
+  animation: fadeIn var(--dur-fast) ease-out;
+}
+
+.subscription-prompt {
+  position: relative;
+  width: min(100%, 520px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-3xl);
+  background: var(--surface-glass-strong);
+  backdrop-filter: blur(var(--radius-lg));
+  -webkit-backdrop-filter: blur(var(--radius-lg));
+  box-shadow: var(--shadow-2xl);
+  padding: var(--space-5);
+  display: grid;
+  grid-template-columns: auto 1fr;
   gap: var(--space-3);
-  animation: fadeIn var(--dur-base) ease-out;
+  animation: slideUp var(--dur-base) var(--ease-spring);
 }
 
 .subscription-prompt-icon {
@@ -62,9 +73,9 @@
 .subscription-prompt-copy {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-1);
   min-width: 0;
-  flex: 1;
+  padding-right: var(--space-8);
 }
 
 .subscription-prompt-title {
@@ -81,20 +92,48 @@
   line-height: var(--leading-normal);
 }
 
+.subscription-prompt-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
 .subscription-prompt-cta {
   background: var(--text-main);
   color: white;
   border: none;
-  border-radius: 9px;
-  padding: 9px var(--space-3);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
   font-size: var(--text-base);
   font-weight: var(--font-weight-semibold);
   cursor: pointer;
   transition: all var(--dur-base);
-  white-space: nowrap;
+  width: 100%;
+}
+
+.subscription-prompt-login {
+  width: 100%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-main);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: all var(--dur-base);
+}
+
+.subscription-prompt-login:hover {
+  background: var(--surface-hover);
+  border-color: var(--gray-400);
 }
 
 .subscription-prompt-close {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
   background: transparent;
   border: none;
   color: var(--text-muted);

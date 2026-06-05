@@ -4,24 +4,28 @@
 }
 
 @media (max-width: 800px) {
+  .subscription-prompt-overlay {
+    align-items: flex-end;
+    padding: var(--space-4);
+  }
+
   .subscription-prompt {
-    top: 56px;
-    width: calc(100% - var(--space-6));
-    margin-top: var(--radius-lg);
-    padding: var(--space-3);
-    gap: var(--radius-lg);
-    align-items: flex-start;
-    flex-wrap: wrap;
+    width: 100%;
+    padding: var(--space-4);
+    border-radius: var(--radius-3xl);
   }
+
   .subscription-prompt-copy {
-    min-width: 0;
-    width: calc(100% - 44px);
+    padding-right: var(--space-7);
   }
+
   .subscription-prompt-cta {
-    margin-left: 44px;
+    padding: var(--space-3) var(--space-4);
   }
+
   .subscription-prompt-close {
-    margin-left: auto;
+    top: var(--space-2);
+    right: var(--space-2);
   }
 
   .sidebar {

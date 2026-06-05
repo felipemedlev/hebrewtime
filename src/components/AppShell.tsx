@@ -55,6 +55,7 @@ export default function AppShell({
   } | null>(null);
   const [isEnglishBlurred, setIsEnglishBlurred] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authInitialMode, setAuthInitialMode] = useState<"login" | "signup">("login");
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [scrollPositions, setScrollPositions] = useState<Record<string, number>>({
     episodes: 0,
@@ -176,6 +177,7 @@ export default function AppShell({
     async (word: Omit<VocabWord, "id" | "savedAt">) => {
       const res = await addWord(word);
       if (res.type === "auth_required") {
+        setAuthInitialMode("login");
         setIsAuthModalOpen(true);
       } else {
         showToast(res.message);
@@ -224,6 +226,7 @@ export default function AppShell({
       );
 
       if (res.type === "auth_required") {
+        setAuthInitialMode("login");
         setIsAuthModalOpen(true);
         return { ok: false, message: "Please log in to generate examples." };
       }
@@ -258,6 +261,7 @@ export default function AppShell({
       );
 
       if (res.type === "auth_required") {
+        setAuthInitialMode("login");
         setIsAuthModalOpen(true);
         return { ok: false, message: "Please log in to regenerate examples." };
       }
@@ -420,7 +424,10 @@ export default function AppShell({
         onSelectEpisode={navigateToEpisode}
         onChangeViewMode={handleChangeViewMode}
         onClose={() => setIsSidebarOpen(false)}
-        onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        onOpenAuthModal={() => {
+          setAuthInitialMode("login");
+          setIsAuthModalOpen(true);
+        }}
         isPremium={entitlements.isPremium}
         isLoadingEntitlements={isLoadingEntitlements}
         isAdmin={entitlements.isAdmin}
@@ -462,7 +469,10 @@ export default function AppShell({
             {!user ? (
               <button
                 className="topnav-login-btn"
-                onClick={() => setIsAuthModalOpen(true)}
+                onClick={() => {
+                  setAuthInitialMode("login");
+                  setIsAuthModalOpen(true);
+                }}
               >
                 Log In
               </button>
@@ -483,27 +493,60 @@ export default function AppShell({
         </div>
 
         {subscriptionPrompt && (
-          <div className="subscription-prompt">
-            <div className="subscription-prompt-icon">
-              <Sparkles size={18} />
-            </div>
-            <div className="subscription-prompt-copy">
-              <p className="subscription-prompt-title">{subscriptionPrompt.title}</p>
-              <p className="subscription-prompt-description">{subscriptionPrompt.description}</p>
-            </div>
-            <button
-              className="subscription-prompt-cta"
-              onClick={() => setIsAuthModalOpen(true)}
+          <div
+            className="subscription-prompt-overlay"
+            role="presentation"
+            onClick={() => setSubscriptionPrompt(null)}
+          >
+            <div
+              className="subscription-prompt"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="subscription-prompt-title"
+              onClick={(event) => event.stopPropagation()}
             >
-              Start for $10/month
-            </button>
-            <button
-              className="subscription-prompt-close"
-              onClick={() => setSubscriptionPrompt(null)}
-              title="Dismiss"
-            >
-              <X size={16} />
-            </button>
+              <div className="subscription-prompt-icon">
+                <Sparkles size={18} />
+              </div>
+              <div className="subscription-prompt-copy">
+                <p id="subscription-prompt-title" className="subscription-prompt-title">
+                  {subscriptionPrompt.title}
+                </p>
+                <p className="subscription-prompt-description">{subscriptionPrompt.description}</p>
+              </div>
+              <div className="subscription-prompt-actions">
+                <button
+                  className="subscription-prompt-cta"
+                  onClick={() => {
+                    setSubscriptionPrompt(null);
+                    setAuthInitialMode("signup");
+                    setIsAuthModalOpen(true);
+                  }}
+                >
+                  Start for $10/month
+                </button>
+                {!user && (
+                  <button
+                    className="subscription-prompt-login"
+                    onClick={() => {
+                      setSubscriptionPrompt(null);
+                      setAuthInitialMode("login");
+                      setIsAuthModalOpen(true);
+                    }}
+                  >
+                    Already premium? Log in
+                  </button>
+                )}
+              </div>
+              <button
+                className="subscription-prompt-close"
+                onClick={() => setSubscriptionPrompt(null)}
+                title="Dismiss"
+                aria-label="Dismiss premium prompt"
+              >
+                <X size={16} />
+              </button>
+            </div>
           </div>
         )}
 
@@ -609,7 +652,10 @@ export default function AppShell({
               isPremium={entitlements.isPremium}
               isAuthenticated={entitlements.isAuthenticated}
               isLoadingEntitlements={isLoadingEntitlements}
-              onRequireAuth={() => setIsAuthModalOpen(true)}
+              onRequireAuth={() => {
+                setAuthInitialMode("login");
+                setIsAuthModalOpen(true);
+              }}
               onRequireSubscription={() => showSubscriptionPrompt("translation")}
               isEnglishBlurred={isEnglishBlurred}
               isFinished={episode ? isFinished(episode.level, episode.episode) : false}
@@ -633,7 +679,11 @@ export default function AppShell({
         isSidebarOpen={isSidebarOpen}
       />
 
-      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        initialMode={authInitialMode}
+        onClose={() => setIsAuthModalOpen(false)}
+      />
       <OnboardingOverlay
         isOpen={shouldShowOnboarding}
         onDismiss={dismissOnboarding}

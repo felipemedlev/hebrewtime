@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { X, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useModalAccessibility } from "@/hooks/useModalAccessibility";
@@ -8,9 +8,10 @@ import { useModalAccessibility } from "@/hooks/useModalAccessibility";
 type AuthModalProps = {
   isOpen: boolean;
   onClose: () => void;
+  initialMode?: "login" | "signup";
 };
 
-export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
+export default function AuthModal({ isOpen, onClose, initialMode = "login" }: AuthModalProps) {
   const [mode, setMode] = useState<"login" | "signup" | "reset">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -18,6 +19,14 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const { dialogRef, titleId } = useModalAccessibility(isOpen, onClose);
+
+  useEffect(() => {
+    if (isOpen) {
+      setMode(initialMode);
+      setErrorMsg("");
+      setSuccessMsg("");
+    }
+  }, [isOpen, initialMode]);
 
   if (!isOpen) return null;
 
