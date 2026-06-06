@@ -310,8 +310,13 @@ export default function AppShell({
       }
 
       setViewMode(mode);
+
+      // On mobile, close the sidebar after navigating so the content is visible
+      if (isMobile) {
+        setIsSidebarOpen(false);
+      }
     },
-    [entitlements.isPremium, isLoadingEntitlements, showSubscriptionPrompt, effectiveViewMode]
+    [entitlements.isPremium, isLoadingEntitlements, showSubscriptionPrompt, effectiveViewMode, isMobile]
   );
 
   useEffect(() => {

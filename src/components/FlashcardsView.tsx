@@ -269,7 +269,15 @@ export default function FlashcardsView({
               </div>
 
               {/* 3D Flip Card Container */}
-              <div className="flashcard-card-scene" key={currentIndex} onClick={handleFlip}>
+              <div
+                className="flashcard-card-scene"
+                key={currentIndex}
+                onClick={handleFlip}
+                role="button"
+                tabIndex={0}
+                aria-label={isFlipped ? "Flip card back" : "Flip card to see translation"}
+                onKeyDown={(e) => e.key === "Enter" || e.key === " " ? handleFlip() : undefined}
+              >
                 <div className={`flashcard-card-inner ${isFlipped ? "is-flipped" : ""}`}>
                   {/* Front Side (Hebrew word) */}
                   <div className="flashcard-card-front">
@@ -282,7 +290,7 @@ export default function FlashcardsView({
                         {sessionQueue[currentIndex].vocabWord.verbFormWithNekudot}
                       </span>
                     )}
-                    <p className="flashcard-hint-click">Click card to reveal translation</p>
+                    <p className="flashcard-hint-click">Tap to reveal translation</p>
                   </div>
 
                   {/* Back Side (Translation & Details) */}

@@ -59,6 +59,13 @@
     pointer-events: none;
   }
 
+  /* Keep the top nav (toggle bar) fully interactive when sidebar is open on mobile */
+  .app-container.mobile-sidebar-open .main-content .top-nav {
+    pointer-events: all;
+    position: relative;
+    z-index: 110;
+  }
+
   .close-mobile-btn {
     display: block;
   }

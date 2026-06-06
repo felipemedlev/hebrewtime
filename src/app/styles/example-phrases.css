@@ -99,6 +99,8 @@
   color: var(--text-muted);
   cursor: pointer;
   transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .example-phrase-regenerate-btn:hover:not(:disabled) {
@@ -127,6 +129,10 @@
   font-weight: var(--font-weight-medium);
   cursor: pointer;
   transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  /* Ensure sufficient tap target on mobile */
+  min-height: 44px;
 }
 
 .example-phrases-generate-btn:hover:not(:disabled) {
@@ -178,6 +184,9 @@
   font-weight: var(--font-weight-medium);
   cursor: pointer;
   transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 44px;
 }
 
 .flashcard-examples-toggle-btn:hover:not(:disabled),

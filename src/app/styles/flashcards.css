@@ -338,6 +338,10 @@
   height: 240px;
   perspective: 1000px;
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+  user-select: none;
 }
 
 .flashcard-card-inner {
@@ -430,12 +434,20 @@
   color: var(--text-muted);
   margin: 0;
   font-weight: var(--font-weight-normal);
-  opacity: 0;
+  opacity: 0.45;
   transition: opacity var(--dur-slow);
+  /* Always slightly visible, more on hover */
 }
 
 .flashcard-card-scene:hover .flashcard-hint-click {
   opacity: 0.6;
+}
+
+/* On touch devices, hide the hint entirely to avoid tap confusion */
+@media (hover: none) {
+  .flashcard-hint-click {
+    display: none;
+  }
 }
 
 /* Rating Buttons Section */
@@ -460,6 +472,8 @@
   cursor: pointer;
   transition: all var(--dur-base);
   box-shadow: 0 2px 8px var(--overlay-5);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .flashcard-reveal-btn:hover {
@@ -486,6 +500,8 @@
   background-color: var(--surface);
   transition: all var(--dur-base);
   box-shadow: 0 1px 2px var(--overlay-2);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .rating-btn-lbl {
@@ -617,6 +633,24 @@
   }
   .flashcard-rating-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Full-width tabs on small screens */
+  .vocab-filters-bar {
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .vocab-view-tabs {
+    width: 100%;
+    display: flex;
+    box-sizing: border-box;
+  }
+  .vocab-filter-btn {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .flashcard-card-scene {
     height: 200px;
