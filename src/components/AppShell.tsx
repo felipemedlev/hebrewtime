@@ -20,10 +20,10 @@ import { useFlashcards } from "@/hooks/useFlashcards";
 import { useUser } from "@/hooks/useUser";
 import { useEntitlements } from "@/hooks/useEntitlements";
 import { supabase } from "@/lib/supabase";
-import AdminPremiumModal from "./AdminPremiumModal";
 import OnboardingOverlay from "./OnboardingOverlay";
 import { useFinishedEpisodes } from "@/hooks/useFinishedEpisodes";
 import { useOnboarding } from "@/hooks/useOnboarding";
+import { useUsageTracking } from "@/hooks/useUsageTracking";
 import { generateExamplePhrases } from "@/app/actions";
 
 type AppShellProps = {
@@ -56,7 +56,6 @@ export default function AppShell({
   const [isEnglishBlurred, setIsEnglishBlurred] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authInitialMode, setAuthInitialMode] = useState<"login" | "signup">("login");
-  const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [scrollPositions, setScrollPositions] = useState<Record<string, number>>({
     episodes: 0,
     vocabulary: 0,
@@ -79,8 +78,9 @@ export default function AppShell({
   } = useFlashcards(vocabWords);
   const { user } = useUser();
   const { shouldShow: shouldShowOnboarding, dismiss: dismissOnboarding } = useOnboarding();
-  const { entitlements, isLoading: isLoadingEntitlements, refresh: refreshEntitlements } = useEntitlements();
+  const { entitlements, isLoading: isLoadingEntitlements } = useEntitlements();
   const { finishedEpisodes, isFinished, toggleFinished } = useFinishedEpisodes();
+  useUsageTracking();
 
   const levelEpisodes = episodeList.filter((ep) => ep.level === currentLevel);
 
@@ -431,7 +431,7 @@ export default function AppShell({
         isPremium={entitlements.isPremium}
         isLoadingEntitlements={isLoadingEntitlements}
         isAdmin={entitlements.isAdmin}
-        onOpenAdminModal={() => setIsAdminModalOpen(true)}
+        onOpenAdminModal={() => window.open("/admin", "_blank", "noopener,noreferrer")}
         finishedEpisodes={finishedEpisodes}
       />
 
@@ -688,13 +688,6 @@ export default function AppShell({
         isOpen={shouldShowOnboarding}
         onDismiss={dismissOnboarding}
         onGetStarted={dismissOnboarding}
-      />
-      <AdminPremiumModal
-        isOpen={isAdminModalOpen}
-        onClose={async () => {
-          setIsAdminModalOpen(false);
-          await refreshEntitlements();
-        }}
       />
     </div>
   );

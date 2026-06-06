@@ -109,3 +109,30 @@ export type FlashcardItem = {
   progress: FlashcardProgress | null;
 };
 
+export type AdminUserStat = {
+  userId: string;
+  email: string;
+  createdAt: string | null;
+  isPremium: boolean;
+  activeSeconds: number;
+  lastSeenAt: string | null;
+  episodesCompleted: number;
+  wordsSaved: number;
+  flashcardReviews: number;
+};
+
+export type AdminDashboardSummary = {
+  totalUsers: number;
+  premiumUsers: number;
+  totalActiveSeconds: number;
+  totalEpisodesCompleted: number;
+  totalWordsSaved: number;
+};
+
+export type AdminUserStatsResponse = {
+  ok: boolean;
+  message?: string;
+  summary?: AdminDashboardSummary;
+  users?: AdminUserStat[];
+};
+

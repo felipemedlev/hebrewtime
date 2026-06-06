@@ -37,7 +37,7 @@ The application allows Hebrew learners to read podcast transcripts and click on 
   - **Snappy Anki-Style Card Transitions**: Utilizes React's key diffing pattern (`key={currentIndex}`) to unmount the rated card and mount the new card instantly on its front face. This completely prevents visual flip-back anomalies or mid-flip text replacement lag.
   - **Optimistic background syncs**: Rating actions are handled in the background asynchronously, making card swaps instantaneous and non-blocking.
   - **Example Phrases During Review**: Before or after flipping a card, users can tap “Show examples” to reveal a panel below the card (outside the 3D flip area). On first use, phrases are AI-generated and cached; later sessions read them from the database with zero extra fetch. Each phrase has an unlimited per-slot regenerate button. The examples panel resets when advancing to the next card.
-- **Admin Premium Controls**: Admin users can grant/revoke premium access by email from an in-app admin modal. When premium access is granted, the system automatically sends a Supabase invite email to the user, allowing them to sign up and access their premium features immediately.
+- **Admin Dashboard & Premium Controls**: Admin users (`ADMIN_EMAILS`) can open a dedicated `/admin` dashboard in a new tab from the sidebar. The dashboard shows platform-wide stats (total users, premium users, active site time, episodes completed, words saved) and a searchable user table with per-user active time, last seen, episodes completed, words saved, flashcard reviews, and premium status. Admins can still grant/revoke premium access by email; granting premium automatically sends a Supabase invite email.
 - **First-Time Onboarding Landing Page**: After a user's first successful login, a full-screen onboarding overlay introduces the platform's core value proposition and main features (bilingual reading, click-to-translate, vocabulary/flashcards, audio-synced highlighting). Users can complete it via "Start reading" or dismiss it with "Skip for now". Once completed or skipped, onboarding never reappears on any device. Non-authenticated visitors never see it. Completion is persisted in Supabase user metadata (`user_metadata.onboarded`) — no database migration required.
 
 - **Precision Audio Player**: Persistent bottom audio player with a fully custom UI built on top of HTML5 `<audio>` for reliable cross-platform playback (supports Google Drive audio and Supabase Storage episode audio via server-side proxy routes). Key improvements for mobile:
@@ -79,6 +79,7 @@ Following a recent refactor, the app utilizes Next.js Server Components and dyna
   - `TranslationModal.tsx`: The AI translation popup.
   - `AuthModal.tsx`: The Supabase authentication UI for login, sign up, and password recovery.
   - `OnboardingOverlay.tsx`: Full-screen first-login landing page with hero, feature cards, and CSS mockups of core app capabilities.
+  - `AdminDashboard.tsx`: Admin-only `/admin` dashboard with usage stats, searchable user list, and premium grant/revoke controls.
 - **Custom Hooks (`src/hooks/`)**:
   - `useVocabulary.ts`: Manages syncing vocabulary (including `example_phrases`) to Supabase based on the user's login state.
   - `useFlashcards.ts`: Tracks reviews and schedules next card review times via FSRS (`src/lib/fsrs.ts`), syncing flashcard progress state with Supabase.
@@ -86,6 +87,7 @@ Following a recent refactor, the app utilizes Next.js Server Components and dyna
   - `useUser.ts`: Subscribes to Supabase auth events to track logged-in users.
   - `useOnboarding.ts`: Derives whether to show the first-login onboarding overlay from `user.user_metadata.onboarded` and persists dismissal via `supabase.auth.updateUser({ data: { onboarded: true } })`.
   - `useFinishedEpisodes.ts`: Manages per-level finished state in local storage and syncs to Supabase `finished_episodes` (with `level_slug`) for authenticated users. Migrates legacy numeric-only localStorage entries to `intermediate:{episode}` keys.
+  - `useUsageTracking.ts`: Tracks authenticated active site time (visible tab + recent interaction) and syncs daily rollups to Supabase for the admin dashboard.
 
 ## Setup & Local Development
 
@@ -109,7 +111,7 @@ Notes:
 - `GOOGLE_APPLICATION_CREDENTIALS` (or `GOOGLE_SERVICE_ACCOUNT_FILE`) must point to a GCP service account JSON key. Gemini TTS does **not** accept API keys — OAuth2 only. A common local path is `secrets/gcp-service-account.json` (the `secrets/` directory is gitignored; see setup checklist below).
 - Enable **Cloud Text-to-Speech API** and **Vertex AI API** on the GCP project; grant the service account **`roles/aiplatform.user`** (includes `aiplatform.endpoints.predict` required by Gemini TTS).
 - `SUPABASE_AUDIO_BUCKET` defaults to `episode-audio` if unset.
-- `ADMIN_EMAILS` is a comma-separated list of emails allowed to open the in-app Premium Users admin modal.
+- `ADMIN_EMAILS` is a comma-separated list of emails allowed to open the `/admin` dashboard and manage premium users.
 
 ### 2. Supabase Database Setup
 
@@ -228,6 +230,8 @@ If you created the database before premium-aware RLS was added, run the full mig
 
 If you created `flashcard_progress` before FSRS columns were added, run [`supabase/fsrs-migration.sql`](supabase/fsrs-migration.sql) in the Supabase SQL Editor. Existing SM-2 rows are migrated automatically on the next review in the app.
 
+**Admin usage tracking:** To enable active site-time stats in the admin dashboard, run [`supabase/admin-usage-stats-migration.sql`](supabase/admin-usage-stats-migration.sql). This creates `user_activity_daily` and the `increment_user_activity()` RPC used by server actions. Active time is recorded only for authenticated users while the tab is visible and the user has interacted recently; stats appear in `/admin` after users browse the app post-migration.
+
 **Multi-level episodes:** If you have not already run it, apply [`supabase/beginner-track-migration.sql`](supabase/beginner-track-migration.sql). Then migrate legacy intermediate content:
 
 ```bash
@@ -265,7 +269,7 @@ EXECUTE FUNCTION public.set_updated_at();
 - **Authenticated non-premium users**: can read episodes, but translation, vocabulary, flashcards, and example-phrase generation are blocked.
 - **Blocked action UX**: when non-premium users try to open Vocabulary, open Flashcards, or translate a word, they see a sticky top-of-screen subscription panel advertising **$10/month** and can open auth/signup from the CTA.
 - **Premium users**: can translate words, generate example phrases (OpenAI usage), and access vocabulary and flashcards normally.
-- **Admin users** (`ADMIN_EMAILS`): automatically get premium access in server actions and the UI, and they can open the admin modal to grant/revoke premium access for other users by email. Granting premium access automatically triggers a Supabase invite email to the recipient. Admin accounts also need a row in `premium_users` to pass database RLS for vocabulary/flashcard writes.
+- **Admin users** (`ADMIN_EMAILS`): automatically get premium access in server actions and the UI, and they can open the `/admin` dashboard (new tab from the sidebar) to view user stats and grant/revoke premium access for other users by email. Granting premium access automatically triggers a Supabase invite email to the recipient. Admin accounts also need a row in `premium_users` to pass database RLS for vocabulary/flashcard writes.
 
 **Security notes:**
 - OpenAI server actions (`translateWord`, `generateExamplePhrases`) enforce auth/premium checks, per-user rate limits, and input length bounds in `src/lib/actionGuards.ts`.
@@ -645,6 +649,7 @@ WHERE email = 'your@email.com';
 ### App source
 
 - `/src/app/page.tsx` - The main server-rendered entrypoint.
+- `/src/app/admin/page.tsx` - Admin dashboard route (`/admin`) for usage stats and premium management.
 - `/src/app/actions.ts` - Server actions for premium checks, admin premium management, `translateWord`, and `generateExamplePhrases` (OpenAI).
 - `/src/app/update-password/page.tsx` - Password reset callback (recovery redirect session via `getSession()`, then `updateUser()`).
 - `/src/app/api/episode/[level]/[id]/route.ts` - Level-aware episode JSON API (dynamic/no-store so regenerated episodes appear immediately).
@@ -660,18 +665,20 @@ WHERE email = 'your@email.com';
 - `/src/lib/types.ts` - Shared TypeScript types including `VocabWord`, `ExamplePhrase`, and flashcard types.
 - `/src/components/LearningTrackSelector.tsx` - Level-switching dropdown with progress and resume.
 - `/src/components/MediaPlayer.tsx` - Custom bottom audio player with large-touch-target seek bar for mobile.
-- `/src/components/AdminPremiumModal.tsx` - Admin-only UI to grant/revoke premium by email.
+- `/src/components/AdminDashboard.tsx` - Admin-only dashboard UI for usage stats and premium grant/revoke.
 - `/src/components/OnboardingOverlay.tsx` - Full-screen first-login onboarding landing page with feature cards and CSS mockups.
 - `/src/components/ExamplePhrasesPanel.tsx` - Shared UI for AI-generated example phrase lists (Vocabulary + Flashcards).
 - `/src/hooks/useOnboarding.ts` - First-login onboarding visibility and Supabase user-metadata persistence.
+- `/src/hooks/useUsageTracking.ts` - Active site-time tracking for authenticated users.
 - `/src/app/globals.css` - Entry point that imports modular stylesheets from `/src/app/styles/`.
-- `/src/app/styles/` - Split design system: `base.css`, `sidebar.css`, `layout.css`, `vocabulary.css`, `vocabulary-interactive.css`, `responsive.css`, `modals.css`, `media-player.css`, `flashcards.css`, `example-phrases.css`, `onboarding.css`, and related partials.
+- `/src/app/styles/` - Split design system: `base.css`, `sidebar.css`, `layout.css`, `vocabulary.css`, `vocabulary-interactive.css`, `responsive.css`, `modals.css`, `media-player.css`, `flashcards.css`, `example-phrases.css`, `onboarding.css`, `admin.css`, and related partials.
 
 ### Database migrations
 
 - `/supabase/beginner-track-migration.sql` - Levels, episodes tables, finished_episodes level migration.
 - `/supabase/premium-rls-migration.sql` - Premium-aware RLS migration for existing Supabase projects.
 - `/supabase/fsrs-migration.sql` - Adds FSRS columns to `flashcard_progress` for existing Supabase projects.
+- `/supabase/admin-usage-stats-migration.sql` - Adds `user_activity_daily` and `increment_user_activity()` for admin usage stats.
 
 ## Artifact Hygiene
 

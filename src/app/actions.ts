@@ -1,6 +1,6 @@
 "use server";
 import { createClient } from "@supabase/supabase-js";
-import type { ExamplePhrase } from "@/lib/types";
+import type { AdminDashboardSummary, AdminUserStat, AdminUserStatsResponse, ExamplePhrase } from "@/lib/types";
 import {
   checkRateLimit,
   clampString,
@@ -178,6 +178,179 @@ export async function setPremiumStatus(
 
   return { ok: true, message: `Granted premium access to ${normalized}.` };
 
+}
+
+type AuthUserRow = {
+  id: string;
+  email?: string | null;
+  created_at?: string;
+};
+
+async function listAllAuthUsers(): Promise<AuthUserRow[]> {
+  if (!supabaseAdmin) return [];
+
+  const users: AuthUserRow[] = [];
+  let page = 1;
+  const perPage = 1000;
+
+  while (true) {
+    const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
+    if (error) {
+      console.error("Failed to list auth users:", error);
+      break;
+    }
+
+    const batch = data.users ?? [];
+    users.push(
+      ...batch.map((user) => ({
+        id: user.id,
+        email: user.email,
+        created_at: user.created_at,
+      }))
+    );
+
+    if (batch.length < perPage) break;
+    page += 1;
+  }
+
+  return users;
+}
+
+async function fetchServiceRows<T>(path: string): Promise<T[]> {
+  if (!supabaseUrl || !supabaseServiceRoleKey) return [];
+  const res = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
+    method: "GET",
+    headers: getAuthHeaders(undefined, true),
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    console.error(`Failed to fetch ${path}:`, await res.text());
+    return [];
+  }
+  return (await res.json()) as T[];
+}
+
+function countByUserId<T extends { user_id: string }>(rows: T[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    counts.set(row.user_id, (counts.get(row.user_id) ?? 0) + 1);
+  }
+  return counts;
+}
+
+export async function recordUserActivity(
+  accessToken: string | undefined,
+  activeSeconds: number
+): Promise<{ ok: boolean }> {
+  const user = accessToken ? await getUserFromToken(accessToken) : null;
+  if (!user?.id || !supabaseUrl || !supabaseServiceRoleKey) {
+    return { ok: false };
+  }
+
+  const seconds = Math.min(Math.max(0, Math.floor(activeSeconds)), 300);
+  if (seconds <= 0) return { ok: true };
+
+  const res = await fetch(`${supabaseUrl}/rest/v1/rpc/increment_user_activity`, {
+    method: "POST",
+    headers: getAuthHeaders(undefined, true),
+    body: JSON.stringify({
+      p_user_id: user.id,
+      p_active_seconds: seconds,
+    }),
+  });
+
+  if (!res.ok) {
+    console.error("Failed to record user activity:", await res.text());
+    return { ok: false };
+  }
+
+  return { ok: true };
+}
+
+export async function listAdminUserStats(
+  accessToken?: string
+): Promise<AdminUserStatsResponse> {
+  const ent = await getUserEntitlements(accessToken);
+  if (!ent.isAdmin) {
+    return { ok: false, message: "Only admins can view dashboard stats." };
+  }
+  if (!supabaseUrl || !supabaseServiceRoleKey || !supabaseAdmin) {
+    return { ok: false, message: "Missing Supabase service role configuration." };
+  }
+
+  const [authUsers, premiumRows, vocabularyRows, finishedRows, activityRows, flashcardRows] =
+    await Promise.all([
+      listAllAuthUsers(),
+      fetchServiceRows<{ email: string; is_premium: boolean }>(
+        "premium_users?select=email,is_premium"
+      ),
+      fetchServiceRows<{ user_id: string }>("vocabulary?select=user_id"),
+      fetchServiceRows<{ user_id: string }>("finished_episodes?select=user_id"),
+      fetchServiceRows<{ user_id: string; active_seconds: number; last_seen_at: string }>(
+        "user_activity_daily?select=user_id,active_seconds,last_seen_at"
+      ),
+      fetchServiceRows<{ user_id: string; last_reviewed_at: string | null }>(
+        "flashcard_progress?select=user_id,last_reviewed_at"
+      ),
+    ]);
+
+  const premiumEmails = new Set(
+    premiumRows.filter((row) => row.is_premium).map((row) => row.email.toLowerCase())
+  );
+  const vocabCounts = countByUserId(vocabularyRows);
+  const finishedCounts = countByUserId(finishedRows);
+
+  const activityTotals = new Map<string, { activeSeconds: number; lastSeenAt: string | null }>();
+  for (const row of activityRows) {
+    const current = activityTotals.get(row.user_id) ?? { activeSeconds: 0, lastSeenAt: null };
+    current.activeSeconds += row.active_seconds ?? 0;
+    if (!current.lastSeenAt || row.last_seen_at > current.lastSeenAt) {
+      current.lastSeenAt = row.last_seen_at;
+    }
+    activityTotals.set(row.user_id, current);
+  }
+
+  const flashcardReviewCounts = new Map<string, number>();
+  for (const row of flashcardRows) {
+    if (!row.last_reviewed_at) continue;
+    flashcardReviewCounts.set(
+      row.user_id,
+      (flashcardReviewCounts.get(row.user_id) ?? 0) + 1
+    );
+  }
+
+  const users: AdminUserStat[] = authUsers
+    .filter((user) => user.email)
+    .map((user) => {
+      const email = user.email!.toLowerCase();
+      const activity = activityTotals.get(user.id);
+      return {
+        userId: user.id,
+        email,
+        createdAt: user.created_at ?? null,
+        isPremium: premiumEmails.has(email),
+        activeSeconds: activity?.activeSeconds ?? 0,
+        lastSeenAt: activity?.lastSeenAt ?? null,
+        episodesCompleted: finishedCounts.get(user.id) ?? 0,
+        wordsSaved: vocabCounts.get(user.id) ?? 0,
+        flashcardReviews: flashcardReviewCounts.get(user.id) ?? 0,
+      };
+    })
+    .sort((a, b) => {
+      const aSeen = a.lastSeenAt ?? a.createdAt ?? "";
+      const bSeen = b.lastSeenAt ?? b.createdAt ?? "";
+      return bSeen.localeCompare(aSeen);
+    });
+
+  const summary: AdminDashboardSummary = {
+    totalUsers: users.length,
+    premiumUsers: users.filter((user) => user.isPremium).length,
+    totalActiveSeconds: users.reduce((sum, user) => sum + user.activeSeconds, 0),
+    totalEpisodesCompleted: users.reduce((sum, user) => sum + user.episodesCompleted, 0),
+    totalWordsSaved: users.reduce((sum, user) => sum + user.wordsSaved, 0),
+  };
+
+  return { ok: true, summary, users };
 }
 
 export async function translateWord(
