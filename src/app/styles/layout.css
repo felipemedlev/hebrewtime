@@ -205,6 +205,17 @@
   gap: var(--space-4);
 }
 
+/* Top-nav: on mobile hide the email to save space */
+@media (max-width: 600px) {
+  .topnav-email {
+    display: none;
+  }
+  .main-content {
+    /* Reduce bottom padding on mobile — 200px is too much for small screens */
+    padding-bottom: 120px;
+  }
+}
+
 .topnav-login-btn {
   background: var(--text-main);
   color: var(--color-white);

@@ -223,6 +223,6 @@
   .flashcard-examples-toggle-btn,
   .flashcard-reveal-btn {
     width: 100%;
-    max-width: 320px;
+    max-width: 100%;
   }
 }

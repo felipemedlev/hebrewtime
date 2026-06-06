@@ -88,14 +88,19 @@
     pointer-events: none;
   }
 
+  /* Tighter top-nav on mobile */
+  .top-nav {
+    padding: var(--space-2) var(--space-4);
+  }
+
   .main-header {
-    padding: var(--space-5) var(--content-padding-x-mobile) var(--radius-lg) var(--content-padding-x-mobile);
+    padding: var(--space-5) var(--space-4) var(--radius-lg) var(--space-4);
   }
   .content-grid {
-    padding: var(--radius-lg) var(--content-padding-x-mobile) var(--content-padding-y-mobile) var(--content-padding-x-mobile);
+    padding: var(--radius-lg) var(--space-4) var(--content-padding-y-mobile) var(--space-4);
   }
   .vocab-grid {
-    padding: var(--radius-lg) var(--content-padding-x-mobile) var(--content-padding-y-mobile) var(--content-padding-x-mobile);
+    padding: var(--radius-lg) var(--space-4) var(--content-padding-y-mobile) var(--space-4);
     grid-template-columns: 1fr;
   }
   .main-title {
@@ -129,18 +134,21 @@
     padding: var(--radius-2xl) var(--space-4);
   }
 
+  /* Vocabulary: tight padding so content fills screen */
   .vocab-page-header {
-    padding: var(--space-6) var(--space-5) var(--space-4) var(--space-5);
+    padding: var(--space-5) var(--space-4) var(--space-4) var(--space-4);
+    max-width: 100%;
   }
   .vocab-table-wrap {
-    padding: 0 var(--space-5) var(--content-padding-y-mobile) var(--space-5);
+    padding: 0 var(--space-4) var(--content-padding-y-mobile) var(--space-4);
+    max-width: 100%;
   }
   .vocab-table { display: none; }
   .vocab-cards {
     display: block;
     border: 1px solid var(--border);
     border-radius: var(--radius-2xl);
-    padding: var(--space-4) var(--space-5);
+    padding: var(--space-4) var(--space-4);
     background: var(--surface);
   }
   .vocab-page-title {
