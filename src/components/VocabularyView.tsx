@@ -212,12 +212,6 @@ export default function VocabularyView({
               <p className="vocab-empty-title">Sign in to save words</p>
               <p className="vocab-empty-sub">Click any Hebrew word while reading to translate &amp; save it.</p>
             </>
-          ) : !isPremium ? (
-            <>
-              <div className="vocab-empty-icon"><Bookmark size={22} strokeWidth={1.5} /></div>
-              <p className="vocab-empty-title">Premium feature</p>
-              <p className="vocab-empty-sub">Ask an admin to unlock vocabulary access for your account.</p>
-            </>
           ) : (
             <>
               <div className="vocab-empty-icon"><Bookmark size={22} strokeWidth={1.5} /></div>

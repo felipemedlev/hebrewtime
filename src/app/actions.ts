@@ -367,13 +367,31 @@ export async function translateWord(
   if (!ent.isAuthenticated) {
     return { translation: "Please log in to translate words.", wordWithNekudot: safeWord, type: "auth_required" };
   }
-  if (!ent.isPremium) {
-    return { translation: "Premium subscription required for translations.", wordWithNekudot: safeWord, type: "premium_required" };
-  }
 
   const user = await getUserFromToken(accessToken!);
   if (!user?.id || !checkRateLimit(user.id, "translateWord")) {
     return { translation: "Too many requests. Please wait a moment.", wordWithNekudot: safeWord, type: "error" };
+  }
+
+  if (!ent.isPremium) {
+    if (!supabaseAdmin) {
+      return { translation: "Translation database error.", wordWithNekudot: safeWord, type: "error" };
+    }
+    const dateStr = new Date().toISOString().split("T")[0];
+    const { data: activityData, error: activityError } = await supabaseAdmin
+      .from("user_activity_daily")
+      .select("translations_count")
+      .eq("user_id", user.id)
+      .eq("activity_date", dateStr)
+      .maybeSingle();
+
+    if (activityError) {
+      console.error("Failed to check daily translations:", activityError);
+    }
+    const translationsToday = activityData?.translations_count ?? 0;
+    if (translationsToday >= 30) {
+      return { translation: "Daily translation limit reached.", wordWithNekudot: safeWord, type: "limit_reached" };
+    }
   }
 
   if (!safeWord) {
@@ -449,6 +467,18 @@ Return a JSON object with exactly four keys:
 
     const data = await res.json();
     const result = JSON.parse(data.choices[0].message.content.trim());
+
+    if (!ent.isPremium && supabaseAdmin && user?.id) {
+      const dateStr = new Date().toISOString().split("T")[0];
+      const { error: incError } = await supabaseAdmin.rpc("increment_translations_count", {
+        p_user_id: user.id,
+        p_date: dateStr,
+      });
+      if (incError) {
+        console.error("Failed to increment translation count:", incError);
+      }
+    }
+
     return {
       lemmaWord: result.lemmaWord || safeWord,
       translation: result.translation || "Translation error",
@@ -487,13 +517,31 @@ export async function generateExamplePhrases(
   if (!ent.isAuthenticated) {
     return { phrases: [], type: "auth_required" as const };
   }
-  if (!ent.isPremium) {
-    return { phrases: [], type: "premium_required" as const };
-  }
 
   const user = await getUserFromToken(accessToken!);
   if (!user?.id || !checkRateLimit(user.id, "generateExamplePhrases")) {
     return { phrases: [], type: "error" as const };
+  }
+
+  if (!ent.isPremium) {
+    if (!supabaseAdmin) {
+      return { phrases: [], type: "error" as const };
+    }
+    const dateStr = new Date().toISOString().split("T")[0];
+    const { data: activityData, error: activityError } = await supabaseAdmin
+      .from("user_activity_daily")
+      .select("ai_examples_count")
+      .eq("user_id", user.id)
+      .eq("activity_date", dateStr)
+      .maybeSingle();
+
+    if (activityError) {
+      console.error("Failed to check daily AI examples:", activityError);
+    }
+    const examplesToday = activityData?.ai_examples_count ?? 0;
+    if (examplesToday >= 5) {
+      return { phrases: [], type: "limit_reached" as const };
+    }
   }
 
   if (!safeWord || !safeTranslation) {
@@ -563,6 +611,17 @@ Return a JSON object with exactly one key "phrases" containing an array of ${saf
         hebrew: p.hebrew.trim(),
         english: p.english.trim(),
       }));
+
+    if (!ent.isPremium && supabaseAdmin && user?.id) {
+      const dateStr = new Date().toISOString().split("T")[0];
+      const { error: incError } = await supabaseAdmin.rpc("increment_examples_count", {
+        p_user_id: user.id,
+        p_date: dateStr,
+      });
+      if (incError) {
+        console.error("Failed to increment AI examples count:", incError);
+      }
+    }
 
     return { phrases, type: "success" as const };
   } catch (err) {

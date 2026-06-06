@@ -197,7 +197,7 @@ export default function OnboardingOverlay({
             <ArrowRight size={16} />
           </button>
           <p className="onboarding-footer-note">
-            Premium features available from $10/month · Free to read
+            Start free · Upgrade to Premium for $9.99/month
           </p>
         </footer>
       </div>

@@ -5,7 +5,7 @@ import type { VocabWord } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "./useUser";
 
-export function useVocabulary() {
+export function useVocabulary(isPremium = false) {
   const [vocabWords, setVocabWords] = useState<VocabWord[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const { user } = useUser();
@@ -46,9 +46,17 @@ export function useVocabulary() {
   }, [user]);
 
   const addWord = useCallback(
-    async (word: Omit<VocabWord, "id" | "savedAt">): Promise<{ added: boolean; message: string; type?: "auth_required" | "duplicate" | "success" | "error" }> => {
+    async (word: Omit<VocabWord, "id" | "savedAt">): Promise<{ added: boolean; message: string; type?: "auth_required" | "duplicate" | "success" | "error" | "limit_reached" }> => {
       if (!user) {
         return { added: false, message: "Please log in to save vocabulary.", type: "auth_required" };
+      }
+
+      if (!isPremium && vocabWords.length >= 100) {
+        return {
+          added: false,
+          message: "You've learned your first 100 words. Upgrade to continue building your Hebrew vocabulary.",
+          type: "limit_reached",
+        };
       }
 
       // Check for exact duplicate locally. We allow the same word if the translation or the Nekudot are different.

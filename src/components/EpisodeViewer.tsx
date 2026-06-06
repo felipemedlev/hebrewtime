@@ -232,10 +232,6 @@ export default function EpisodeViewer({
       onRequireSubscription();
       return;
     }
-    if (!isPremium) {
-      onRequireSubscription();
-      return;
-    }
 
     const cleanWord = word.replace(
       /^[.,;:!?(){}\[\]"'\-]+|[.,;:!?(){}\[\]"'\-]+$/g,
@@ -260,7 +256,14 @@ export default function EpisodeViewer({
       const accessToken = data.session?.access_token;
       const res = await translateWord(accessToken, cleanWord, hebContext, engContext || "");
       if (res.type === "auth_required") {
+        setModal((prev) => ({ ...prev, isOpen: false }));
         onRequireAuth();
+        return;
+      }
+      if (res.type === "limit_reached") {
+        setModal((prev) => ({ ...prev, isOpen: false }));
+        onRequireSubscription();
+        return;
       }
       setModal((prev) => ({
         ...prev,

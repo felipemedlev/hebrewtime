@@ -46,6 +46,8 @@ type FlashcardsViewProps = {
   startSignal?: number;
   generateExamples: (word: VocabWord) => Promise<{ ok: boolean; message?: string }>;
   regenerateExample: (word: VocabWord, index: number) => Promise<{ ok: boolean; message?: string }>;
+  isPremium?: boolean;
+  onRequireSubscription?: () => void;
 };
 
 export default function FlashcardsView({
@@ -59,6 +61,8 @@ export default function FlashcardsView({
   startSignal = 0,
   generateExamples,
   regenerateExample,
+  isPremium = false,
+  onRequireSubscription,
 }: FlashcardsViewProps) {
   const [sessionActive, setSessionActive] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -391,7 +395,27 @@ export default function FlashcardsView({
             </div>
           ) : (
             <div className="flashcard-start-screen">
-              {stats.due > 0 ? (
+              {stats.due > 0 && !isPremium && stats.reviewedToday > 0 ? (
+                /* Free user who already did a session today */
+                <>
+                  <div className="flashcard-illustration-circle fc-session-done">
+                    <Sparkles size={28} />
+                  </div>
+                  <h2>Today&rsquo;s session complete!</h2>
+                  <p>
+                    You&rsquo;ve completed your free review session for today. Come back tomorrow to keep your streak going!
+                  </p>
+                  <p style={{ fontSize: "13px", color: "var(--text-muted)", marginTop: "4px" }}>
+                    Upgrade to Premium for unlimited daily review sessions.
+                  </p>
+                  <button
+                    className="flashcard-start-btn fc-upgrade-btn"
+                    onClick={onRequireSubscription}
+                  >
+                    <Sparkles size={15} /> Upgrade to Premium ($9.99)
+                  </button>
+                </>
+              ) : stats.due > 0 ? (
                 <>
                   <div className="flashcard-illustration-circle">
                     <Brain size={28} />

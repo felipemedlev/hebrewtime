@@ -10,7 +10,6 @@ import {
   LogIn,
   CheckCircle,
   Brain,
-  Lock,
   Play,
   GraduationCap,
   Clock,
@@ -133,8 +132,6 @@ export default function Sidebar({
     onChangeLevel(level);
   };
 
-  const isLocked = !isPremium && !isLoadingEntitlements;
-
   const startReview = () => {
     if (onStartReview) {
       onStartReview();
@@ -176,9 +173,8 @@ export default function Sidebar({
               Episodes
             </button>
             <button
-              className={`tab-btn ${viewMode === "vocabulary" ? "active" : ""} ${isLocked ? "locked" : ""}`}
+              className={`tab-btn ${viewMode === "vocabulary" ? "active" : ""}`}
               onClick={() => onChangeViewMode("vocabulary")}
-              title={isLocked ? "Join subscription to unlock vocabulary" : undefined}
               role="tab"
               aria-selected={viewMode === "vocabulary"}
               id="sidebar-tab-vocabulary"
@@ -186,12 +182,10 @@ export default function Sidebar({
             >
               <Bookmark size={14} />
               Vocab
-              {isLocked && <Lock size={11} className="tab-lock-icon" aria-label="Premium" />}
             </button>
             <button
-              className={`tab-btn ${viewMode === "flashcards" ? "active" : ""} ${isLocked ? "locked" : ""}`}
+              className={`tab-btn ${viewMode === "flashcards" ? "active" : ""}`}
               onClick={() => onChangeViewMode("flashcards")}
-              title={isLocked ? "Join subscription to unlock flashcards" : undefined}
               role="tab"
               aria-selected={viewMode === "flashcards"}
               id="sidebar-tab-flashcards"
@@ -199,7 +193,6 @@ export default function Sidebar({
             >
               <Brain size={14} />
               Review
-              {isLocked && <Lock size={11} className="tab-lock-icon" aria-label="Premium" />}
             </button>
           </div>
 

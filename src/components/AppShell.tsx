@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { PanelLeftClose, PanelLeft, BookOpen, Sparkles, X, Eye, EyeOff, RotateCcw, ListTree } from "lucide-react";
+import { PanelLeftClose, PanelLeft, BookOpen, Sparkles, X, Eye, EyeOff, RotateCcw, ListTree, Check } from "lucide-react";
 import type { Episode, EpisodeListItem, Level, VocabWord } from "@/lib/types";
 import {
   buildLevelTrackMeta,
@@ -32,6 +32,28 @@ type AppShellProps = {
   episodeList: EpisodeListItem[];
   initialEpisode: Episode | null;
 };
+
+type SubscriptionPromptSource =
+  | "vocab_limit"
+  | "translation_limit"
+  | "example_limit"
+  | "flashcards";
+
+const FREE_TIER_FEATURES = [
+  "Read all podcast transcripts",
+  "30 AI translations per day",
+  "Save up to 100 vocabulary words",
+  "5 AI example phrases per day",
+  "1 flashcard review session per day",
+] as const;
+
+const PREMIUM_TIER_FEATURES = [
+  "Everything in Free",
+  "Unlimited AI translations",
+  "Unlimited vocabulary words",
+  "Unlimited AI example phrases",
+  "Unlimited flashcard review sessions",
+] as const;
 
 export default function AppShell({
   levels,
@@ -67,18 +89,18 @@ export default function AppShell({
   const [reviewStartSignal, setReviewStartSignal] = useState(0);
 
   const mainRef = useRef<HTMLElement>(null);
-  const { vocabWords, addWord, deleteWord, updateWord } = useVocabulary();
-  const { 
-    learnedCards, 
-    sessionQueue, 
-    isProgressLoaded, 
-    submitReview, 
-    unlearnWord, 
-    stats 
-  } = useFlashcards(vocabWords);
   const { user } = useUser();
-  const { shouldShow: shouldShowOnboarding, dismiss: dismissOnboarding } = useOnboarding();
   const { entitlements, isLoading: isLoadingEntitlements } = useEntitlements();
+  const { vocabWords, addWord, deleteWord, updateWord } = useVocabulary(entitlements.isPremium);
+  const {
+    learnedCards,
+    sessionQueue,
+    isProgressLoaded,
+    submitReview,
+    unlearnWord,
+    stats
+  } = useFlashcards(vocabWords);
+  const { shouldShow: shouldShowOnboarding, dismiss: dismissOnboarding } = useOnboarding();
   const { finishedEpisodes, isFinished, toggleFinished } = useFinishedEpisodes();
   useUsageTracking();
 
@@ -173,45 +195,52 @@ export default function AppShell({
     setTimeout(() => setToast(null), 2500);
   }, []);
 
+  const showSubscriptionPrompt = useCallback((source: SubscriptionPromptSource) => {
+    if (source === "vocab_limit") {
+      setSubscriptionPrompt({
+        title: "Vocabulary Limit Reached",
+        description:
+          "You've learned your first 100 words. Upgrade to continue building your Hebrew vocabulary.",
+      });
+      return;
+    }
+    if (source === "translation_limit") {
+      setSubscriptionPrompt({
+        title: "Translation Limit Reached",
+        description:
+          "You've used your 30 free translations for today. Upgrade to Premium for unlimited translations.",
+      });
+      return;
+    }
+    if (source === "example_limit") {
+      setSubscriptionPrompt({
+        title: "AI Example Limit Reached",
+        description:
+          "You've generated your 5 free AI examples for today. Upgrade to Premium for unlimited examples.",
+      });
+      return;
+    }
+    setSubscriptionPrompt({
+      title: "Daily Review Session Completed",
+      description:
+        "You've completed your 1 free flashcard review session for today! Upgrade to Premium to practice unlimited review sessions.",
+    });
+  }, []);
+
   const handleWordSaved = useCallback(
     async (word: Omit<VocabWord, "id" | "savedAt">) => {
       const res = await addWord(word);
       if (res.type === "auth_required") {
         setAuthInitialMode("login");
         setIsAuthModalOpen(true);
+      } else if (res.type === "limit_reached") {
+        showSubscriptionPrompt("vocab_limit");
       } else {
         showToast(res.message);
       }
       return res;
     },
-    [addWord, showToast]
-  );
-
-  const showSubscriptionPrompt = useCallback(
-    (source: "vocabulary" | "translation" | "flashcards") => {
-      if (source === "vocabulary") {
-        setSubscriptionPrompt({
-          title: "Unlock Vocabulary",
-          description:
-            "Join the subscription for $10/month to access your synced vocabulary list across devices.",
-        });
-        return;
-      }
-      if (source === "flashcards") {
-        setSubscriptionPrompt({
-          title: "Unlock Flashcards",
-          description:
-            "Join the subscription for $10/month to unlock the spaced repetition review system.",
-        });
-        return;
-      }
-      setSubscriptionPrompt({
-        title: "Unlock Word Tools",
-        description:
-          "Join the subscription for $10/month to translate words in context and save them to vocabulary.",
-      });
-    },
-    []
+    [addWord, showToast, showSubscriptionPrompt]
   );
 
   const generateExamples = useCallback(
@@ -230,9 +259,9 @@ export default function AppShell({
         setIsAuthModalOpen(true);
         return { ok: false, message: "Please log in to generate examples." };
       }
-      if (res.type === "premium_required") {
-        showSubscriptionPrompt("vocabulary");
-        return { ok: false, message: "Premium subscription required." };
+      if (res.type === "limit_reached") {
+        showSubscriptionPrompt("example_limit");
+        return { ok: false, message: "Daily AI example limit reached." };
       }
       if (res.type === "error" || res.phrases.length === 0) {
         return { ok: false, message: "Failed to generate examples. Please try again." };
@@ -265,9 +294,9 @@ export default function AppShell({
         setIsAuthModalOpen(true);
         return { ok: false, message: "Please log in to regenerate examples." };
       }
-      if (res.type === "premium_required") {
-        showSubscriptionPrompt("vocabulary");
-        return { ok: false, message: "Premium subscription required." };
+      if (res.type === "limit_reached") {
+        showSubscriptionPrompt("example_limit");
+        return { ok: false, message: "Daily AI example limit reached." };
       }
       if (res.type === "error" || res.phrases.length === 0) {
         return { ok: false, message: "Failed to regenerate example. Please try again." };
@@ -285,27 +314,13 @@ export default function AppShell({
     [updateWord, showSubscriptionPrompt]
   );
 
-  const effectiveViewMode =
-    (viewMode === "vocabulary" || viewMode === "flashcards") && !entitlements.isPremium && !isLoadingEntitlements 
-      ? "episodes" 
-      : viewMode;
-
   const handleChangeViewMode = useCallback(
     (mode: "episodes" | "vocabulary" | "flashcards") => {
-      if (mode === "vocabulary" && !entitlements.isPremium && !isLoadingEntitlements) {
-        showSubscriptionPrompt("vocabulary");
-        return;
-      }
-      if (mode === "flashcards" && !entitlements.isPremium && !isLoadingEntitlements) {
-        showSubscriptionPrompt("flashcards");
-        return;
-      }
-      
       if (mainRef.current) {
         const currentScroll = mainRef.current.scrollTop;
         setScrollPositions((prev: Record<string, number>) => ({
           ...prev,
-          [effectiveViewMode]: currentScroll
+          [viewMode]: currentScroll
         }));
       }
 
@@ -316,7 +331,7 @@ export default function AppShell({
         setIsSidebarOpen(false);
       }
     },
-    [entitlements.isPremium, isLoadingEntitlements, showSubscriptionPrompt, effectiveViewMode, isMobile]
+    [viewMode, isMobile]
   );
 
   useEffect(() => {
@@ -324,12 +339,12 @@ export default function AppShell({
       // Use a timeout to ensure the new view has rendered its content
       setTimeout(() => {
         if (mainRef.current) {
-          mainRef.current.scrollTop = scrollPositions[effectiveViewMode] || 0;
+          mainRef.current.scrollTop = scrollPositions[viewMode] || 0;
         }
       }, 10);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effectiveViewMode]);
+  }, [viewMode]);
 
   const navigateToEpisode = useCallback(
     async (level: string, num: number) => {
@@ -417,7 +432,7 @@ export default function AppShell({
         episodes={episodeList}
         currentLevel={currentLevel}
         currentEpNum={currentEpNum}
-        viewMode={effectiveViewMode}
+        viewMode={viewMode}
         vocabCount={vocabWords.length}
         dueFlashcardsCount={stats.due}
         flashcardStats={stats}
@@ -454,7 +469,7 @@ export default function AppShell({
             )}
           </button>
 
-          {effectiveViewMode === "episodes" && episode && (
+          {viewMode === "episodes" && episode && (
             <button
               className={`english-toggle-btn ${isEnglishBlurred ? "active" : ""}`}
               onClick={() => setIsEnglishBlurred((prev) => !prev)}
@@ -504,21 +519,68 @@ export default function AppShell({
             onClick={() => setSubscriptionPrompt(null)}
           >
             <div
-              className="subscription-prompt"
+              className="subscription-prompt subscription-prompt--comparison"
               role="dialog"
               aria-modal="true"
               aria-labelledby="subscription-prompt-title"
               onClick={(event) => event.stopPropagation()}
             >
-              <div className="subscription-prompt-icon">
-                <Sparkles size={18} />
+              <button
+                className="subscription-prompt-close"
+                onClick={() => setSubscriptionPrompt(null)}
+                title="Dismiss"
+                aria-label="Dismiss premium prompt"
+              >
+                <X size={16} />
+              </button>
+
+              <div className="subscription-prompt-header">
+                <div className="subscription-prompt-icon">
+                  <Sparkles size={18} />
+                </div>
+                <div className="subscription-prompt-copy">
+                  <p id="subscription-prompt-title" className="subscription-prompt-title">
+                    {subscriptionPrompt.title}
+                  </p>
+                  <p className="subscription-prompt-description">{subscriptionPrompt.description}</p>
+                </div>
               </div>
-              <div className="subscription-prompt-copy">
-                <p id="subscription-prompt-title" className="subscription-prompt-title">
-                  {subscriptionPrompt.title}
-                </p>
-                <p className="subscription-prompt-description">{subscriptionPrompt.description}</p>
+
+              <div className="tier-comparison">
+                <div className="tier-card tier-card--free">
+                  <div className="tier-card-header">
+                    <span className="tier-card-label">Free</span>
+                    <span className="tier-card-price">$0</span>
+                  </div>
+                  <ul className="tier-feature-list">
+                    {FREE_TIER_FEATURES.map((feature) => (
+                      <li key={feature}>
+                        <Check size={14} className="tier-feature-icon" aria-hidden="true" />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="tier-card tier-card--premium">
+                  <div className="tier-card-badge">Recommended</div>
+                  <div className="tier-card-header">
+                    <span className="tier-card-label">Premium</span>
+                    <span className="tier-card-price">
+                      $9.99<span className="tier-card-price-unit">/mo</span>
+                    </span>
+                  </div>
+                  <ul className="tier-feature-list">
+                    {PREMIUM_TIER_FEATURES.map((feature) => (
+                      <li key={feature}>
+                        <Check size={14} className="tier-feature-icon tier-feature-icon--premium" aria-hidden="true" />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
+
               <div className="subscription-prompt-actions">
                 <button
                   className="subscription-prompt-cta"
@@ -528,7 +590,7 @@ export default function AppShell({
                     setIsAuthModalOpen(true);
                   }}
                 >
-                  Start for $10/month
+                  Upgrade for $9.99/month
                 </button>
                 {!user && (
                   <button
@@ -543,19 +605,11 @@ export default function AppShell({
                   </button>
                 )}
               </div>
-              <button
-                className="subscription-prompt-close"
-                onClick={() => setSubscriptionPrompt(null)}
-                title="Dismiss"
-                aria-label="Dismiss premium prompt"
-              >
-                <X size={16} />
-              </button>
             </div>
           </div>
         )}
 
-        {effectiveViewMode === "vocabulary" ? (
+        {viewMode === "vocabulary" ? (
           <VocabularyView
             vocabWords={vocabWords}
             onDeleteWord={deleteWord}
@@ -567,7 +621,7 @@ export default function AppShell({
             generateExamples={generateExamples}
             regenerateExample={regenerateExample}
           />
-        ) : effectiveViewMode === "flashcards" ? (
+        ) : viewMode === "flashcards" ? (
           <FlashcardsView
             vocabWords={vocabWords}
             learnedCards={learnedCards}
@@ -579,6 +633,8 @@ export default function AppShell({
             startSignal={reviewStartSignal}
             generateExamples={generateExamples}
             regenerateExample={regenerateExample}
+            isPremium={entitlements.isPremium}
+            onRequireSubscription={() => showSubscriptionPrompt("flashcards")}
           />
         ) : isEpisodeLoading ? (
           <div className="empty-state">
@@ -661,7 +717,7 @@ export default function AppShell({
                 setAuthInitialMode("login");
                 setIsAuthModalOpen(true);
               }}
-              onRequireSubscription={() => showSubscriptionPrompt("translation")}
+              onRequireSubscription={() => showSubscriptionPrompt("translation_limit")}
               isEnglishBlurred={isEnglishBlurred}
               isFinished={episode ? isFinished(episode.level, episode.episode) : false}
               onToggleFinished={() => {
