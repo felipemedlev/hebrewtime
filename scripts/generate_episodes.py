@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate beginner (or other level) episodes: script -> TTS -> align -> upload -> DB."""
+"""Generate different levels episodes: script -> TTS -> align -> upload -> DB."""
 
 from __future__ import annotations
 
@@ -218,7 +218,7 @@ def upsert_script_in_bank(
     bank["episodes"].sort(key=lambda ep: int(ep["episode_number"]))
 
 
-def build_previous_episode_context(bank: dict, episode_number: int) -> str:
+def build_previous_episode_context(bank: dict, episode_number: int, narrator_name: str = "Narrator") -> str:
     previous = [
         ep for ep in bank.get("episodes", [])
         if int(ep.get("episode_number", 0)) < episode_number and ep.get("script")
@@ -228,7 +228,7 @@ def build_previous_episode_context(bank: dict, episode_number: int) -> str:
 
     recent = previous[-3:]
     lines = [
-        "Use these already-generated episodes as continuity context. Keep Noa's voice, avoid repeating the same anecdotes, and reuse useful vocabulary naturally."
+        f"Use these already-generated episodes as continuity context. Keep {narrator_name}'s voice, avoid repeating the same anecdotes, and reuse useful vocabulary naturally."
     ]
     for ep in recent:
         script = ep["script"]
@@ -300,8 +300,7 @@ def create_script_completion(
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ],
-        "response_format": {"type": "json_object"},
-        "temperature": 0.7,
+        "response_format": {"type": "json_object"}
     }
 
     try:
@@ -337,23 +336,32 @@ def generate_script(
     useful_chunks = gen.get("useful_chunks", [])
     style_rules = gen.get("style_rules", [])
     level_name = curriculum.get("display", {}).get("name") or curriculum.get("level", "beginner")
-    level_description = gen.get(
-        "level_description",
-        "beginner-friendly Hebrew with high-frequency vocabulary and simple grammar",
-    )
+    
+    level_slug = curriculum.get("level", "beginner")
+    if "advanced" in level_slug.lower():
+        fallback_desc = "advanced Hebrew with rich vocabulary, idiomatic expressions, complex grammatical structures, and cultural nuances"
+        fallback_lang = "Natural, standard spoken Hebrew at a normal native speed and rhythm, utilizing advanced expressions, logical connectors, and cultural references"
+        fallback_vocab = "Introduce advanced level vocabulary, idioms, and expressions naturally, encouraging learning through immersion and context."
+        sentence_guidance = "Rich and diverse vocabulary; complex sentences and natural native phrasing"
+    elif "intermediate" in level_slug.lower():
+        fallback_desc = "intermediate Hebrew for learners who know basic daily vocabulary and are ready for richer connectors, opinions, short explanations, and more natural spoken phrasing"
+        fallback_lang = "Modern spoken Hebrew with natural connectors, simple subordinate clauses, useful past/future forms, and occasional common idioms explained through context"
+        fallback_vocab = "Introduce a focused set of intermediate words and phrases, making sure the overall story remains understandable through context."
+        sentence_guidance = "Intermediate vocabulary; natural sentence length with logical connectors"
+    else:
+        fallback_desc = "beginner-friendly Hebrew with high-frequency vocabulary and simple grammar"
+        fallback_lang = "Modern spoken Hebrew, slow and clear, beginner-friendly grammar"
+        fallback_vocab = "Introduce only a small number of new beginner words; make most of the episode understandable through already-known/core words."
+        sentence_guidance = "High-frequency vocabulary; short sentences"
+
+    level_description = gen.get("level_description", fallback_desc)
     narrator_name = narrator["name"]
     narrator_instruction = gen.get(
         "narrator_instruction",
         f"First person, conversational, warm, personal — as if {narrator_name} is talking to a friend",
     )
-    language_guidance = gen.get(
-        "language_guidance",
-        "Modern spoken Hebrew, slow and clear, beginner-friendly grammar",
-    )
-    vocabulary_guidance = gen.get(
-        "vocabulary_guidance",
-        "Introduce only a small number of new beginner words; make most of the episode understandable through already-known/core words.",
-    )
+    language_guidance = gen.get("language_guidance", fallback_lang)
+    vocabulary_guidance = gen.get("vocabulary_guidance", fallback_vocab)
 
     review = episode_cfg.get("review_vocab") or []
     new_vocab = episode_cfg.get("new_vocab") or []
@@ -384,7 +392,7 @@ Length requirements (critical):
 Requirements:
 - {narrator_instruction}
 - {language_guidance}
-- High-frequency vocabulary; short sentences
+- {sentence_guidance}
 - Include and naturally reuse these review words: {', '.join(review) if review else 'none'}
 - Introduce these new words naturally: {', '.join(new_vocab) if new_vocab else 'review only'}
 - Keep these high-frequency words active throughout the episode: {', '.join(core_vocab)}
@@ -395,8 +403,10 @@ Requirements:
 - Make the episode interesting: include a tiny real-life problem, choice, surprise, or emotion.
 - Use concrete everyday details (time of day, place, people, sounds, smells, small actions).
 - Vary sentence openings so the script does not sound like a textbook pattern drill.
-- Do not explain grammar directly unless Noa says one short, natural learner-friendly note.
-- Maintain continuity with previous episodes: {narrator_name} should sound like the same person, gently refer back to earlier useful words or places when natural, but avoid reusing the same story scenes.
+- Do not explain grammar directly unless {narrator_name} says one short, natural learner-friendly note.
+- Maintain strong continuity with previous episodes: {narrator_name} must sound like the exact same person, continuing their personal journey. Refer back to earlier life events, jokes, or vocabulary naturally.
+- CRITICAL: Never repeat the same stories, situations, or anecdotes that were already told in previous episodes. Treat this as a serial podcast where each episode has a unique, fresh daily slice-of-life scene.
+- Fun and engaging podcast narration: The monologue should feel like a warm, interesting, and personal chat with a friend over coffee, filled with small, relatable, and fun life observations. It should NOT feel like a dry textbook exercise, grammar drill, or a list of sentences.
 - {vocabulary_guidance}
 - No stage directions, no markdown, no bullet lists in Hebrew text
 
@@ -415,7 +425,9 @@ english_paragraphs must align 1:1 with hebrew_paragraphs (same count)."""
         f"Write episode {episode_cfg['episode_number']} about: {episode_cfg['topic']}. "
         f"Use the narrative hook: {narrative_hook}. "
         f"Target {word_min}-{word_max} Hebrew words. "
-        "The result should feel like a warm, natural podcast episode, not a lesson outline."
+        f"The result should feel like a fun, friendly, and engaging podcast episode hosted by {narrator_name}. "
+        "Ensure it is lively, entertaining, and connects naturally to the narrator's personality and previous life context. "
+        "Do not repeat any stories or anecdotes from earlier episodes."
     )
 
     for attempt in range(2):
@@ -755,7 +767,8 @@ def process_episode(
             raise SystemExit("Missing OPENAI_API_KEY; required for script generation.")
         model_name = script_model or curriculum.get("generation", {}).get("openai_model", "gpt-4.1")
         print(f"Generating script with {model_name}...")
-        previous_context = build_previous_episode_context(script_bank, num)
+        narrator_name = curriculum.get("narrator", {}).get("name", "Narrator")
+        previous_context = build_previous_episode_context(script_bank, num, narrator_name=narrator_name)
         script = generate_script(
             openai_client,
             curriculum,

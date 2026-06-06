@@ -70,14 +70,16 @@ function findActivePosition(
     if (para.sentences && para.sentences.length > 0) {
       for (let j = 0; j < para.sentences.length; j++) {
         const sent = para.sentences[j];
-        const inSentence =
-          (j === 0 && currentTime < sent.start) ||
-          (currentTime >= sent.start && currentTime <= sent.end);
-        if (inSentence) {
+        if (j === 0 && currentTime < sent.start) {
+          return { paragraphIndex: i, sentenceIndex: j };
+        }
+        const nextSent = para.sentences[j + 1];
+        const isCurrentOrBetween =
+          currentTime >= sent.start && (!nextSent || currentTime < nextSent.start);
+        if (isCurrentOrBetween) {
           return { paragraphIndex: i, sentenceIndex: j };
         }
       }
-      return { paragraphIndex: i, sentenceIndex: 0 };
     }
 
     return { paragraphIndex: i, sentenceIndex: null };
