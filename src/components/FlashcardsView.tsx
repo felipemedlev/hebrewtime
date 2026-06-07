@@ -65,6 +65,7 @@ export default function FlashcardsView({
   onRequireSubscription,
 }: FlashcardsViewProps) {
   const [sessionActive, setSessionActive] = useState(false);
+  const [activeSessionCards, setActiveSessionCards] = useState<FlashcardItem[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [viewTab, setViewTab] = useState<"session" | "learned">("session");
@@ -72,26 +73,27 @@ export default function FlashcardsView({
   const [isGenerating, setIsGenerating] = useState(false);
   const [regeneratingIndex, setRegeneratingIndex] = useState<number | null>(null);
 
-  const currentWord = sessionQueue[currentIndex]?.vocabWord;
+  const reviewQueue = sessionActive ? activeSessionCards : sessionQueue;
+  const currentWord = reviewQueue[currentIndex]?.vocabWord;
+
+  const beginSession = (cards: FlashcardItem[]) => {
+    if (cards.length === 0) return;
+    setActiveSessionCards(cards);
+    setCurrentIndex(0);
+    setIsFlipped(false);
+    setShowExamples(false);
+    setSessionActive(true);
+    setViewTab("session");
+  };
 
   const startSession = () => {
-    if (sessionQueue.length > 0) {
-      setCurrentIndex(0);
-      setIsFlipped(false);
-      setShowExamples(false);
-      setSessionActive(true);
-      setViewTab("session");
-    }
+    beginSession(sessionQueue);
   };
 
   // Launch a session when the sidebar "Start review" CTA bumps the signal.
   useEffect(() => {
     if (startSignal > 0 && sessionQueue.length > 0) {
-      setCurrentIndex(0);
-      setIsFlipped(false);
-      setShowExamples(false);
-      setSessionActive(true);
-      setViewTab("session");
+      beginSession(sessionQueue);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startSignal]);
@@ -101,19 +103,20 @@ export default function FlashcardsView({
   };
 
   const handleRate = (rating: FlashcardRating) => {
-    if (!sessionQueue[currentIndex]) return;
+    if (!reviewQueue[currentIndex]) return;
     
     // Submit review in the background (runs optimistically)
-    submitReview(sessionQueue[currentIndex].vocabWord.id, rating);
+    submitReview(reviewQueue[currentIndex].vocabWord.id, rating);
     
     // Reset flip state for the next card immediately
     setIsFlipped(false);
     setShowExamples(false);
     
-    if (currentIndex + 1 < sessionQueue.length) {
+    if (currentIndex + 1 < reviewQueue.length) {
       setCurrentIndex(currentIndex + 1);
     } else {
       setSessionActive(false);
+      setActiveSessionCards([]);
     }
   };
 
@@ -261,20 +264,30 @@ export default function FlashcardsView({
         <div className="flashcards-session-wrapper">
           {sessionActive ? (
             <div className="flashcard-session-active">
-              {/* Session Progress Header */}
-              <div className="flashcard-session-progress">
-                <span>Card {currentIndex + 1} of {sessionQueue.length}</span>
-                <div className="flashcard-session-progress-bar">
-                  <div 
-                    className="flashcard-session-progress-fill" 
-                    style={{ width: `${((currentIndex) / sessionQueue.length) * 100}%` }}
-                  ></div>
-                </div>
-              </div>
+              <span className="flashcard-session-label">
+                Card {currentIndex + 1} of {reviewQueue.length}
+              </span>
 
-              {/* 3D Flip Card Container */}
-              <div
-                className="flashcard-card-scene"
+              <div className="flashcard-card-stack">
+                <div
+                  className="flashcard-review-progress"
+                  role="progressbar"
+                  aria-valuenow={currentIndex + 1}
+                  aria-valuemin={1}
+                  aria-valuemax={reviewQueue.length}
+                  aria-label={`Review progress: card ${currentIndex + 1} of ${reviewQueue.length}`}
+                >
+                  <div
+                    className="flashcard-review-progress-fill"
+                    style={{
+                      width: `${((currentIndex + 1) / reviewQueue.length) * 100}%`,
+                    }}
+                  />
+                </div>
+
+                {/* 3D Flip Card Container */}
+                <div
+                  className="flashcard-card-scene"
                 key={currentIndex}
                 onClick={handleFlip}
                 role="button"
@@ -287,11 +300,11 @@ export default function FlashcardsView({
                   <div className="flashcard-card-front">
                     <span className="flashcard-badge-side">HEBREW</span>
                     <h2 className="font-serif flashcard-hebrew-word" dir="rtl">
-                      {sessionQueue[currentIndex].vocabWord.wordWithNekudot || sessionQueue[currentIndex].vocabWord.word}
+                      {reviewQueue[currentIndex].vocabWord.wordWithNekudot || reviewQueue[currentIndex].vocabWord.word}
                     </h2>
-                    {sessionQueue[currentIndex].vocabWord.verbFormWithNekudot && (
+                    {reviewQueue[currentIndex].vocabWord.verbFormWithNekudot && (
                       <span className="font-serif flashcard-verb-form" dir="rtl">
-                        {sessionQueue[currentIndex].vocabWord.verbFormWithNekudot}
+                        {reviewQueue[currentIndex].vocabWord.verbFormWithNekudot}
                       </span>
                     )}
                     <p className="flashcard-hint-click">Tap to reveal translation</p>
@@ -301,28 +314,28 @@ export default function FlashcardsView({
                   <div className="flashcard-card-back" onClick={(e) => e.stopPropagation()}>
                     <span className="flashcard-badge-side back">TRANSLATION</span>
                     <h3 className="flashcard-translation-word">
-                      {sessionQueue[currentIndex].vocabWord.translation}
+                      {reviewQueue[currentIndex].vocabWord.translation}
                     </h3>
                     
-                    {sessionQueue[currentIndex].vocabWord.pronunciation && (
+                    {reviewQueue[currentIndex].vocabWord.pronunciation && (
                       <p className="flashcard-pronunciation">
-                        /{sessionQueue[currentIndex].vocabWord.pronunciation}/
+                        /{reviewQueue[currentIndex].vocabWord.pronunciation}/
                       </p>
                     )}
 
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", margin: "16px 0" }}>
                       <span className="font-serif flashcard-hebrew-word-small" dir="rtl">
-                        {sessionQueue[currentIndex].vocabWord.wordWithNekudot || sessionQueue[currentIndex].vocabWord.word}
+                        {reviewQueue[currentIndex].vocabWord.wordWithNekudot || reviewQueue[currentIndex].vocabWord.word}
                       </span>
-                      {sessionQueue[currentIndex].vocabWord.episodeTitle && (
+                      {reviewQueue[currentIndex].vocabWord.episodeTitle && (
                         <div className="vocab-card-source" style={{ border: "1px solid rgba(0,0,0,0.06)", padding: "4px 10px", borderRadius: "6px" }}>
-                          {sessionQueue[currentIndex].vocabWord.episodeUrl ? (
-                            <a href={sessionQueue[currentIndex].vocabWord.episodeUrl} target="_blank" rel="noopener noreferrer" className="vocab-source-link">
+                          {reviewQueue[currentIndex].vocabWord.episodeUrl ? (
+                            <a href={reviewQueue[currentIndex].vocabWord.episodeUrl} target="_blank" rel="noopener noreferrer" className="vocab-source-link">
                               <ExternalLink size={11} className="vocab-source-icon" />
-                              <span>{sessionQueue[currentIndex].vocabWord.episodeTitle}</span>
+                              <span>{reviewQueue[currentIndex].vocabWord.episodeTitle}</span>
                             </a>
                           ) : (
-                            <span>{sessionQueue[currentIndex].vocabWord.episodeTitle}</span>
+                            <span>{reviewQueue[currentIndex].vocabWord.episodeTitle}</span>
                           )}
                         </div>
                       )}
@@ -330,6 +343,7 @@ export default function FlashcardsView({
 
                     <p className="flashcard-hint-click" onClick={handleFlip}>Click card to flip back</p>
                   </div>
+                </div>
                 </div>
               </div>
 

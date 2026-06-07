@@ -621,7 +621,10 @@ export default function AppShell({
             generateExamples={generateExamples}
             regenerateExample={regenerateExample}
           />
-        ) : viewMode === "flashcards" ? (
+        ) : null}
+
+        {/* Keep mounted while reviewing so in-progress session state survives tab switches */}
+        <div hidden={viewMode !== "flashcards"}>
           <FlashcardsView
             vocabWords={vocabWords}
             learnedCards={learnedCards}
@@ -636,53 +639,26 @@ export default function AppShell({
             isPremium={entitlements.isPremium}
             onRequireSubscription={() => showSubscriptionPrompt("flashcards")}
           />
-        ) : isEpisodeLoading ? (
-          <div className="empty-state">
-            <div className="empty-state-spinner" aria-hidden="true" />
-            <p>Loading episode…</p>
-          </div>
-        ) : episodeLoadError && !episode ? (
-          <div className="empty-state">
-            <BookOpen size={48} strokeWidth={1} />
-            <p>{episodeLoadError}</p>
-            <div className="empty-state-actions">
-              {currentEpNum != null && (
-                <button
-                  className="empty-state-btn primary"
-                  onClick={() => navigateToEpisode(currentLevel, currentEpNum)}
-                >
-                  <RotateCcw size={16} />
-                  Try again
-                </button>
-              )}
-              <button
-                className="empty-state-btn secondary"
-                onClick={() => setIsSidebarOpen(true)}
-              >
-                <ListTree size={16} />
-                Browse episodes
-              </button>
+        </div>
+
+        {viewMode === "episodes" &&
+          (isEpisodeLoading ? (
+            <div className="empty-state">
+              <div className="empty-state-spinner" aria-hidden="true" />
+              <p>Loading episode…</p>
             </div>
-          </div>
-        ) : !episode ? (
-          <div className="empty-state">
-            <BookOpen size={48} strokeWidth={1} />
-            <p>
-              {levelEpisodes.length > 0
-                ? `Pick up where you left off in ${currentLevelName}, or browse the full list.`
-                : "No episodes are available for this level yet."}
-            </p>
-            {levelEpisodes.length > 0 && (
+          ) : episodeLoadError && !episode ? (
+            <div className="empty-state">
+              <BookOpen size={48} strokeWidth={1} />
+              <p>{episodeLoadError}</p>
               <div className="empty-state-actions">
-                {resumeEpNum != null && (
+                {currentEpNum != null && (
                   <button
                     className="empty-state-btn primary"
-                    onClick={() => navigateToEpisode(currentLevel, resumeEpNum)}
+                    onClick={() => navigateToEpisode(currentLevel, currentEpNum)}
                   >
-                    <BookOpen size={16} />
-                    {hasResumeProgress
-                      ? `Resume Episode ${String(resumeEpNum).padStart(2, "0")}`
-                      : "Start reading"}
+                    <RotateCcw size={16} />
+                    Try again
                   </button>
                 )}
                 <button
@@ -693,39 +669,69 @@ export default function AppShell({
                   Browse episodes
                 </button>
               </div>
-            )}
-          </div>
-        ) : (
-          <div key={`episode-${episode.level}-${episode.episode}`}>
-            <EpisodeViewer
-              episode={episode}
-              levelDisplayName={
-                levels.find((l) => l.slug === episode.level)?.name ?? currentLevelName
-              }
-              hasPrev={currentIndex > 0}
-              hasNext={
-                currentIndex !== -1 &&
-                currentIndex < levelEpisodes.length - 1
-              }
-              onNavigate={handleNavigate}
-              onWordSaved={handleWordSaved}
-              onToast={showToast}
-              isPremium={entitlements.isPremium}
-              isAuthenticated={entitlements.isAuthenticated}
-              isLoadingEntitlements={isLoadingEntitlements}
-              onRequireAuth={() => {
-                setAuthInitialMode("login");
-                setIsAuthModalOpen(true);
-              }}
-              onRequireSubscription={() => showSubscriptionPrompt("translation_limit")}
-              isEnglishBlurred={isEnglishBlurred}
-              isFinished={episode ? isFinished(episode.level, episode.episode) : false}
-              onToggleFinished={() => {
-                if (episode) toggleFinished(episode.level, episode.episode);
-              }}
-            />
-          </div>
-        )}
+            </div>
+          ) : !episode ? (
+            <div className="empty-state">
+              <BookOpen size={48} strokeWidth={1} />
+              <p>
+                {levelEpisodes.length > 0
+                  ? `Pick up where you left off in ${currentLevelName}, or browse the full list.`
+                  : "No episodes are available for this level yet."}
+              </p>
+              {levelEpisodes.length > 0 && (
+                <div className="empty-state-actions">
+                  {resumeEpNum != null && (
+                    <button
+                      className="empty-state-btn primary"
+                      onClick={() => navigateToEpisode(currentLevel, resumeEpNum)}
+                    >
+                      <BookOpen size={16} />
+                      {hasResumeProgress
+                        ? `Resume Episode ${String(resumeEpNum).padStart(2, "0")}`
+                        : "Start reading"}
+                    </button>
+                  )}
+                  <button
+                    className="empty-state-btn secondary"
+                    onClick={() => setIsSidebarOpen(true)}
+                  >
+                    <ListTree size={16} />
+                    Browse episodes
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div key={`episode-${episode.level}-${episode.episode}`}>
+              <EpisodeViewer
+                episode={episode}
+                levelDisplayName={
+                  levels.find((l) => l.slug === episode.level)?.name ?? currentLevelName
+                }
+                hasPrev={currentIndex > 0}
+                hasNext={
+                  currentIndex !== -1 &&
+                  currentIndex < levelEpisodes.length - 1
+                }
+                onNavigate={handleNavigate}
+                onWordSaved={handleWordSaved}
+                onToast={showToast}
+                isPremium={entitlements.isPremium}
+                isAuthenticated={entitlements.isAuthenticated}
+                isLoadingEntitlements={isLoadingEntitlements}
+                onRequireAuth={() => {
+                  setAuthInitialMode("login");
+                  setIsAuthModalOpen(true);
+                }}
+                onRequireSubscription={() => showSubscriptionPrompt("translation_limit")}
+                isEnglishBlurred={isEnglishBlurred}
+                isFinished={episode ? isFinished(episode.level, episode.episode) : false}
+                onToggleFinished={() => {
+                  if (episode) toggleFinished(episode.level, episode.episode);
+                }}
+              />
+            </div>
+          ))}
       </main>
 
       {/* Toast Notification */}
