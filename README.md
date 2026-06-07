@@ -690,4 +690,4 @@ WHERE email = 'your@email.com';
 | `scripts/.checkpoints/` | No (gitignored) | Local pipeline cache (MP3 + alignment JSON). Safe to delete after Supabase verification; regeneration re-runs TTS. |
 | `secrets/` | No (gitignored) | GCP service account JSON keys. |
 | `__pycache__/`, `*.pyc` | No (gitignored) | Python bytecode. |
-| `episodes.json.bak.*`, `episodes_checkpoint.json` | No (gitignored) | Scraper resume/backup artifacts. |
+| `episodes.json.bak.*`, `episodes_checkpoint.json` | No (gitignored) | Scraper resume/backup artifacts. |_
