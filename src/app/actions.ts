@@ -1,4 +1,5 @@
 "use server";
+import { headers } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
 import type { AdminDashboardSummary, AdminUserStat, AdminUserStatsResponse, ExamplePhrase } from "@/lib/types";
 import {
@@ -55,17 +56,42 @@ function getAuthHeaders(accessToken?: string, useServiceRole = false): HeadersIn
 
 async function getUserFromToken(accessToken: string): Promise<{ id: string; email: string | null } | null> {
   if (!supabaseUrl || !supabaseAnonKey || !accessToken) return null;
-  const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
-    method: "GET",
-    headers: getAuthHeaders(accessToken),
-    cache: "no-store",
-  });
-  if (!res.ok) return null;
-  const user = await res.json();
-  return {
-    id: user?.id,
-    email: user?.email ?? null,
-  };
+
+  // Retry transient failures (network errors / 5xx) so a momentary blip never
+  // silently demotes a valid premium/admin session to "free". A definitive
+  // 401/403 (expired or invalid token) is returned as null immediately.
+  const maxAttempts = 3;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
+        method: "GET",
+        headers: getAuthHeaders(accessToken),
+        cache: "no-store",
+      });
+
+      if (res.ok) {
+        const user = await res.json();
+        return {
+          id: user?.id,
+          email: user?.email ?? null,
+        };
+      }
+
+      // Definitive auth failure — no point retrying.
+      if (res.status === 401 || res.status === 403) {
+        return null;
+      }
+      // Otherwise fall through to retry (5xx, 429, etc.).
+    } catch {
+      // Network error — fall through to retry.
+    }
+
+    if (attempt < maxAttempts - 1) {
+      await new Promise((resolve) => setTimeout(resolve, 150 * (attempt + 1)));
+    }
+  }
+
+  return null;
 }
 
 async function isPremiumEmail(email: string): Promise<boolean> {
@@ -364,16 +390,28 @@ export async function translateWord(
   const safeEnglishContext = clampString(englishContext, INPUT_LIMITS.context);
 
   const ent = await getUserEntitlements(accessToken);
-  if (!ent.isAuthenticated) {
-    return { translation: "Please log in to translate words.", wordWithNekudot: safeWord, type: "auth_required" };
-  }
+  // Anonymous (logged-out) users may translate too — their daily limit is
+  // enforced client-side via localStorage. Saving to vocabulary still requires
+  // login (see useVocabulary.addWord).
+  const user = ent.isAuthenticated ? await getUserFromToken(accessToken!) : null;
 
-  const user = await getUserFromToken(accessToken!);
-  if (!user?.id || !checkRateLimit(user.id, "translateWord")) {
+  // Rate limit by user id when logged in, otherwise by request IP. This is an
+  // OpenAI-cost abuse guard, not the per-day quota.
+  let rateLimitKey = user?.id ?? null;
+  if (!rateLimitKey) {
+    const hdrs = await headers();
+    const ip =
+      hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      hdrs.get("x-real-ip")?.trim() ||
+      "anon";
+    rateLimitKey = `ip:${ip}`;
+  }
+  if (!checkRateLimit(rateLimitKey, "translateWord")) {
     return { translation: "Too many requests. Please wait a moment.", wordWithNekudot: safeWord, type: "error" };
   }
 
-  if (!ent.isPremium) {
+  // Authenticated non-premium users have a server-enforced daily cap.
+  if (ent.isAuthenticated && !ent.isPremium && user?.id) {
     if (!supabaseAdmin) {
       return { translation: "Translation database error.", wordWithNekudot: safeWord, type: "error" };
     }

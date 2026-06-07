@@ -207,8 +207,9 @@ export default function AppShell({
     if (source === "translation_limit") {
       setSubscriptionPrompt({
         title: "Translation Limit Reached",
-        description:
-          "You've used your 30 free translations for today. Upgrade to Premium for unlimited translations.",
+        description: user
+          ? "You've used your 30 free translations for today. Upgrade to Premium for unlimited translations."
+          : "You've used your free translations for today. Log in or upgrade to Premium for unlimited translations.",
       });
       return;
     }
@@ -225,7 +226,7 @@ export default function AppShell({
       description:
         "You've completed your 1 free flashcard review session for today! Upgrade to Premium to practice unlimited review sessions.",
     });
-  }, []);
+  }, [user]);
 
   const handleWordSaved = useCallback(
     async (word: Omit<VocabWord, "id" | "savedAt">) => {

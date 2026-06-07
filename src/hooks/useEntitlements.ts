@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { getUserEntitlements } from "@/app/actions";
 
@@ -21,46 +22,84 @@ const defaultEntitlements: Entitlements = {
 export function useEntitlements() {
   const [entitlements, setEntitlements] = useState<Entitlements>(defaultEntitlements);
   const [isLoading, setIsLoading] = useState(true);
+  // Tracks the most recent token we attempted to resolve, so stale async
+  // resolutions can't clobber a newer auth state.
+  const currentTokenRef = useRef<string | null>(null);
 
-  const refresh = useCallback(async () => {
-    const { data } = await supabase.auth.getSession();
-    const token = data.session?.access_token;
-    const next = await getUserEntitlements(token);
-    setEntitlements(next);
-    setIsLoading(false);
-    return next;
+  // Resolve entitlements for a specific access token. Pulling the token from
+  // the caller (instead of calling supabase.auth.getSession here) is critical:
+  // calling getSession inside an onAuthStateChange callback deadlocks in
+  // supabase-js v2 because the callback runs while holding an internal lock.
+  const resolveForToken = useCallback(async (token: string | undefined) => {
+    const normalizedToken = token ?? null;
+    currentTokenRef.current = normalizedToken;
+
+    try {
+      const next = await getUserEntitlements(token);
+
+      // Ignore if a newer auth state arrived while we were resolving.
+      if (currentTokenRef.current !== normalizedToken) return;
+
+      setEntitlements((prev) => {
+        // If we have a token but resolution came back unauthenticated, treat it
+        // as a transient failure and keep the last-known-good state rather than
+        // silently demoting a premium/admin user to free.
+        if (token && !next.isAuthenticated && prev.isAuthenticated) {
+          return prev;
+        }
+        return next;
+      });
+    } catch {
+      if (currentTokenRef.current !== normalizedToken) return;
+      // Network/transient error: never downgrade a known-good session.
+      setEntitlements((prev) => (token && prev.isAuthenticated ? prev : defaultEntitlements));
+    } finally {
+      if (currentTokenRef.current === normalizedToken) {
+        setIsLoading(false);
+      }
+    }
   }, []);
 
+  // Public refresh that safely reads the current session (only call this
+  // OUTSIDE of an onAuthStateChange callback).
+  const refresh = useCallback(async () => {
+    const { data } = await supabase.auth.getSession();
+    await resolveForToken(data.session?.access_token);
+  }, [resolveForToken]);
+
   useEffect(() => {
-    let isActive = true;
-    const load = () =>
-      supabase.auth
-      .getSession()
-      .then(async ({ data }) => {
-        const token = data.session?.access_token;
-        const next = await getUserEntitlements(token);
-        if (!isActive) return;
-        setEntitlements(next);
-        setIsLoading(false);
-      })
-      .catch(() => {
-        if (!isActive) return;
-        setEntitlements(defaultEntitlements);
-        setIsLoading(false);
-      });
-    load();
+    // Initial load (outside any auth callback, so getSession is safe here).
+    void refresh();
+
+    const handleSession = (session: Session | null) => {
+      // Defer to the next tick so this runs outside the auth lock held during
+      // the onAuthStateChange callback in supabase-js v2.
+      setTimeout(() => {
+        void resolveForToken(session?.access_token);
+      }, 0);
+    };
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      void refresh();
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      handleSession(session);
     });
 
-    return () => {
-      isActive = false;
-      subscription.unsubscribe();
+    // Self-heal a stuck state when the user returns to the tab.
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        void refresh();
+      }
     };
-  }, [refresh]);
+    window.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("focus", handleVisibility);
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("focus", handleVisibility);
+    };
+  }, [refresh, resolveForToken]);
 
   return { entitlements, isLoading, refresh };
 }

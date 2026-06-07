@@ -6,6 +6,7 @@ import { translateWord } from "@/app/actions";
 import { useState, useEffect, useRef, useMemo } from "react";
 import TranslationModal from "./TranslationModal";
 import { supabase } from "@/lib/supabase";
+import { hasReachedAnonTranslationLimit, incrementAnonTranslations } from "@/lib/anonUsage";
 
 type EpisodeViewerProps = {
   episode: Episode;
@@ -228,7 +229,9 @@ export default function EpisodeViewer({
   ) => {
     if (isLoadingEntitlements) return;
 
-    if (!isAuthenticated) {
+    // Logged-out visitors may translate up to the daily free limit (tracked
+    // locally). Saving to vocabulary still requires login.
+    if (!isAuthenticated && hasReachedAnonTranslationLimit()) {
       onRequireSubscription();
       return;
     }
@@ -264,6 +267,9 @@ export default function EpisodeViewer({
         setModal((prev) => ({ ...prev, isOpen: false }));
         onRequireSubscription();
         return;
+      }
+      if (!isAuthenticated && res.type === "success") {
+        incrementAnonTranslations();
       }
       setModal((prev) => ({
         ...prev,

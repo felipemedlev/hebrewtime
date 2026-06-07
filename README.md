@@ -265,14 +265,14 @@ EXECUTE FUNCTION public.set_updated_at();
 
 ### 3. Premium Access Rules
 
-- **Non-authenticated users**: cannot use word translation, vocabulary, or flashcards.
-- **Authenticated non-premium users**: can read episodes, but translation, vocabulary, flashcards, and example-phrase generation are blocked.
-- **Blocked action UX**: when non-premium users try to open Vocabulary, open Flashcards, or translate a word, they see a sticky top-of-screen subscription panel advertising **$10/month** and can open auth/signup from the CTA.
+- **Non-authenticated (logged-out) users**: can read episodes and translate words up to the daily free limit. The logged-out daily translation limit is tracked client-side in `localStorage` (`hebrewtime-anon-usage`, see `src/lib/anonUsage.ts`), since there is no user id to track server-side. **Saving a word to vocabulary requires login** (`useVocabulary.addWord` returns `auth_required`, which opens the auth modal). Example phrases and flashcards remain login-gated.
+- **Authenticated non-premium users**: can read episodes, translate, save vocabulary, use flashcards, and generate example phrases up to per-day free limits (enforced server-side via `user_activity_daily`).
+- **Blocked action UX**: when a user hits a daily limit (or a vocabulary cap), they see a sticky top-of-screen subscription panel comparing Free vs Premium and can open auth/signup from the CTA. Logged-out users additionally see a "Log in" affordance.
 - **Premium users**: can translate words, generate example phrases (OpenAI usage), and access vocabulary and flashcards normally.
 - **Admin users** (`ADMIN_EMAILS`): automatically get premium access in server actions and the UI, and they can open the `/admin` dashboard (new tab from the sidebar) to view user stats and grant/revoke premium access for other users by email. Granting premium access automatically triggers a Supabase invite email to the recipient. Admin accounts also need a row in `premium_users` to pass database RLS for vocabulary/flashcard writes.
 
 **Security notes:**
-- OpenAI server actions (`translateWord`, `generateExamplePhrases`) enforce auth/premium checks, per-user rate limits, and input length bounds in `src/lib/actionGuards.ts`.
+- OpenAI server actions enforce per-requester rate limits and input length bounds in `src/lib/actionGuards.ts`. `translateWord` allows logged-out callers (rate-limited by request IP as an abuse guard; daily quota enforced client-side), enforces a server-side daily cap for authenticated non-premium users, and is unlimited for premium/admin. `generateExamplePhrases` requires authentication.
 - The audio proxy at `/api/audio` only accepts HTTPS Google Drive URLs (`src/lib/allowedAudioHosts.ts`); all other hosts are rejected.
 - Supabase Storage episode audio is streamed through `/api/episode-audio/[level]/[id]` using the server-side service role key (not end-user auth).
 
