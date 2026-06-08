@@ -76,6 +76,27 @@ export default function FlashcardsView({
   const reviewQueue = sessionActive ? activeSessionCards : sessionQueue;
   const currentWord = reviewQueue[currentIndex]?.vocabWord;
 
+  useEffect(() => {
+    if (!sessionActive) return;
+
+    const wordsById = new Map(vocabWords.map((word) => [word.id, word]));
+
+    setActiveSessionCards((prev) => {
+      let changed = false;
+      const next = prev.map((card) => {
+        const updatedWord = wordsById.get(card.vocabWord.id);
+        if (!updatedWord || updatedWord === card.vocabWord) {
+          return card;
+        }
+
+        changed = true;
+        return { ...card, vocabWord: updatedWord };
+      });
+
+      return changed ? next : prev;
+    });
+  }, [sessionActive, vocabWords]);
+
   const beginSession = (cards: FlashcardItem[]) => {
     if (cards.length === 0) return;
     setActiveSessionCards(cards);
