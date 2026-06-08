@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from lib.alignment import split_hebrew_sentences  # noqa: E402
+from lib.translation_utils import build_translations_map  # noqa: E402
 
 load_dotenv(ROOT / ".env")
 
@@ -469,7 +470,29 @@ english_paragraphs must align 1:1 with hebrew_paragraphs (same count)."""
         "hebrew_paragraphs": hebrew,
         "english_paragraphs": english,
         "hebrew_text": "\n\n".join(hebrew),
+        "translations": {"en": english},
     }
+
+
+def enrich_script_translations(client: OpenAI, script: dict) -> dict:
+    """Add ru/uk/pt/es/fr paragraph translations to a generated script."""
+    hebrew = script.get("hebrew_paragraphs", [])
+    english = script.get("english_paragraphs", [])
+    if script.get("translations") and all(
+        lang in script["translations"] for lang in ("ru", "uk", "pt", "es", "fr")
+    ):
+        return script
+
+    print("  Generating ru, uk, pt, es, fr translations (gpt-5.4-mini)…")
+    translations = build_translations_map(
+        client,
+        hebrew,
+        english,
+        langs=("ru", "uk", "pt", "es", "fr"),
+        on_lang=lambda lang: print(f"    → {lang}"),
+    )
+    script["translations"] = translations
+    return script
 
 
 def is_tts_usage_guideline_error(detail: str) -> bool:
@@ -686,6 +709,7 @@ def upsert_episode(level: str, episode_number: int, payload: dict) -> None:
         "hebrew_text": payload["hebrew_text"],
         "hebrew_paragraphs": payload["hebrew_paragraphs"],
         "english_paragraphs": payload["english_paragraphs"],
+        "translations": payload.get("translations", {"en": payload["english_paragraphs"]}),
         "is_published": True,
     }
     res = requests.post(
@@ -744,11 +768,15 @@ def process_episode(
 
     if bank_script and (not force or audio_only):
         script = bank_script
+        if openai_client is not None:
+            script = enrich_script_translations(openai_client, script)
         checkpoint["script"] = script
         save_checkpoint(level, num, checkpoint)
         print(f"Using stored script from {script_bank_path}")
     elif "script" in checkpoint and not force:
         script = checkpoint["script"]
+        if openai_client is not None:
+            script = enrich_script_translations(openai_client, script)
         upsert_script_in_bank(
             script_bank,
             level=level,
@@ -776,6 +804,7 @@ def process_episode(
             previous_context,
             script_model=script_model,
         )
+        script = enrich_script_translations(openai_client, script)
         checkpoint["script"] = script
         save_checkpoint(level, num, checkpoint)
         upsert_script_in_bank(
@@ -819,6 +848,7 @@ def process_episode(
         "hebrew_text": script["hebrew_text"],
         "hebrew_paragraphs": aligned,
         "english_paragraphs": script["english_paragraphs"],
+        "translations": script.get("translations", {"en": script["english_paragraphs"]}),
     }
 
     print("Upserting episode row...")

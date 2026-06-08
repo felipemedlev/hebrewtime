@@ -4,9 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { useT } from "@/lib/i18n/LanguageProvider";
 
-export default function UpdatePasswordPage() {
+function UpdatePasswordForm() {
   const router = useRouter();
+  const t = useT();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -19,25 +21,21 @@ export default function UpdatePasswordPage() {
     setSuccessMsg("");
 
     if (!password || password.length < 6) {
-      setErrorMsg("Password must be at least 6 characters.");
+      setErrorMsg(t("passwordMinLength"));
       return;
     }
     if (password !== confirmPassword) {
-      setErrorMsg("Passwords do not match.");
+      setErrorMsg(t("passwordsNoMatch"));
       return;
     }
 
     setIsLoading(true);
     try {
-      // Supabase's client will usually detect the recovery redirect from the URL
-      // and initialize a session automatically. We just need to update the password.
       const { data: sessionData, error: sessionError } =
         await supabase.auth.getSession();
       if (sessionError) throw sessionError;
       if (!sessionData.session) {
-        throw new Error(
-          "Missing or expired password reset session. Please request a new reset link."
-        );
+        throw new Error(t("authError"));
       }
 
       const { error: updateError } = await supabase.auth.updateUser({
@@ -45,12 +43,12 @@ export default function UpdatePasswordPage() {
       });
       if (updateError) throw updateError;
 
-      setSuccessMsg("Password updated. You can log in now.");
+      setSuccessMsg(t("passwordUpdated"));
       setTimeout(() => {
         router.push("/");
       }, 800);
     } catch (err: unknown) {
-      setErrorMsg(err instanceof Error ? err.message : "Failed to update password.");
+      setErrorMsg(err instanceof Error ? err.message : t("authError"));
     } finally {
       setIsLoading(false);
     }
@@ -72,7 +70,7 @@ export default function UpdatePasswordPage() {
             className="modal-title"
             style={{ fontSize: "20px", color: "var(--text-main)" }}
           >
-            Update Password
+            {t("updatePassword")}
           </h3>
         </div>
 
@@ -82,7 +80,7 @@ export default function UpdatePasswordPage() {
             style={{ flexDirection: "column", gap: "16px", alignItems: "stretch" }}
           >
             <p style={{ margin: 0, fontSize: "14px", color: "var(--text-muted)", textAlign: "center" }}>
-              Choose a new password for your account.
+              {t("resetPasswordDesc")}
             </p>
 
             {successMsg && (
@@ -115,7 +113,7 @@ export default function UpdatePasswordPage() {
 
             <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
               <label style={{ fontSize: "13px", fontWeight: 500 }}>
-                New Password
+                {t("newPassword")}
               </label>
               <input
                 type="password"
@@ -137,7 +135,7 @@ export default function UpdatePasswordPage() {
 
             <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
               <label style={{ fontSize: "13px", fontWeight: 500 }}>
-                Confirm Password
+                {t("confirmPassword")}
               </label>
               <input
                 type="password"
@@ -171,7 +169,7 @@ export default function UpdatePasswordPage() {
               }}
             >
               {isLoading && <Loader2 size={16} className="spinner" />}
-              Set New Password
+              {t("updatePasswordBtn")}
             </button>
           </div>
         </form>
@@ -180,3 +178,6 @@ export default function UpdatePasswordPage() {
   );
 }
 
+export default function UpdatePasswordPage() {
+  return <UpdatePasswordForm />;
+}

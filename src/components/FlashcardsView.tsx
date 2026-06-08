@@ -21,12 +21,13 @@ import type {
   FlashcardRating,
   FlashcardStats,
 } from "@/lib/types";
+import { useT } from "@/lib/i18n/LanguageProvider";
 import ExamplePhrasesPanel from "./ExamplePhrasesPanel";
 
-function formatNextReview(iso: string | null): string {
+function formatNextReview(iso: string | null, soonLabel: string): string {
   if (!iso) return "—";
   const diffMs = new Date(iso).getTime() - Date.now();
-  if (diffMs <= 0) return "Soon";
+  if (diffMs <= 0) return soonLabel;
   const mins = Math.ceil(diffMs / 60000);
   if (mins < 60) return `${mins}m`;
   const hours = Math.ceil(mins / 60);
@@ -64,6 +65,7 @@ export default function FlashcardsView({
   isPremium = false,
   onRequireSubscription,
 }: FlashcardsViewProps) {
+  const t = useT();
   const [sessionActive, setSessionActive] = useState(false);
   const [activeSessionCards, setActiveSessionCards] = useState<FlashcardItem[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -184,9 +186,9 @@ export default function FlashcardsView({
     return (
       <div className="vocab-empty-container">
         <Brain size={48} className="vocab-empty-icon" />
-        <h3 className="vocab-empty-title">Your Flashcard Deck is Empty</h3>
+        <h3 className="vocab-empty-title">{t("noWordsToReview")}</h3>
         <p className="vocab-empty-text">
-          Save words from episode translations first to build your custom flashcard deck!
+          {t("noWordsToReviewSub")}
         </p>
       </div>
     );
@@ -198,25 +200,25 @@ export default function FlashcardsView({
       <div className="flashcards-stats-dashboard">
         <div className="flashcard-stat-tile highlight-due">
           <Flame size={14} className="flashcard-stat-icon-due" />
-          <span className="stat-label">Due</span>
+          <span className="stat-label">{t("due")}</span>
           <span className="stat-value">{stats.due}</span>
         </div>
 
         <div className="flashcard-stat-tile">
           <PlusCircle size={14} className="flashcard-stat-icon-new" />
-          <span className="stat-label">New</span>
+          <span className="stat-label">{t("newLabel")}</span>
           <span className="stat-value">{stats.newCount}</span>
         </div>
 
         <div className="flashcard-stat-tile">
           <BookOpen size={14} className="flashcard-stat-icon-active" />
-          <span className="stat-label">Learning</span>
+          <span className="stat-label">{t("learning")}</span>
           <span className="stat-value">{stats.learning}</span>
         </div>
 
         <div className="flashcard-stat-tile">
           <Check size={14} className="flashcard-stat-icon-learned" />
-          <span className="stat-label">Learned</span>
+          <span className="stat-label">{t("learned")}</span>
           <span className="stat-value">
             {stats.learned}
             <span className="stat-total">/{stats.total}</span>
@@ -225,27 +227,27 @@ export default function FlashcardsView({
 
         <div className="flashcard-stat-tile">
           <Clock size={14} className="flashcard-stat-icon-today" />
-          <span className="stat-label">Today</span>
+          <span className="stat-label">{t("reviewedToday")}</span>
           <span className="stat-value">{stats.reviewedToday}</span>
         </div>
 
         <div className="flashcard-stat-tile">
           <TrendingUp size={14} className="flashcard-stat-icon-recall" />
-          <span className="stat-label">Avg Recall</span>
+          <span className="stat-label">{t("avgRecall")}</span>
           <span className="stat-value">{stats.avgRecall}%</span>
         </div>
 
         {stats.due === 0 && stats.nextReviewAt && (
           <div className="flashcard-stat-tile">
             <CalendarClock size={14} className="flashcard-stat-icon-eta" />
-            <span className="stat-label">Next Review</span>
-            <span className="stat-value">{formatNextReview(stats.nextReviewAt)}</span>
+            <span className="stat-label">{t("nextReview")}</span>
+            <span className="stat-value">{formatNextReview(stats.nextReviewAt, t("soon"))}</span>
           </div>
         )}
 
         <div className="flashcard-stat-tile mastery-tile">
           <Sparkles size={14} className="flashcard-stat-icon-progress" />
-          <span className="stat-label">Mastery</span>
+          <span className="stat-label">{t("mastery")}</span>
           <div className="flashcard-compact-progress">
             <div className="flashcard-stat-progress-bg">
               <div
@@ -267,14 +269,14 @@ export default function FlashcardsView({
               onClick={() => setViewTab("session")}
             >
               <Brain size={14} className="vocab-filter-icon" />
-              Review Session
+              {t("reviewSession")}
             </button>
             <button 
               className={`vocab-filter-btn ${viewTab === "learned" ? "active" : ""}`}
               onClick={() => setViewTab("learned")}
             >
               <Check size={14} className="vocab-filter-icon" />
-              Learned Words ({stats.learned})
+              {t("learnedWords")} ({stats.learned})
             </button>
           </div>
         </div>
@@ -286,7 +288,7 @@ export default function FlashcardsView({
           {sessionActive ? (
             <div className="flashcard-session-active">
               <span className="flashcard-session-label">
-                Card {currentIndex + 1} of {reviewQueue.length}
+                {t("cardsInSession", { current: currentIndex + 1, total: reviewQueue.length })}
               </span>
 
               <div className="flashcard-card-stack">
@@ -296,7 +298,7 @@ export default function FlashcardsView({
                   aria-valuenow={currentIndex + 1}
                   aria-valuemin={1}
                   aria-valuemax={reviewQueue.length}
-                  aria-label={`Review progress: card ${currentIndex + 1} of ${reviewQueue.length}`}
+                  aria-label={t("cardsInSession", { current: currentIndex + 1, total: reviewQueue.length })}
                 >
                   <div
                     className="flashcard-review-progress-fill"
@@ -313,13 +315,13 @@ export default function FlashcardsView({
                 onClick={handleFlip}
                 role="button"
                 tabIndex={0}
-                aria-label={isFlipped ? "Flip card back" : "Flip card to see translation"}
+                aria-label={t("tapToFlip")}
                 onKeyDown={(e) => e.key === "Enter" || e.key === " " ? handleFlip() : undefined}
               >
                 <div className={`flashcard-card-inner ${isFlipped ? "is-flipped" : ""}`}>
                   {/* Front Side (Hebrew word) */}
                   <div className="flashcard-card-front">
-                    <span className="flashcard-badge-side">HEBREW</span>
+                    <span className="flashcard-badge-side">{t("hebrew")}</span>
                     <h2 className="font-serif flashcard-hebrew-word" dir="rtl">
                       {reviewQueue[currentIndex].vocabWord.wordWithNekudot || reviewQueue[currentIndex].vocabWord.word}
                     </h2>
@@ -328,12 +330,12 @@ export default function FlashcardsView({
                         {reviewQueue[currentIndex].vocabWord.verbFormWithNekudot}
                       </span>
                     )}
-                    <p className="flashcard-hint-click">Tap to reveal translation</p>
+                    <p className="flashcard-hint-click">{t("tapToFlip")}</p>
                   </div>
 
                   {/* Back Side (Translation & Details) */}
                   <div className="flashcard-card-back" onClick={(e) => e.stopPropagation()}>
-                    <span className="flashcard-badge-side back">TRANSLATION</span>
+                    <span className="flashcard-badge-side back">{t("translation")}</span>
                     <h3 className="flashcard-translation-word">
                       {reviewQueue[currentIndex].vocabWord.translation}
                     </h3>
@@ -362,7 +364,7 @@ export default function FlashcardsView({
                       )}
                     </div>
 
-                    <p className="flashcard-hint-click" onClick={handleFlip}>Click card to flip back</p>
+                    <p className="flashcard-hint-click" onClick={handleFlip}>{t("tapToFlip")}</p>
                   </div>
                 </div>
                 </div>
@@ -385,7 +387,7 @@ export default function FlashcardsView({
                 {!isFlipped ? (
                   <div className="flashcard-pre-reveal-actions">
                     <button className="flashcard-reveal-btn" onClick={handleFlip}>
-                      Reveal Translation
+                      {t("showAnswer")}
                     </button>
                     <button
                       className={`flashcard-examples-toggle-btn${showExamples ? " active" : ""}`}
@@ -393,27 +395,23 @@ export default function FlashcardsView({
                       disabled={isGenerating}
                     >
                       <MessageSquare size={14} />
-                      {showExamples ? "Hide examples" : "Show examples"}
+                      {showExamples ? t("hideExamples") : t("showExamples")}
                     </button>
                   </div>
                 ) : (
                   <div className="flashcard-post-reveal-actions">
                     <div className="flashcard-rating-grid">
                       <button className="rating-btn again" onClick={() => handleRate(0)}>
-                        <span className="rating-btn-lbl">Again</span>
-                        <span className="rating-btn-desc">Forgot</span>
+                        <span className="rating-btn-lbl">{t("again")}</span>
                       </button>
                       <button className="rating-btn hard" onClick={() => handleRate(1)}>
-                        <span className="rating-btn-lbl">Hard</span>
-                        <span className="rating-btn-desc">Unsure</span>
+                        <span className="rating-btn-lbl">{t("hard")}</span>
                       </button>
                       <button className="rating-btn good" onClick={() => handleRate(3)}>
-                        <span className="rating-btn-lbl">Good</span>
-                        <span className="rating-btn-desc">Hesitant</span>
+                        <span className="rating-btn-lbl">{t("good")}</span>
                       </button>
                       <button className="rating-btn easy" onClick={() => handleRate(5)}>
-                        <span className="rating-btn-lbl">Easy</span>
-                        <span className="rating-btn-desc">Instant</span>
+                        <span className="rating-btn-lbl">{t("easy")}</span>
                       </button>
                     </div>
                     <button
@@ -422,7 +420,7 @@ export default function FlashcardsView({
                       disabled={isGenerating}
                     >
                       <MessageSquare size={14} />
-                      {showExamples ? "Hide examples" : "Show examples"}
+                      {showExamples ? t("hideExamples") : t("showExamples")}
                     </button>
                   </div>
                 )}
@@ -436,18 +434,16 @@ export default function FlashcardsView({
                   <div className="flashcard-illustration-circle fc-session-done">
                     <Sparkles size={28} />
                   </div>
-                  <h2>Today&rsquo;s session complete!</h2>
-                  <p>
-                    You&rsquo;ve completed your free review session for today. Come back tomorrow to keep your streak going!
-                  </p>
+                  <h2>{t("sessionComplete")}</h2>
+                  <p>{t("sessionCompleteSub")}</p>
                   <p style={{ fontSize: "13px", color: "var(--text-muted)", marginTop: "4px" }}>
-                    Upgrade to Premium for unlimited daily review sessions.
+                    {t("flashcardsLimitDesc")}
                   </p>
                   <button
                     className="flashcard-start-btn fc-upgrade-btn"
                     onClick={onRequireSubscription}
                   >
-                    <Sparkles size={15} /> Upgrade to Premium ($9.99)
+                    <Sparkles size={15} /> {t("upgradePrice")}
                   </button>
                 </>
               ) : stats.due > 0 ? (
@@ -455,12 +451,15 @@ export default function FlashcardsView({
                   <div className="flashcard-illustration-circle">
                     <Brain size={28} />
                   </div>
-                  <h2>Ready to review Hebrew words?</h2>
+                  <h2>{t("reviewSession")}</h2>
                   <p>
-                    You have <strong>{stats.due}</strong> {stats.due === 1 ? "word" : "words"} waiting for review in this session.
+                    {t("reviewDueWords", {
+                      count: stats.due,
+                      wordLabel: stats.due === 1 ? t("word") : t("words"),
+                    })}
                   </p>
                   <button className="flashcard-start-btn" onClick={startSession}>
-                    Start Review Session ({Math.min(stats.due, 20)} cards)
+                    {t("startReviewSession")} ({Math.min(stats.due, 20)})
                   </button>
                 </>
               ) : (
@@ -468,18 +467,11 @@ export default function FlashcardsView({
                   <div className="flashcard-illustration-circle">
                     <Sparkles size={28} />
                   </div>
-                  <h2>All Caught Up!</h2>
-                  <p>
-                    Excellent! You have reviewed all active flashcards for now. Check back later for your next scheduled reviews.
-                  </p>
+                  <h2>{t("allCaughtUp")}</h2>
+                  <p>{t("noCardsDue")}</p>
                   {stats.active > 0 && stats.nextReviewAt && (
                     <p style={{ fontSize: "14px", color: "var(--text-muted)", marginTop: "4px" }}>
-                      Next review in <strong>{formatNextReview(stats.nextReviewAt)}</strong> (FSRS scheduling).
-                    </p>
-                  )}
-                  {stats.active > 0 && !stats.nextReviewAt && (
-                    <p style={{ fontSize: "14px", color: "var(--text-muted)", marginTop: "4px" }}>
-                      Review intervals are scheduled automatically using the FSRS algorithm.
+                      {t("nextReview")}: <strong>{formatNextReview(stats.nextReviewAt, t("soon"))}</strong>
                     </p>
                   )}
                 </>
@@ -495,9 +487,9 @@ export default function FlashcardsView({
           {learnedCards.length === 0 ? (
             <div className="vocab-empty-container">
               <Sparkles size={36} className="vocab-empty-icon" />
-              <h3 className="vocab-empty-title">No Learned Words Yet</h3>
+              <h3 className="vocab-empty-title">{t("noLearnedWords")}</h3>
               <p className="vocab-empty-text">
-                Keep reviewing words in the Review Session! When your recall interval for a word exceeds 21 days, it will appear here as &ldquo;fully learned.&rdquo;
+                {t("noLearnedWordsSub")}
               </p>
             </div>
           ) : (
@@ -511,13 +503,13 @@ export default function FlashcardsView({
                         <div style={{ display: "flex", gap: "8px" }}>
                           <span className="vocab-learned-badge">
                             <Sparkles size={11} style={{ marginRight: "4px" }} />
-                            Learned
+                            {t("learned")}
                           </span>
                         </div>
                         <button 
                           className="vocab-action-btn delete" 
                           onClick={() => unlearnWord(vw.id)}
-                          title="Reset learning progress and place back in active queue"
+                          title={t("unlearn")}
                         >
                           <RotateCcw size={14} />
                         </button>

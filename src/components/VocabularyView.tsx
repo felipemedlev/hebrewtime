@@ -4,7 +4,10 @@ import { useState, useMemo } from "react";
 import { Bookmark, Trash2, LogIn, Edit2, Check, X, ExternalLink, Search, MessageSquare } from "lucide-react";
 import type { VocabWord } from "@/lib/types";
 import { useUser } from "@/hooks/useUser";
+import { useT } from "@/lib/i18n/LanguageProvider";
 import ExamplePhrasesPanel from "./ExamplePhrasesPanel";
+
+const ALL_CHAPTERS_KEY = "__all__";
 
 type VocabularyViewProps = {
   vocabWords: VocabWord[];
@@ -23,6 +26,7 @@ export default function VocabularyView({
   generateExamples,
   regenerateExample,
 }: VocabularyViewProps) {
+  const t = useT();
   const { user } = useUser();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -40,19 +44,19 @@ export default function VocabularyView({
     pronunciation: "",
   });
 
-  const [selectedChapter, setSelectedChapter] = useState<string>("All Chapters");
+  const [selectedChapter, setSelectedChapter] = useState<string>(ALL_CHAPTERS_KEY);
   const [sortBy, setSortBy] = useState<"date" | "episode" | "translation" | "hebrew">("date");
   const [searchQuery, setSearchQuery] = useState("");
 
   const chapters = useMemo(() => {
     const list = new Set(vocabWords.map((v) => v.episodeTitle).filter(Boolean));
-    return ["All Chapters", ...Array.from(list)];
+    return [ALL_CHAPTERS_KEY, ...Array.from(list)];
   }, [vocabWords]);
 
   const filteredAndSortedWords = useMemo(() => {
     let result = [...vocabWords];
 
-    if (selectedChapter !== "All Chapters") {
+    if (selectedChapter !== ALL_CHAPTERS_KEY) {
       result = result.filter((v) => v.episodeTitle === selectedChapter);
     }
 
@@ -132,7 +136,7 @@ export default function VocabularyView({
       {/* Page Header */}
       <div className="vocab-page-header">
         <div className="vocab-page-title-row">
-          <h2 className="vocab-page-title">Vocabulary</h2>
+          <h2 className="vocab-page-title">{t("myVocabulary")}</h2>
           {vocabWords.length > 0 && (
             <span className="vocab-count-badge">{vocabWords.length}</span>
           )}
@@ -141,12 +145,12 @@ export default function VocabularyView({
         {vocabWords.length > 0 && (
           <div style={{ display: "flex", gap: "12px", marginTop: "16px", flexWrap: "wrap", alignItems: "center" }}>
             <div style={{ position: "relative", flex: "1 1 200px" }}>
-              <label htmlFor="vocab-search" className="sr-only">Search vocabulary</label>
+              <label htmlFor="vocab-search" className="sr-only">{t("searchVocabulary")}</label>
               <Search size={14} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "var(--text-tertiary)" }} aria-hidden="true" />
               <input
                 id="vocab-search"
                 type="search"
-                placeholder="Search words..."
+                placeholder={t("searchPlaceholder")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 style={{
@@ -164,6 +168,7 @@ export default function VocabularyView({
             <select
               value={selectedChapter}
               onChange={(e) => setSelectedChapter(e.target.value)}
+              aria-label={t("filterByChapter")}
               style={{
                 padding: "6px 28px 6px 12px",
                 borderRadius: "8px",
@@ -175,11 +180,18 @@ export default function VocabularyView({
                 appearance: "auto"
               }}
             >
-              {chapters.map(ch => <option key={ch} value={ch}>{ch}</option>)}
+              {chapters.map((ch) => (
+                <option key={ch} value={ch}>
+                  {ch === ALL_CHAPTERS_KEY ? t("allChapters") : ch}
+                </option>
+              ))}
             </select>
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
+              onChange={(e) =>
+                setSortBy(e.target.value as "date" | "episode" | "translation" | "hebrew")
+              }
+              aria-label={t("sortBy")}
               style={{
                 padding: "6px 28px 6px 12px",
                 borderRadius: "8px",
@@ -191,15 +203,15 @@ export default function VocabularyView({
                 appearance: "auto"
               }}
             >
-              <option value="date">Sort by Date Added</option>
-              <option value="episode">Sort by Episode</option>
-              <option value="translation">Sort by English (A-Z)</option>
-              <option value="hebrew">Sort by Hebrew (א-ת)</option>
+              <option value="date">{t("sortByDate")}</option>
+              <option value="episode">{t("sortByEpisode")}</option>
+              <option value="translation">{t("sortByTranslation")}</option>
+              <option value="hebrew">{t("sortByHebrew")}</option>
             </select>
           </div>
         )}
         {vocabWords.length > 0 && (
-          <p className="vocab-page-subtitle">Your saved Hebrew words</p>
+          <p className="vocab-page-subtitle">{t("savedWords")}</p>
         )}
       </div>
 
@@ -209,29 +221,29 @@ export default function VocabularyView({
           {!user ? (
             <>
               <div className="vocab-empty-icon"><LogIn size={22} strokeWidth={1.5} /></div>
-              <p className="vocab-empty-title">Sign in to save words</p>
-              <p className="vocab-empty-sub">Click any Hebrew word while reading to translate &amp; save it.</p>
+              <p className="vocab-empty-title">{t("logInToSave")}</p>
+              <p className="vocab-empty-sub">{t("noVocabSub")}</p>
             </>
           ) : (
             <>
               <div className="vocab-empty-icon"><Bookmark size={22} strokeWidth={1.5} /></div>
-              <p className="vocab-empty-title">No words saved yet</p>
-              <p className="vocab-empty-sub">Click any Hebrew word while reading an episode to save it here.</p>
+              <p className="vocab-empty-title">{t("noVocabYet")}</p>
+              <p className="vocab-empty-sub">{t("clickToSaveFirst")}</p>
             </>
           )}
         </div>
       ) : (
         <div className="vocab-table-wrap">
           {/* ── Desktop Table ── */}
-          <div className="vocab-table" role="table" aria-label="Saved vocabulary">
+          <div className="vocab-table" role="table" aria-label={t("myVocabulary")}>
             {/* Header — columns: Source | Pronunciation | Translation | Verb | Hebrew | Actions */}
             <div className="vocab-table-header" role="row">
-              <div className="vth-source" role="columnheader">Source</div>
-              <div className="vth-pronunciation" role="columnheader">Pronunc.</div>
-              <div className="vth-translation" role="columnheader">Translation</div>
-              <div className="vth-verb" role="columnheader">Verb form</div>
-              <div className="vth-hebrew" role="columnheader">Hebrew</div>
-              <div className="vth-actions" role="columnheader" aria-label="Actions" />
+              <div className="vth-source" role="columnheader">{t("source")}</div>
+              <div className="vth-pronunciation" role="columnheader">{t("pronunciation")}</div>
+              <div className="vth-translation" role="columnheader">{t("translation")}</div>
+              <div className="vth-verb" role="columnheader">{t("verbFormCol")}</div>
+              <div className="vth-hebrew" role="columnheader">{t("hebrew")}</div>
+              <div className="vth-actions" role="columnheader" aria-label={t("actions")} />
             </div>
 
             {/* Rows */}
@@ -271,7 +283,7 @@ export default function VocabularyView({
                         onKeyDown={(e) => e.key === "Enter" && saveEdit(vw.id)}
                         className="vocab-edit-input"
                         style={{ fontSize: "14px", width: "100%", maxWidth: "120px" }}
-                        placeholder="Pronunciation"
+                        placeholder={t("pronunciation")}
                       />
                     ) : vw.pronunciation ? (
                       <span className="vocab-pronunciation-text" style={{ fontStyle: "italic", opacity: 0.8 }}>
@@ -338,10 +350,10 @@ export default function VocabularyView({
                   <div className="vtd-actions" role="cell">
                     {isEditing ? (
                       <>
-                        <button onClick={() => saveEdit(vw.id)} title="Save" className="vocab-action-btn save">
+                        <button onClick={() => saveEdit(vw.id)} title={t("save")} className="vocab-action-btn save">
                           <Check size={14} />
                         </button>
-                        <button onClick={cancelEdit} title="Cancel" className="vocab-action-btn cancel">
+                        <button onClick={cancelEdit} title={t("cancel")} className="vocab-action-btn cancel">
                           <X size={14} />
                         </button>
                       </>
@@ -349,15 +361,15 @@ export default function VocabularyView({
                       <>
                         <button
                           onClick={() => toggleExamples(vw.id)}
-                          title="Example phrases"
+                          title={t("examples")}
                           className={`vocab-action-btn examples${isExpanded ? " active" : ""}`}
                         >
                           <MessageSquare size={14} />
                         </button>
-                        <button onClick={() => startEdit(vw)} title="Edit" className="vocab-action-btn edit">
+                        <button onClick={() => startEdit(vw)} title={t("edit")} className="vocab-action-btn edit">
                           <Edit2 size={14} />
                         </button>
-                        <button onClick={() => onDeleteWord(vw.id)} title="Delete" className="vocab-action-btn delete">
+                        <button onClick={() => onDeleteWord(vw.id)} title={t("delete")} className="vocab-action-btn delete">
                           <Trash2 size={14} />
                         </button>
                       </>
@@ -396,10 +408,10 @@ export default function VocabularyView({
                     <div className="vocab-card-actions">
                       {isEditing ? (
                         <>
-                          <button onClick={() => saveEdit(vw.id)} title="Save" className="vocab-action-btn save">
+                          <button onClick={() => saveEdit(vw.id)} title={t("save")} className="vocab-action-btn save">
                             <Check size={14} />
                           </button>
-                          <button onClick={cancelEdit} title="Cancel" className="vocab-action-btn cancel">
+                          <button onClick={cancelEdit} title={t("cancel")} className="vocab-action-btn cancel">
                             <X size={14} />
                           </button>
                         </>
@@ -407,15 +419,15 @@ export default function VocabularyView({
                         <>
                           <button
                             onClick={() => toggleExamples(vw.id)}
-                            title="Example phrases"
+                            title={t("examples")}
                             className={`vocab-action-btn examples${isExpanded ? " active" : ""}`}
                           >
                             <MessageSquare size={14} />
                           </button>
-                          <button onClick={() => startEdit(vw)} title="Edit" className="vocab-action-btn edit">
+                          <button onClick={() => startEdit(vw)} title={t("edit")} className="vocab-action-btn edit">
                             <Edit2 size={14} />
                           </button>
-                          <button onClick={() => onDeleteWord(vw.id)} title="Delete" className="vocab-action-btn delete">
+                          <button onClick={() => onDeleteWord(vw.id)} title={t("delete")} className="vocab-action-btn delete">
                             <Trash2 size={14} />
                           </button>
                         </>
@@ -443,7 +455,7 @@ export default function VocabularyView({
                             value={editValues.verbFormWithNekudot}
                             onChange={(e) => setEditValues({ ...editValues, verbFormWithNekudot: e.target.value })}
                             onKeyDown={(e) => e.key === "Enter" && saveEdit(vw.id)}
-                            placeholder="verb form…"
+                            placeholder={t("verbForm")}
                             className="vocab-edit-input font-serif"
                             style={{ fontSize: "16px", textAlign: "right" }}
                           />
@@ -463,7 +475,7 @@ export default function VocabularyView({
                         onKeyDown={(e) => e.key === "Enter" && saveEdit(vw.id)}
                         className="vocab-edit-input"
                         style={{ fontSize: "14px", width: "100%", marginBottom: "8px" }}
-                        placeholder="Translation"
+                        placeholder={t("translation")}
                       />
                     ) : (
                       <span style={{ display: "block", marginBottom: vw.pronunciation ? "4px" : "0" }}>{vw.translation}</span>
@@ -476,7 +488,7 @@ export default function VocabularyView({
                         onKeyDown={(e) => e.key === "Enter" && saveEdit(vw.id)}
                         className="vocab-edit-input"
                         style={{ fontSize: "13px" }}
-                        placeholder="Pronunciation"
+                        placeholder={t("pronunciation")}
                       />
                     ) : vw.pronunciation ? (
                       <span className="vocab-pronunciation-text" style={{ fontStyle: "italic", opacity: 0.8, fontSize: "13px", display: "block" }}>

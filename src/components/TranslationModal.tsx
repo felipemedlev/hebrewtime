@@ -2,6 +2,7 @@
 
 import { X, Loader2 } from "lucide-react";
 import { useModalAccessibility } from "@/hooks/useModalAccessibility";
+import { useT } from "@/lib/i18n/LanguageProvider";
 
 type TranslationModalProps = {
   isOpen: boolean;
@@ -24,6 +25,7 @@ export default function TranslationModal({
   onClose,
   onSave,
 }: TranslationModalProps) {
+  const t = useT();
   const { dialogRef, titleId } = useModalAccessibility(isOpen, onClose);
 
   if (!isOpen) return null;
@@ -46,7 +48,7 @@ export default function TranslationModal({
           <h3 id={titleId} className="modal-title font-serif" dir="rtl">
             {wordWithNekudot || word}
           </h3>
-          <button onClick={onClose} className="close-btn" aria-label="Close translation">
+          <button onClick={onClose} className="close-btn" aria-label={t("close")}>
             <X size={18} />
           </button>
         </div>
@@ -55,14 +57,14 @@ export default function TranslationModal({
           {isTranslating ? (
             <div className="translating-state">
               <Loader2 className="spinner" size={24} />
-              <span>Translating exact word in context...</span>
+              <span>{t("translating")}</span>
             </div>
           ) : (
             <div className="translation-result">
               <p className="translation-text">{translation}</p>
               {verbFormWithNekudot && (
-                <p className="verb-form-text" style={{ marginTop: '8px', fontSize: '14px', color: 'var(--text-muted)' }}>
-                  Verb form: <span className="font-serif" dir="rtl" style={{ fontSize: '18px', color: 'var(--accent)' }}>{verbFormWithNekudot}</span>
+                <p className="verb-form-text" style={{ marginTop: "8px", fontSize: "14px", color: "var(--text-muted)" }}>
+                  {t("verbForm")}: <span className="font-serif" dir="rtl" style={{ fontSize: "18px", color: "var(--accent)" }}>{verbFormWithNekudot}</span>
                 </p>
               )}
             </div>
@@ -79,7 +81,7 @@ export default function TranslationModal({
             }
             onClick={onSave}
           >
-            Add to Vocabulary
+            {t("addToVocabulary")}
           </button>
         </div>
       </div>

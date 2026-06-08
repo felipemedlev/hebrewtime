@@ -72,6 +72,8 @@ def upsert_episode(ep: dict, dry_run: bool) -> None:
         "hebrew_text": ep.get("hebrew_text", ""),
         "hebrew_paragraphs": ep.get("hebrew_paragraphs", []),
         "english_paragraphs": ep.get("english_paragraphs", []),
+        "translations": ep.get("translations")
+        or {"en": ep.get("english_paragraphs", [])},
         "is_published": True,
     }
 

@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { ChevronDown, ChevronUp, Radio, Play, Pause, Volume2, VolumeX } from "lucide-react";
 
 import { resolveEpisodeAudioSrc } from "@/lib/episodeAudio";
+import { useT } from "@/lib/i18n/LanguageProvider";
 
 type MediaPlayerProps = {
   audioUrl: string | null;
@@ -29,6 +30,7 @@ export default function MediaPlayer({
   episodeLevel = null,
   isSidebarOpen = false,
 }: MediaPlayerProps) {
+  const t = useT();
   const [isExpanded, setIsExpanded] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -75,7 +77,7 @@ export default function MediaPlayer({
     const onEnded = () => setIsPlaying(false);
 
     const onError = () => {
-      setPlaybackError("Unable to load audio for this episode.");
+      setPlaybackError(t("noAudio"));
       setIsPlaying(false);
     };
 
@@ -96,7 +98,7 @@ export default function MediaPlayer({
       audio.removeEventListener("ended", onEnded);
       audio.removeEventListener("error", onError);
     };
-  }, [isScrubbing]);
+  }, [isScrubbing, t]);
 
   const togglePlay = useCallback(async () => {
     const audio = audioRef.current;
@@ -105,12 +107,12 @@ export default function MediaPlayer({
       try {
         await audio.play();
       } catch {
-        setPlaybackError("Unable to play audio for this episode.");
+        setPlaybackError(t("noAudio"));
       }
     } else {
       audio.pause();
     }
-  }, []);
+  }, [t]);
 
   const toggleMute = useCallback(() => {
     const audio = audioRef.current;
@@ -175,13 +177,13 @@ export default function MediaPlayer({
               </span>
             )}
             <span className="media-player-title">
-              {playbackError ?? episodeTitle ?? "Loading…"}
+              {playbackError ?? episodeTitle ?? t("loading")}
             </span>
           </div>
         </div>
         <button
           className="media-player-toggle"
-          aria-label={isExpanded ? "Collapse player" : "Expand player"}
+          aria-label={isExpanded ? t("close") : t("openSidebar")}
           onClick={(e) => {
             e.stopPropagation();
             setIsExpanded(!isExpanded);
@@ -198,7 +200,7 @@ export default function MediaPlayer({
           <button
             className="mp-play-btn"
             onClick={togglePlay}
-            aria-label={isPlaying ? "Pause" : "Play"}
+            aria-label={isPlaying ? t("pause") : t("play")}
           >
             {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
           </button>
@@ -239,7 +241,7 @@ export default function MediaPlayer({
           <button
             className="mp-mute-btn"
             onClick={toggleMute}
-            aria-label={isMuted ? "Unmute" : "Mute"}
+            aria-label={isMuted ? t("unmute") : t("mute")}
           >
             {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
           </button>

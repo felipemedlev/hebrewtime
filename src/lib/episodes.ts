@@ -1,6 +1,13 @@
 import fs from "fs";
 import path from "path";
-import type { Episode, EpisodeListItem, Level, ParagraphTiming } from "./types";
+import type {
+  Episode,
+  EpisodeListItem,
+  EpisodeTranslations,
+  Level,
+  ParagraphTiming,
+} from "./types";
+import { isLangCode, type LangCode } from "./i18n/types";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -15,6 +22,7 @@ type EpisodeRow = {
   hebrew_text: string;
   hebrew_paragraphs: unknown;
   english_paragraphs: unknown;
+  translations?: unknown;
   is_published: boolean;
 };
 
@@ -74,7 +82,29 @@ function mapParagraphs(raw: unknown): Episode["hebrew_paragraphs"] {
   });
 }
 
+function mapTranslations(
+  raw: unknown,
+  englishParagraphs: string[]
+): EpisodeTranslations {
+  const result: EpisodeTranslations = {};
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+      if (isLangCode(key) && Array.isArray(value)) {
+        result[key as LangCode] = value.map(String);
+      }
+    }
+  }
+  if (!result.en?.length && englishParagraphs.length > 0) {
+    result.en = englishParagraphs;
+  }
+  return result;
+}
+
 function mapEpisodeRow(row: EpisodeRow): Episode {
+  const englishParagraphs = Array.isArray(row.english_paragraphs)
+    ? (row.english_paragraphs as string[])
+    : [];
+  const translations = mapTranslations(row.translations, englishParagraphs);
   return {
     id: row.id,
     level: row.level_slug,
@@ -84,9 +114,8 @@ function mapEpisodeRow(row: EpisodeRow): Episode {
     title: normalizeTitle(row.title, row.episode_number),
     hebrew_paragraphs: mapParagraphs(row.hebrew_paragraphs),
     hebrew_text: row.hebrew_text ?? "",
-    english_paragraphs: Array.isArray(row.english_paragraphs)
-      ? (row.english_paragraphs as string[])
-      : [],
+    english_paragraphs: englishParagraphs,
+    translations,
   };
 }
 
@@ -104,6 +133,9 @@ function loadLegacyEpisodes(): Episode[] {
       .map((ep) => {
         const episodeNumber = Number(ep.episode);
         if (Number.isNaN(episodeNumber)) return null;
+        const englishParagraphs = Array.isArray(ep.english_paragraphs)
+          ? (ep.english_paragraphs as string[])
+          : [];
         return {
           id: `legacy-intermediate-${episodeNumber}`,
           level: "intermediate",
@@ -113,9 +145,8 @@ function loadLegacyEpisodes(): Episode[] {
           title: normalizeTitle(String(ep.title ?? ""), episodeNumber),
           hebrew_paragraphs: mapParagraphs(ep.hebrew_paragraphs),
           hebrew_text: String(ep.hebrew_text ?? ""),
-          english_paragraphs: Array.isArray(ep.english_paragraphs)
-            ? (ep.english_paragraphs as string[])
-            : [],
+          english_paragraphs: englishParagraphs,
+          translations: mapTranslations(ep.translations, englishParagraphs),
         } satisfies Episode;
       })
       .filter((ep) => ep !== null) as Episode[];

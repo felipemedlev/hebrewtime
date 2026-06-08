@@ -3,22 +3,18 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Check } from "lucide-react";
 import type { LevelTrackMeta } from "@/lib/types";
+import { useT } from "@/lib/i18n/LanguageProvider";
 
 type LearningTrackSelectorProps = {
   tracks: LevelTrackMeta[];
   onSelectLevel: (slug: string) => void;
 };
 
-function formatResumeLabel(track: LevelTrackMeta): string {
-  if (track.episodeCount === 0) return "No episodes yet";
-  if (track.resumeEpisode == null) return "Start from episode 01";
-  return `Resume episode ${String(track.resumeEpisode).padStart(2, "0")}`;
-}
-
 export default function LearningTrackSelector({
   tracks,
   onSelectLevel,
 }: LearningTrackSelectorProps) {
+  const t = useT();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -50,6 +46,14 @@ export default function LearningTrackSelector({
 
   if (!activeTrack) return null;
 
+  const formatResumeLabel = (track: LevelTrackMeta): string => {
+    if (track.episodeCount === 0) return t("noEpisodesForLevel");
+    if (track.resumeEpisode == null) {
+      return t("resumeEpisode", { num: "01" });
+    }
+    return t("resumeAt", { num: track.resumeEpisode });
+  };
+
   const handleSelect = (slug: string) => {
     setIsOpen(false);
     if (slug !== activeTrack.slug) {
@@ -65,7 +69,7 @@ export default function LearningTrackSelector({
         onClick={() => setIsOpen((prev) => !prev)}
         aria-expanded={isOpen}
         aria-haspopup="listbox"
-        aria-label="Select learning track"
+        aria-label={t("learningTrack")}
       >
         <div className="learning-track-trigger-main">
           <div className="learning-track-trigger-title">
@@ -76,7 +80,10 @@ export default function LearningTrackSelector({
           </div>
           <div className="learning-track-trigger-meta">
             <span>
-              {activeTrack.finishedCount} / {activeTrack.episodeCount} finished
+              {t("episodesFinished", {
+                finished: activeTrack.finishedCount,
+                total: activeTrack.episodeCount,
+              })}
             </span>
             <span className="learning-track-dot">·</span>
             <span>{formatResumeLabel(activeTrack)}</span>
@@ -93,7 +100,7 @@ export default function LearningTrackSelector({
         <div
           className="learning-track-menu"
           role="listbox"
-          aria-label="Learning tracks"
+          aria-label={t("learningTrack")}
         >
           {tracks.map((track) => (
             <button
@@ -115,7 +122,10 @@ export default function LearningTrackSelector({
               </div>
               <div className="learning-track-option-meta">
                 <span>
-                  {track.finishedCount} / {track.episodeCount} finished
+                  {t("episodesFinished", {
+                    finished: track.finishedCount,
+                    total: track.episodeCount,
+                  })}
                 </span>
                 <span className="learning-track-dot">·</span>
                 <span>{formatResumeLabel(track)}</span>

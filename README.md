@@ -1,6 +1,6 @@
 # HebrewTime
 
-HebrewTime is a beautiful, bilingual web-based reader for the Hebrew Time podcast. It provides an elegant Notion/Apple-like reading experience with side-by-side Hebrew and English paragraphs.
+HebrewTime is a beautiful multilingual web-based reader for the Hebrew Time podcast. It provides an elegant Notion/Apple-like reading experience with side-by-side Hebrew and translated paragraphs. Supported UI and transcript languages: **English**, **Russian**, **Ukrainian**, **Portuguese**, **Spanish**, and **French** (all generated with OpenAI `gpt-5.4-mini`).
 
 The platform supports multiple learning levels — **Beginner** (A1), **Intermediate** (B1 legacy), **Intermediate 2** (B1 generated), and **Advanced** (B2 generated) — each with its own episode series. Beginner, Intermediate 2, and Advanced episodes are AI-generated (~10 minutes each, narrated by a consistent persona) with sentence-level audio highlighting. Legacy Intermediate content comes from the original Hebrew Time podcast.
 
@@ -9,9 +9,9 @@ The application allows Hebrew learners to read podcast transcripts and click on 
 ## Key Features
 
 - **Multi-Level Learning Tracks**: Switch between **Beginner**, **Intermediate**, **Intermediate 2**, and **Advanced** via a dropdown (`LearningTrackSelector`) in the sidebar. Each level has its own numbered episode list with per-level finished counts, resume episode, and progress bar. Vocabulary and flashcards are shared across levels. The selected level persists in local storage (`hebrewtime-level`); last-opened episode per level is stored in `hebrewtime-last-episode-by-level`.
-- **Bilingual Interface**: Smooth side-by-side Hebrew and English paragraphs.
+- **Multilingual Interface**: One language preference drives both the full UI (i18n) and the transcript translation shown beside Hebrew. Smooth side-by-side Hebrew + selected language paragraphs.
 - **Audio-Synchronized Highlighting**: As the podcast audio plays, the current Hebrew sentence is automatically highlighted and smoothly scrolled into view. Generated tracks (Beginner, Intermediate 2, Advanced) use sentence-level timestamps from the Gemini TTS pipeline. Legacy Intermediate episodes use Whisper alignment via `scripts/lib/alignment.py`, which can produce paragraph-level and sentence-level timings.
-- **Focus Mode for Hebrew Reading**: A top-bar toggle lets users blur all English transcript text on demand, so learners can practice Hebrew-first reading. The preference is saved in local storage.
+- **Focus Mode for Hebrew Reading**: A top-bar toggle lets users blur all transcript translations on demand, so learners can practice Hebrew-first reading. The preference is saved in local storage.
 - **Mark Episodes as Finished**: Users can mark episodes they've completed. Finished state is tracked **per level** (`level:episode` keys), synced to Supabase `finished_episodes` with `level_slug` for authenticated users, and stored in local storage. Checkmarks appear in the sidebar and an elegant button at the end of the episode text.
 - **Scroll Position Persistence**: The application remembers your exact scroll position when switching between episodes, the vocabulary list, and flashcards, so you never lose your place.
 - **Premium-gated AI Translation**: Click any Hebrew word to translate it within the context of the sentence using OpenAI (gpt-5.4-mini). A specially tuned prompt ensures:
@@ -26,9 +26,9 @@ The application allows Hebrew learners to read podcast transcripts and click on 
   - Rendered in an elegant, minimal Apple/Notion-style data table on desktop and card layout on mobile. Desktop column order: **Source** (leftmost) → Pronunc. → Translation → Verb form → **Hebrew** (rightmost, for natural RTL reading) → Actions.
   - Supports inline editing of saved words directly on the vocabulary page (Hebrew with Nekudot, verb form, translation, and pronunciation). Pressing **Enter** in any edit field saves the row (same as clicking the ✓ button).
   - On mobile, the Hebrew word is right-aligned and actions sit on the left, preserving the RTL-natural reading flow in a card layout.
-  - **Dynamic Search & Filtering**: A responsive search bar instantly filters your vocabulary list as you type. It works seamlessly for English translations, Hebrew words (even without typing specific Nekudot), and pronunciation.
+  - **Dynamic Search & Filtering**: A responsive search bar instantly filters your vocabulary list as you type. It works seamlessly for saved word meanings (any language), Hebrew words (even without typing specific Nekudot), and pronunciation.
   - Smart deduplication logic allows saving the exact same Hebrew word multiple times if its contextual meaning (translation) or pronunciation (Nekudot) differs.
-  - **AI Example Phrases**: Each saved word can reveal 3 AI-generated example sentences (Hebrew with Nekudot + English translation) showing everyday usage. Phrases are **not** generated at save-time — the user expands an “Examples” panel (Vocabulary tab) or taps “Show examples” (Flashcards) to trigger generation on first use. Results are cached in `vocabulary.example_phrases` (JSONB) per user per word and load instantly on subsequent views. Any single phrase can be regenerated unlimited times via a per-phrase refresh button. Shared UI lives in `ExamplePhrasesPanel.tsx`; orchestration in `AppShell.tsx` calls `generateExamplePhrases` then persists via `useVocabulary.updateWord`.
+  - **AI Example Phrases**: Each saved word can reveal 3 AI-generated example sentences (Hebrew with Nekudot + meaning in the user's active UI language) showing everyday usage. Phrases are **not** generated at save-time — the user expands an “Examples” panel (Vocabulary tab) or taps “Show examples” (Flashcards) to trigger generation on first use. Results are cached in `vocabulary.example_phrases` (JSONB) per user per word and load instantly on subsequent views. Any single phrase can be regenerated unlimited times via a per-phrase refresh button. Shared UI lives in `ExamplePhrasesPanel.tsx`; orchestration in `AppShell.tsx` calls `generateExamplePhrases` then persists via `useVocabulary.updateWord`.
 - **Top-of-Screen Subscription Upsell (Apple/Notion Style)**: If a non-premium user clicks the Vocabulary tab, Flashcards tab, or tries to translate a word, the app shows a large sticky promo panel with $10/month messaging and a CTA that opens auth/signup.
 - **Spaced Repetition Flashcard System (FSRS)**: An elegant, built-in flashcard system designed to help users master their saved vocabulary.
   - **FSRS Scheduling** ([ts-fsrs](https://github.com/open-spaced-repetition/ts-fsrs)): Uses the Free Spaced Repetition Scheduler with 90% target retention, predicting memory stability and difficulty per card. Due cards load dynamically (up to 20 per session).
@@ -38,7 +38,7 @@ The application allows Hebrew learners to read podcast transcripts and click on 
   - **Optimistic background syncs**: Rating actions are handled in the background asynchronously, making card swaps instantaneous and non-blocking.
   - **Example Phrases During Review**: Before or after flipping a card, users can tap “Show examples” to reveal a panel below the card (outside the 3D flip area). On first use, phrases are AI-generated and cached; later sessions read them from the database with zero extra fetch. Each phrase has an unlimited per-slot regenerate button. The examples panel resets when advancing to the next card.
 - **Admin Dashboard & Premium Controls**: Admin users (`ADMIN_EMAILS`) can open a dedicated `/admin` dashboard in a new tab from the sidebar. The dashboard shows platform-wide stats (total users, premium users, active site time, episodes completed, words saved) and a searchable user table with per-user active time, last seen, episodes completed, words saved, flashcard reviews, and premium status. Admins can still grant/revoke premium access by email; granting premium automatically sends a Supabase invite email.
-- **First-Time Onboarding Landing Page**: After a user's first successful login, a full-screen onboarding overlay introduces the platform's core value proposition and main features (bilingual reading, click-to-translate, vocabulary/flashcards, audio-synced highlighting). Users can complete it via "Start reading" or dismiss it with "Skip for now". Once completed or skipped, onboarding never reappears on any device. Non-authenticated visitors never see it. Completion is persisted in Supabase user metadata (`user_metadata.onboarded`) — no database migration required.
+- **First-Time Onboarding Landing Page**: After a user's first successful login, a full-screen onboarding overlay introduces the platform's core value proposition and main features (multilingual reading, click-to-translate, vocabulary/flashcards, audio-synced highlighting). All copy is i18n-aware via `useT()`. Users can complete it via "Start reading" or dismiss it with "Skip for now". Once completed or skipped, onboarding never reappears on any device. Non-authenticated visitors never see it. Completion is persisted in Supabase user metadata (`user_metadata.onboarded`) — no database migration required.
 
 - **Precision Audio Player**: Persistent bottom audio player with a fully custom UI built on top of HTML5 `<audio>` for reliable cross-platform playback (supports Google Drive audio and Supabase Storage episode audio via server-side proxy routes). Key improvements for mobile:
   - **Large-touch-target seek bar**: The scrub thumb is 28 px on mobile (vs the browser default of ~6 px), making it easy to tap and drag on iPhone without misses.
@@ -46,7 +46,7 @@ The application allows Hebrew learners to read podcast transcripts and click on 
   - **Live time display** (elapsed / total) that updates in real-time while scrubbing.
   - **Responsive layout integration**: The player seamlessly aligns with the main content area, automatically syncing its width and animations with the sidebar to avoid overlap on desktop.
 - **Responsive Workspace**: Features a highly performant, draggable sidebar that lets users seamlessly expand or contract their reading workspace. The custom width bridges native DOM events to CSS variables for 60fps adjustments without heavy React re-renders, smoothly syncing with the bottom media player layout and persisting width preferences via local storage. It also includes an elegant slide-out sidebar for mobile devices, incorporating robust scroll-bleed prevention by utilizing `overscroll-behavior: none` alongside dynamic `pointer-events: none` isolation to mathematically guarantee iOS Safari cannot chain-scroll the background.
-- **Automated Scraping**: Python script to scrape episode transcripts from Squarespace and auto-translate missing English sections via OpenAI.
+- **Automated Scraping**: Python script to scrape episode transcripts from Squarespace and auto-translate to all six supported languages via OpenAI (`gpt-5.4-mini`).
 
 ## Architecture & Tech Stack
 
@@ -60,7 +60,8 @@ This project is built with **Next.js 16** (App Router) and **React 19**, focusin
 - **Data Fetching/AI**: OpenAI API (`gpt-5.4-mini`) for on-the-fly contextual word translations and lazy-generated example phrases (both premium-only).
 - **Scraper**: Python 3 (`requests`, `beautifulsoup4`, `openai`) for legacy Squarespace intermediate transcripts.
 - **Content Pipeline**: Python scripts for AI-generated beginner, Intermediate 2, and Advanced episodes (OpenAI script → sentence-level Gemini 3.1 Flash TTS timing → Supabase Storage + DB).
-- **Episode Storage**: Supabase PostgreSQL (`levels`, `episodes`) + Supabase Storage (`episode-audio` bucket).
+- **Episode Storage**: Supabase PostgreSQL (`levels`, `episodes` with `translations` JSONB map) + Supabase Storage (`episode-audio` bucket).
+- **i18n**: Lightweight client-side catalogs in `src/lib/i18n/` with `LanguageProvider` / `useT()`. Preference stored in `localStorage` (`hebrewtime-language`) and mirrored to Supabase `user_metadata.preferred_language` when logged in.
 
 ### Core Architecture
 Following a recent refactor, the app utilizes Next.js Server Components and dynamic API routes for optimal performance:
@@ -69,10 +70,11 @@ Following a recent refactor, the app utilizes Next.js Server Components and dyna
 - **Level & Audio Helpers (`src/lib/levelTracks.ts`, `src/lib/episodeAudio.ts`)**: `levelTracks.ts` builds level metadata (finished counts, resume episode, progress). `episodeAudio.ts` routes Google Drive URLs through `/api/audio` and Supabase Storage URLs through `/api/episode-audio/[level]/[id]`.
 - **Dynamic API Routes (`/api/episode/[level]/[id]/route.ts`)**: Fresh JSON endpoints per level and episode number. `/api/levels` returns available learning tracks (cached for 1 hour).
 - **Component Breakdown (`src/components/`)**:
-  - `AppShell.tsx`: The main responsive client wrapper managing state/layout, view gating, sticky $10/month subscription prompts for blocked premium actions, English blur toggle, example-phrase orchestration (`generateExamples` / `regenerateExample`), and first-time onboarding overlay rendering.
+  - `AppShell.tsx`: The main responsive client wrapper managing state/layout, view gating, sticky $10/month subscription prompts for blocked premium actions, translation blur toggle, language-aware example-phrase orchestration (`generateExamples` / `regenerateExample`), and first-time onboarding overlay rendering.
+  - `LanguageSelector.tsx`: Top-bar language picker (`en` / `ru` / `uk` / `pt` / `es` / `fr`); drives UI i18n and transcript column.
   - `LearningTrackSelector.tsx`: Dropdown to switch learning levels with finished count, resume episode, and progress bar.
-  - `Sidebar.tsx`: Navigation, search, and tab switching.
-  - `EpisodeViewer.tsx`: Bilingual reading experience, word-click handling, and conditional blurring of English transcript text.
+  - `Sidebar.tsx`: Navigation, search, and tab switching (all labels via `useT()`).
+  - `EpisodeViewer.tsx`: Hebrew + selected-language reading, word-click handling (`translateWord` with `targetLang`), and conditional blurring of transcript translations.
   - `VocabularyView.tsx`: Saved words in a desktop table / mobile card layout with search, filtering, inline editing, and expandable example-phrase panels.
   - `FlashcardsView.tsx`: Core spaced-repetition card review view featuring a compact Review stats strip, 3D flip animations, snappy Anki-style deck swaps, and example phrases below the card.
   - `ExamplePhrasesPanel.tsx`: Shared UI for listing, generating, and regenerating example phrases (used by Vocabulary and Flashcards).
@@ -88,6 +90,158 @@ Following a recent refactor, the app utilizes Next.js Server Components and dyna
   - `useOnboarding.ts`: Derives whether to show the first-login onboarding overlay from `user.user_metadata.onboarded` and persists dismissal via `supabase.auth.updateUser({ data: { onboarded: true } })`.
   - `useFinishedEpisodes.ts`: Manages per-level finished state in local storage and syncs to Supabase `finished_episodes` (with `level_slug`) for authenticated users. Migrates legacy numeric-only localStorage entries to `intermediate:{episode}` keys.
   - `useUsageTracking.ts`: Tracks authenticated active site time (visible tab + recent interaction) and syncs daily rollups to Supabase for the admin dashboard.
+
+### Multilingual Platform (i18n + Transcripts)
+
+> **Prompt context for AI assistants:** This section documents how multilingual support works end-to-end. Read it before changing UI copy, episode data, translation pipelines, or click-to-translate behavior.
+
+#### Design decisions (do not regress without explicit intent)
+
+| Decision | Rationale |
+|----------|-----------|
+| **One language preference** drives both UI chrome and transcript column | Simpler UX; learner reads Hebrew + their native language |
+| **Hebrew is always shown** | It is the learning target; only the adjacent translation column changes |
+| **Six languages**: `en`, `ru`, `uk`, `pt`, `es`, `fr` | All LTR; Hebrew stays per-element `dir="rtl"` — no document-level RTL flip |
+| **`episodes.translations` JSONB map** | Matches existing JSONB paragraph storage; one fetch per episode |
+| **`english_paragraphs` kept** | Backward compatibility; `translations.en` is backfilled from it |
+| **Vocabulary `translation` column unchanged** | Single text field; meaning follows active language at save time (mixed-language lists accepted) |
+| **`ExamplePhrase.english` field name unchanged** | JSONB shape stays `{ hebrew, english }`; `english` holds meaning in active language |
+| **Admin dashboard stays English** | Internal tool; out of i18n scope |
+| **All new transcript/AI translations use `gpt-5.4-mini`** | Consistent cost/quality across scraper, pipeline, backfill, and server actions |
+
+#### Supported language codes
+
+Defined in `src/lib/i18n/types.ts`:
+
+| Code | UI label | AI prompt name |
+|------|----------|----------------|
+| `en` | English | English |
+| `ru` | Русский | Russian |
+| `uk` | Українська | Ukrainian |
+| `pt` | Português | Portuguese |
+| `es` | Español | Spanish |
+| `fr` | Français | French |
+
+Default: `en`. Invalid codes fall back to `en`.
+
+#### UI i18n (client-side)
+
+Dependency-free catalogs — no `next-intl` or similar.
+
+| File | Purpose |
+|------|---------|
+| `src/lib/i18n/types.ts` | `LangCode`, `LANG_CODES`, `LANGUAGE_NAMES_FOR_AI`, helpers |
+| `src/lib/i18n/messages.ts` | All UI strings for all 6 languages (`MessageKey` union) |
+| `src/lib/i18n/LanguageProvider.tsx` | Context: `lang`, `setLang`, `t()`, blur toggle, `langOptions` |
+| `src/lib/i18n/index.ts` | Re-exports |
+| `src/components/LanguageSelector.tsx` | Top-bar `<select>` for language |
+
+**Provider wiring:** `LanguageProvider` wraps `AppShell` in `src/app/page.tsx`. Standalone routes (`/update-password`) wrap themselves.
+
+**Persistence:**
+- `localStorage` key `hebrewtime-language` — primary store for all users
+- `localStorage` key `blur-translations` — translation blur/focus mode (legacy key `blur-english-translations` migrated on read)
+- Logged-in users: `user_metadata.preferred_language` synced via `supabase.auth.updateUser` on change
+
+**Usage in components:**
+```tsx
+import { useT, useLanguage } from "@/lib/i18n/LanguageProvider";
+
+const t = useT();
+const { lang, isTranslationBlurred, toggleTranslationBlurred } = useLanguage();
+
+// Simple string
+t("logIn")
+
+// Interpolation
+t("resumeEpisode", { num: "05" })
+```
+
+**Adding a new UI string:**
+1. Add key + English text to the `en` object in `messages.ts`
+2. Add the same key to `ru`, `uk`, `pt`, `es`, `fr` objects (TypeScript enforces completeness via `Messages` type)
+3. Replace hardcoded copy with `t("yourKey")` in the component
+
+**Level display names** (`levels.name` from Supabase) are data, not catalog strings.
+
+#### Episode transcript translations (database)
+
+**Schema** (after `supabase/multilingual-translations.sql`):
+
+```sql
+ALTER TABLE public.episodes
+  ADD COLUMN translations JSONB NOT NULL DEFAULT '{}'::jsonb;
+```
+
+**Shape** — paragraph arrays aligned 1:1 with `hebrew_paragraphs`:
+
+```json
+{
+  "en": ["Hello...", "..."],
+  "ru": ["Привет...", "..."],
+  "uk": ["Привіт...", "..."],
+  "pt": ["Olá...", "..."],
+  "es": ["Hola...", "..."],
+  "fr": ["Bonjour...", "..."]
+}
+```
+
+`english_paragraphs` remains populated for compatibility. Migration backfills `translations.en` from it.
+
+**TypeScript:** `Episode.translations: EpisodeTranslations` (`Partial<Record<LangCode, string[]>>`) in `src/lib/types.ts`.
+
+**Loading:** `src/lib/episodes.ts → mapEpisodeRow()` reads `translations`, defaulting `en` from `english_paragraphs` when absent. Legacy `episodes.json` fallback uses the same mapping.
+
+**Rendering:** `src/lib/episodeTranslations.ts → getTranslationParagraphs(episode, lang)` resolves the active language, falls back to `english_paragraphs` for `en` or empty maps, returns `[]` for missing non-English languages. `EpisodeViewer.tsx` shows `t("noTranslation")` when a paragraph is empty.
+
+**CSS:** Translation column uses `.text-translation` (`.text-english` kept as alias). Blur toggle uses `.translation-toggle-btn`.
+
+#### Click-to-translate & example phrases (server actions)
+
+Both respect the active `LangCode` passed from the client.
+
+**`translateWord(accessToken, word, hebrewContext, translationContext, targetLang?)`**
+- Hebrew lemma/Nekudot logic unchanged (prefix stripping, pealim.com prompt, etc.)
+- Only the returned `translation` meaning is in `targetLang`
+- `translationContext` is the translated sentence beside Hebrew (was `englishContext`)
+- Model: `gpt-5.4-mini`, `temperature: 0.2`
+
+**`generateExamplePhrases(accessToken, word, translation, count, existingPhrases?, targetLang?)`**
+- Hebrew sentences with full Nekudot
+- Meaning stored in `ExamplePhrase.english` field but generated in `targetLang`
+- Model: `gpt-5.4-mini`, `temperature: 0.7`
+
+Callers: `EpisodeViewer.tsx` passes `lang` to `translateWord`; `AppShell.tsx` passes `lang` to `generateExamplePhrases`.
+
+#### Translation pipelines (Python)
+
+Shared utilities: `scripts/lib/translation_utils.py`
+- `TRANSLATION_MODEL = "gpt-5.4-mini"`
+- `TARGET_LANGS = ("ru", "uk", "pt", "es", "fr")`
+- `translate_paragraphs()`, `build_translations_map()`, `normalize_paragraph_texts()`
+
+| Script | When translations are produced |
+|--------|-------------------------------|
+| `scraper.py` → `translate_episode()` | On scrape: English + 5 languages → `translations` map + `english_paragraphs` |
+| `scripts/generate_episodes.py` → `enrich_script_translations()` | After script generation (and when loading script bank if missing langs) |
+| `scripts/migrate_episodes_to_supabase.py` | Passes `translations` through on upsert |
+| `scripts/backfill_translations.py` | One-time fill for existing Supabase episodes |
+
+**Backfill flags:** `--dry-run`, `--level`, `--episode`, `--lang`, `--force`. Checkpoint: `scripts/.checkpoints/translation_backfill.json`.
+
+**Cost note:** All episodes × 5 languages × ~40 paragraphs is a large OpenAI run. Use `--dry-run` first, then `--level` / `--lang` to batch.
+
+#### Key files checklist (multilingual changes)
+
+| Area | Files |
+|------|-------|
+| i18n core | `src/lib/i18n/*`, `src/components/LanguageSelector.tsx` |
+| Reader | `src/components/EpisodeViewer.tsx`, `src/lib/episodeTranslations.ts` |
+| Server AI | `src/app/actions.ts` (`targetLang` param) |
+| Data layer | `src/lib/types.ts`, `src/lib/episodes.ts` |
+| Styles | `src/app/styles/layout.css` (`.text-translation`, `.language-selector`) |
+| DB migration | `supabase/multilingual-translations.sql` |
+| Pipelines | `scraper.py`, `scripts/generate_episodes.py`, `scripts/lib/translation_utils.py`, `scripts/backfill_translations.py` |
 
 ## Setup & Local Development
 
@@ -232,6 +386,21 @@ If you created `flashcard_progress` before FSRS columns were added, run [`supaba
 
 **Admin usage tracking:** To enable active site-time stats in the admin dashboard, run [`supabase/admin-usage-stats-migration.sql`](supabase/admin-usage-stats-migration.sql). This creates `user_activity_daily` and the `increment_user_activity()` RPC used by server actions. Active time is recorded only for authenticated users while the tab is visible and the user has interacted recently; stats appear in `/admin` after users browse the app post-migration.
 
+**Multilingual episode translations:** After the beginner-track migration, run [`supabase/multilingual-translations.sql`](supabase/multilingual-translations.sql) to add the `translations` JSONB column and backfill English from `english_paragraphs`. To generate Russian, Ukrainian, Portuguese, Spanish, and French for existing episodes:
+
+```bash
+# Preview work (no OpenAI calls)
+python3 scripts/backfill_translations.py --dry-run
+
+# Fill missing languages for all published episodes
+python3 scripts/backfill_translations.py
+
+# One level or language at a time
+python3 scripts/backfill_translations.py --level beginner --lang ru
+```
+
+New episodes from `scraper.py` and `scripts/generate_episodes.py` generate all six languages at creation time using `gpt-5.4-mini`.
+
 **Multi-level episodes:** If you have not already run it, apply [`supabase/beginner-track-migration.sql`](supabase/beginner-track-migration.sql). Then migrate legacy intermediate content:
 
 ```bash
@@ -278,7 +447,7 @@ EXECUTE FUNCTION public.set_updated_at();
 
 ### 4. Updating Episodes (Python Scraper)
 
-To fetch the latest podcast transcripts and auto-translate them to English:
+To fetch the latest podcast transcripts and auto-translate them to all six supported languages:
 
 ```bash
 # Ensure you have your .env setup with OPENAI_API_KEY
@@ -299,8 +468,8 @@ python3 apply_scraping_patch.py
 
 The script:
 - compares the re-scraped Hebrew text with the old JSON data to find exact insertions.
-- translates only the missing middle/prefix paragraphs via OpenAI.
-- updates `hebrew_paragraphs`, `english_paragraphs`, and `hebrew_text`.
+- translates only the missing middle/prefix paragraphs via OpenAI (`gpt-5.4-mini`).
+- updates `hebrew_paragraphs`, `english_paragraphs`, `translations` (if present), and `hebrew_text`.
 - creates a backup at `episodes.json.bak.<timestamp>`.
 
 (Note: `patch_missing_transcripts.py` was an older script built only for initial-paragraph prefixes, while `apply_scraping_patch.py` handles missing paragraphs anywhere in the text).
@@ -333,7 +502,7 @@ The script:
 
 ### 5.1 Generated Episode Pipeline
 
-Generate AI episodes with [`scripts/generate_episodes.py`](scripts/generate_episodes.py). The recommended workflow is script-first: generate and review the Hebrew/English scripts, then run TTS/upload from those stored scripts.
+Generate AI episodes with [`scripts/generate_episodes.py`](scripts/generate_episodes.py). The recommended workflow is script-first: generate and review the Hebrew scripts (plus all six language translations via `enrich_script_translations`), then run TTS/upload from those stored scripts.
 
 #### One-time setup
 
@@ -403,7 +572,7 @@ python3 scripts/generate_episodes.py --level beginner --episode 3 --force
 | `--level beginner` | Selects the level/curriculum. |
 | `--episode 3` | Runs only one episode. Cannot be combined with `--from-episode`. |
 | `--from-episode 8` | Runs every matching episode from 8 onward. |
-| `--scripts-only` | Generates/stores Hebrew + English scripts only; skips TTS, upload, and DB upsert. |
+| `--scripts-only` | Generates/stores Hebrew scripts + six-language `translations` map only; skips TTS, upload, and DB upsert. |
 | `--audio-only` | Uses pre-generated scripts from the script bank; skips OpenAI script generation. |
 | `--script-model MODEL` | Overrides the OpenAI model for script generation only. Does not affect Gemini TTS. |
 | `--script-bank PATH` | Uses a custom script-bank JSON path instead of `scripts/generated/{level}_scripts.json`. |
@@ -529,13 +698,14 @@ When a user saves a Hebrew word, the app always stores the **base dictionary for
 - **Verbs** → infinitive form. Example: מְדַמְיֵן or מְדַמְיְנִים → `לדמיין`
 - No conjugations, no gendered/plural forms, no pronoun-based translations.
 
-**Translation rules:**
+**Translation rules (English examples; same lemma rules apply in all languages):**
 - No "the" for nouns: `נושא` = "topic" not "the topic"
 - No "to" for verbs: `לדמיין` = "imagine" not "to imagine"
+- In other languages, return the base dictionary meaning without articles or infinitive markers
 
 **OpenAI response contract** (`translateWord` returns 4 fields):
 1. `lemmaWord` — base lemma without prefixes and without nekudot (stored in `vocabulary.word`)
-2. `translation` — base English meaning only
+2. `translation` — base meaning in the user's active language (`targetLang`, default `en`)
 3. `wordWithNekudot` — base lemma with 100% accurate nekudot (stored in `vocabulary.word_with_nekudot`)
 4. `verbFormWithNekudot` — infinitive with nekudot if verb, otherwise `null`
 
@@ -558,11 +728,11 @@ Premium users can generate contextual example sentences for any saved vocabulary
 4. Regenerating one phrase: `AppShell.regenerateExample` calls the action with `count: 1` and passes existing phrases so the model avoids duplicates, then splices the new phrase at that index and saves.
 
 **Server action** (`src/app/actions.ts → generateExamplePhrases`):
-- Signature: `generateExamplePhrases(accessToken, word, translation, count, existingPhrases?)`
+- Signature: `generateExamplePhrases(accessToken, word, translation, count, existingPhrases?, targetLang?)`
 - Same premium/auth guard as `translateWord` via `getUserEntitlements`.
 - Model: `gpt-5.4-mini`, `response_format: { type: "json_object" }`, `temperature: 0.7`.
-- Returns `{ phrases: ExamplePhrase[], type: "success" | "auth_required" | "premium_required" | "error" }`.
-- Prompt asks for natural intermediate-level sentences with full Nekudot; inflected/conjugated forms of the target word are allowed.
+- Returns `{ phrases: ExamplePhrase[], type: "success" | "auth_required" | "limit_reached" | "error" }`.
+- Prompt asks for natural intermediate-level Hebrew sentences with full Nekudot; meaning in `targetLang` stored in the `english` JSON field.
 
 **UI components:**
 - `ExamplePhrasesPanel.tsx` — shared list/generate/regenerate UI.
@@ -607,7 +777,7 @@ Authenticated users see a one-time onboarding overlay on their first login. It i
 - Sticky frosted header with `BookOpen` + "Hebrew Time" branding and a skip button.
 - Hero with value proposition, accent headline, and primary CTA.
 - 2×2 feature card grid (1 column on mobile) covering:
-  - Bilingual side-by-side reading (with CSS mockup of Hebrew/English rows).
+  - Multilingual side-by-side reading (with CSS mockup of Hebrew + translation rows; copy via `useT()`).
   - Click-to-translate with Nekudot (highlighted word + dark translation popup mockup).
   - Vocabulary & FSRS flashcards (mini table with Due/Learned/New badges).
   - Audio-synced paragraph highlighting (active paragraph + mini player mockup).

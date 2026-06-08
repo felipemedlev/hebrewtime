@@ -144,40 +144,36 @@ def fetch_episode(episode_num: int) -> dict | None:
     }
 
 
+def _paragraph_texts(hebrew_paragraphs: list) -> list[str]:
+    texts: list[str] = []
+    for item in hebrew_paragraphs:
+        if isinstance(item, str):
+            texts.append(item)
+        elif isinstance(item, dict) and "text" in item:
+            texts.append(str(item["text"]))
+        else:
+            texts.append(str(item))
+    return texts
+
+
 def translate_episode(episode: dict) -> dict:
-    """Translate Hebrew paragraphs to English using OpenAI."""
+    """Translate Hebrew paragraphs to all supported languages using OpenAI."""
     from openai import OpenAI
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent / "scripts"))
+    from lib.translation_utils import build_translations_map, translate_paragraphs
+
     client = OpenAI(api_key=OPENAI_API_KEY)
+    hebrew_texts = _paragraph_texts(episode["hebrew_paragraphs"])
 
-    translated = []
-    for i, para in enumerate(episode["hebrew_paragraphs"]):
-        if not para.strip():
-            translated.append("")
-            continue
-        try:
-            response = client.chat.completions.create(
-                model="gpt-5.4-mini",   # fast + cheap, great for translation
-                messages=[
-                    {
-                        "role": "system",
-                        "content": (
-                            "You are a professional Hebrew-to-English translator. "
-                            "Translate the following Modern Hebrew paragraph naturally and accurately. "
-                            "Preserve paragraph structure. Output ONLY the English translation."
-                        ),
-                    },
-                    {"role": "user", "content": para},
-                ],
-                temperature=0.2,
-            )
-            english = response.choices[0].message.content.strip()
-            translated.append(english)
-        except Exception as e:
-            print(f"    Translation error (ep {episode['episode']:02d}, para {i}): {e}")
-            translated.append("[translation error]")
+    print(f"  Episode {episode['episode']:02d}: translating to English…")
+    english = translate_paragraphs(client, hebrew_texts, "en")
+    episode["english_paragraphs"] = english
 
-    episode["english_paragraphs"] = translated
-    print(f"  Episode {episode['episode']:02d}: ✓ translated")
+    print(f"  Episode {episode['episode']:02d}: translating to ru, uk, pt, es, fr…")
+    extra = build_translations_map(client, hebrew_texts, english, langs=("ru", "uk", "pt", "es", "fr"))
+    episode["translations"] = extra
+    print(f"  Episode {episode['episode']:02d}: ✓ translated (6 languages)")
     return episode
 
 

@@ -8,6 +8,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { useModalAccessibility } from "@/hooks/useModalAccessibility";
+import { useT } from "@/lib/i18n/LanguageProvider";
 
 type OnboardingOverlayProps = {
   isOpen: boolean;
@@ -20,6 +21,7 @@ export default function OnboardingOverlay({
   onDismiss,
   onGetStarted,
 }: OnboardingOverlayProps) {
+  const t = useT();
   const { dialogRef, titleId } = useModalAccessibility(isOpen, onDismiss);
 
   if (!isOpen) return null;
@@ -37,37 +39,33 @@ export default function OnboardingOverlay({
         <header className="onboarding-header">
           <div className="onboarding-brand">
             <BookOpen size={16} />
-            <span>Hebrew Time</span>
+            <span>{t("appName")}</span>
           </div>
           <button type="button" className="onboarding-skip-btn" onClick={onDismiss}>
-            Skip for now
+            {t("skipForNow")}
           </button>
         </header>
 
         {/* ── Hero ── */}
         <section className="onboarding-hero">
-          <div className="onboarding-hero-badge">Welcome to Hebrew Time</div>
+          <div className="onboarding-hero-badge">{t("onboardingWelcome")}</div>
           <h1 id={titleId} className="onboarding-headline">
-            The fastest way to learn Hebrew{" "}
-            <span className="onboarding-headline-accent">through real content</span>
+            {t("onboardingWelcome")}
           </h1>
-          <p className="onboarding-subhead">
-            A bilingual podcast reader with AI translations, Nekudot, vocabulary
-            tools, and spaced-repetition flashcards — all in one place.
-          </p>
+          <p className="onboarding-subhead">{t("onboardingSubtitle")}</p>
           <button
             type="button"
             className="save-btn onboarding-hero-cta"
             onClick={onGetStarted}
           >
-            Start reading
+            {t("getStarted")}
             <ArrowRight size={16} />
           </button>
         </section>
 
         {/* ── Features ── */}
         <section className="onboarding-features-section">
-          <p className="onboarding-features-label">What&rsquo;s inside</p>
+          <p className="onboarding-features-label">{t("onboardingFeatures")}</p>
 
           <div className="onboarding-features">
             {/* Card 1 — Bilingual */}
@@ -78,13 +76,11 @@ export default function OnboardingOverlay({
                 </div>
                 <span className="onboarding-feature-num">01</span>
               </div>
-              <h2 className="onboarding-feature-title">Bilingual Reading</h2>
-              <p className="onboarding-feature-description">
-                Hebrew and English side by side. Blur English on demand to practice reading without a crutch.
-              </p>
+              <h2 className="onboarding-feature-title">{t("onboardingBilingualTitle")}</h2>
+              <p className="onboarding-feature-description">{t("onboardingBilingualDesc")}</p>
               <div className="onboarding-mockup onboarding-mockup--bilingual">
                 <div className="bilingual-row">
-                  <span className="bilingual-en">Today we'll focus on a very important topic</span>
+                  <span className="bilingual-en">Today we&apos;ll focus on a very important topic</span>
                   <span className="bilingual-he font-serif" dir="rtl">הַיּוֹם נִדְבּוֹק בְּנוֹשֵׂא חָשׁוּב מְאוֹד</span>
                 </div>
                 <div className="bilingual-row bilingual-row--muted">
@@ -102,10 +98,8 @@ export default function OnboardingOverlay({
                 </div>
                 <span className="onboarding-feature-num">02</span>
               </div>
-              <h2 className="onboarding-feature-title">Click-to-Translate</h2>
-              <p className="onboarding-feature-description">
-                Tap any Hebrew word for a contextual AI translation with accurate Nekudot and save it instantly.
-              </p>
+              <h2 className="onboarding-feature-title">{t("onboardingTranslateTitle")}</h2>
+              <p className="onboarding-feature-description">{t("onboardingTranslateDesc")}</p>
               <div className="onboarding-mockup onboarding-mockup--translation">
                 <p className="translation-sentence font-serif" dir="rtl">
                   הוּא רָצָה{" "}
@@ -116,7 +110,7 @@ export default function OnboardingOverlay({
                   <span className="translation-popup-word font-serif">לְדַמְיֵן</span>
                   <span className="translation-popup-sep">·</span>
                   <span className="translation-popup-meaning">imagine</span>
-                  <span className="translation-popup-tag">verb</span>
+                  <span className="translation-popup-tag">{t("verbForm")}</span>
                 </div>
               </div>
             </article>
@@ -129,28 +123,26 @@ export default function OnboardingOverlay({
                 </div>
                 <span className="onboarding-feature-num">03</span>
               </div>
-              <h2 className="onboarding-feature-title">Vocabulary & Flashcards</h2>
-              <p className="onboarding-feature-description">
-                Words you save sync across devices. Review with FSRS spaced repetition to reach 90% retention.
-              </p>
+              <h2 className="onboarding-feature-title">{t("onboardingVocabTitle")}</h2>
+              <p className="onboarding-feature-description">{t("onboardingVocabDesc")}</p>
               <div className="onboarding-mockup onboarding-mockup--vocab">
                 <div className="vocab-row">
                   <span className="vocab-he font-serif" dir="rtl">נוֹשֵׂא</span>
                   <span className="vocab-pron">no-SE</span>
                   <span className="vocab-en">topic</span>
-                  <span className="vocab-badge vocab-badge--due">Due</span>
+                  <span className="vocab-badge vocab-badge--due">{t("due")}</span>
                 </div>
                 <div className="vocab-row vocab-row--muted">
                   <span className="vocab-he font-serif" dir="rtl">לְדַמְיֵן</span>
                   <span className="vocab-pron">le-da-myen</span>
                   <span className="vocab-en">imagine</span>
-                  <span className="vocab-badge vocab-badge--learned">Learned</span>
+                  <span className="vocab-badge vocab-badge--learned">{t("learned")}</span>
                 </div>
                 <div className="vocab-row vocab-row--muted">
                   <span className="vocab-he font-serif" dir="rtl">שָׁלוֹם</span>
                   <span className="vocab-pron">sha-LOM</span>
                   <span className="vocab-en">peace</span>
-                  <span className="vocab-badge vocab-badge--new">New</span>
+                  <span className="vocab-badge vocab-badge--new">{t("newLabel")}</span>
                 </div>
               </div>
             </article>
@@ -163,10 +155,8 @@ export default function OnboardingOverlay({
                 </div>
                 <span className="onboarding-feature-num">04</span>
               </div>
-              <h2 className="onboarding-feature-title">Audio-Synced Reading</h2>
-              <p className="onboarding-feature-description">
-                As the podcast plays, the current paragraph highlights and scrolls into view at 60fps.
-              </p>
+              <h2 className="onboarding-feature-title">{t("onboardingAudioTitle")}</h2>
+              <p className="onboarding-feature-description">{t("onboardingAudioDesc")}</p>
               <div className="onboarding-mockup onboarding-mockup--audio">
                 <div className="audio-para audio-para--active font-serif" dir="rtl">
                   הַיּוֹם נִדְבּוֹק בְּנוֹשֵׂא חָשׁוּב
@@ -193,12 +183,10 @@ export default function OnboardingOverlay({
             className="save-btn onboarding-footer-cta"
             onClick={onGetStarted}
           >
-            Start reading
+            {t("getStarted")}
             <ArrowRight size={16} />
           </button>
-          <p className="onboarding-footer-note">
-            Start free · Upgrade to Premium for $9.99/month
-          </p>
+          <p className="onboarding-footer-note">{t("upgradePrice")}</p>
         </footer>
       </div>
     </div>

@@ -116,9 +116,12 @@
   .text-hebrew {
     font-size: 21px;
   }
+  .text-translation,
   .text-english {
     font-size: var(--text-2xl);
   }
+  .language-selector,
+  .translation-toggle-btn,
   .english-toggle-btn {
     margin-left: var(--radius-md);
     padding: var(--radius-sm) var(--radius-md);

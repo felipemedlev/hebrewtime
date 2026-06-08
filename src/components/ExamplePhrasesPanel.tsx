@@ -2,6 +2,7 @@
 
 import { RotateCcw, Sparkles } from "lucide-react";
 import type { ExamplePhrase, VocabWord } from "@/lib/types";
+import { useT } from "@/lib/i18n/LanguageProvider";
 
 type ExamplePhrasesPanelProps = {
   word: VocabWord;
@@ -20,6 +21,7 @@ export default function ExamplePhrasesPanel({
   isGenerating = false,
   regeneratingIndex = null,
 }: ExamplePhrasesPanelProps) {
+  const t = useT();
   const phrases = word.examplePhrases || [];
   const panelClass = variant === "flashcard" ? "flashcard-examples-panel" : "vocab-examples-panel";
 
@@ -34,12 +36,12 @@ export default function ExamplePhrasesPanel({
           {isGenerating ? (
             <>
               <span className="example-phrases-spinner" />
-              Generating examples…
+              {t("generatingExamples")}
             </>
           ) : (
             <>
               <Sparkles size={14} />
-              Generate example phrases
+              {t("showExamples")}
             </>
           )}
         </button>
@@ -51,7 +53,7 @@ export default function ExamplePhrasesPanel({
     <div className={panelClass}>
       <div className="example-phrases-header">
         <Sparkles size={13} className="example-phrases-header-icon" />
-        <span>Example phrases</span>
+        <span>{t("examples")}</span>
       </div>
       <ul className="example-phrases-list">
         {phrases.map((phrase: ExamplePhrase, index: number) => (
@@ -66,7 +68,7 @@ export default function ExamplePhrasesPanel({
               className="example-phrase-regenerate-btn"
               onClick={() => onRegenerate(word, index)}
               disabled={regeneratingIndex === index || isGenerating}
-              title="Generate a new example for this slot"
+              title={t("regenerate")}
             >
               {regeneratingIndex === index ? (
                 <span className="example-phrases-spinner small" />

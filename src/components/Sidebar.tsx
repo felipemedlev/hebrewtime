@@ -20,6 +20,7 @@ import LearningTrackSelector from "./LearningTrackSelector";
 import { finishedKey } from "@/lib/levelTracks";
 import { useUser } from "@/hooks/useUser";
 import { supabase } from "@/lib/supabase";
+import { useT } from "@/lib/i18n/LanguageProvider";
 
 type SidebarProps = {
   levelTracks: LevelTrackMeta[];
@@ -68,6 +69,7 @@ export default function Sidebar({
 }: SidebarProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const { user } = useUser();
+  const t = useT();
   const sidebarRef = useRef<HTMLElement>(null);
   const isDragging = useRef(false);
 
@@ -154,14 +156,14 @@ export default function Sidebar({
           <div className="sidebar-title">
             <div className="sidebar-title-left">
               <BookOpen size={18} />
-              <span>Hebrew Time</span>
+              <span>{t("appName")}</span>
             </div>
             <button className="close-mobile-btn" onClick={onClose}>
               <X size={18} />
             </button>
           </div>
 
-          <div className="sidebar-tabs" role="tablist" aria-label="Main navigation">
+          <div className="sidebar-tabs" role="tablist" aria-label={t("mainNav")}>
             <button
               className={`tab-btn ${viewMode === "episodes" ? "active" : ""}`}
               onClick={() => onChangeViewMode("episodes")}
@@ -170,7 +172,7 @@ export default function Sidebar({
               id="sidebar-tab-episodes"
               aria-controls="sidebar-panel"
             >
-              Episodes
+              {t("episodes")}
             </button>
             <button
               className={`tab-btn ${viewMode === "vocabulary" ? "active" : ""}`}
@@ -181,7 +183,7 @@ export default function Sidebar({
               aria-controls="sidebar-panel"
             >
               <Bookmark size={14} />
-              Vocab
+              {t("vocab")}
             </button>
             <button
               className={`tab-btn ${viewMode === "flashcards" ? "active" : ""}`}
@@ -192,7 +194,7 @@ export default function Sidebar({
               aria-controls="sidebar-panel"
             >
               <Brain size={14} />
-              Review
+              {t("review")}
             </button>
           </div>
 
@@ -206,13 +208,13 @@ export default function Sidebar({
           {viewMode === "episodes" && (
             <div className="search-wrapper">
               <label htmlFor="sidebar-episode-search" className="sr-only">
-                Search episodes
+                {t("searchEpisodes")}
               </label>
               <Search size={14} className="search-icon" aria-hidden="true" />
               <input
                 id="sidebar-episode-search"
                 type="search"
-                placeholder="Search episodes…"
+                placeholder={t("searchEpisodesPlaceholder")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="sidebar-search"
@@ -245,42 +247,44 @@ export default function Sidebar({
               </button>
             ))}
             {filteredEpisodes.length === 0 && (
-              <div className="ep-empty">No episodes found.</div>
+              <div className="ep-empty">{t("noEpisodesFound")}</div>
             )}
           </div>
         ) : viewMode === "vocabulary" ? (
           <div className="ep-list" id="sidebar-panel" role="tabpanel" aria-labelledby="sidebar-tab-vocabulary">
             <div className="sidebar-info">
-              <p className="sidebar-info-heading">Vocabulary</p>
+              <p className="sidebar-info-heading">{t("vocabulary")}</p>
               <div className="sidebar-stats">
                 <div className="sidebar-stat">
                   <span className="sidebar-stat-label">
-                    <Bookmark size={14} /> Saved words
+                    <Bookmark size={14} /> {t("savedWords")}
                   </span>
                   <span className="sidebar-stat-value">{vocabCount}</span>
                 </div>
                 <div className={`sidebar-stat ${dueFlashcardsCount > 0 ? "highlight" : ""}`}>
                   <span className="sidebar-stat-label">
-                    <Clock size={14} /> Due for review
+                    <Clock size={14} /> {t("dueForReview")}
                   </span>
                   <span className="sidebar-stat-value">{dueFlashcardsCount}</span>
                 </div>
                 <div className="sidebar-stat">
                   <span className="sidebar-stat-label">
-                    <GraduationCap size={14} /> Learned
+                    <GraduationCap size={14} /> {t("learned")}
                   </span>
                   <span className="sidebar-stat-value">{flashcardStats?.learned ?? 0}</span>
                 </div>
               </div>
               {dueFlashcardsCount > 0 ? (
                 <button className="sidebar-cta" onClick={startReview}>
-                  <Play size={14} /> Review {dueFlashcardsCount} due {dueFlashcardsCount === 1 ? "word" : "words"}
+                  <Play size={14} />{" "}
+                  {t("reviewDueWords", {
+                    count: dueFlashcardsCount,
+                    wordLabel: dueFlashcardsCount === 1 ? t("word") : t("words"),
+                  })}
                 </button>
               ) : (
                 <p className="sidebar-info-note">
-                  {vocabCount > 0
-                    ? "Click any Hebrew word while reading to add more to your list."
-                    : "Click any Hebrew word while reading to save your first word."}
+                  {vocabCount > 0 ? t("clickToAddMore") : t("clickToSaveFirst")}
                 </p>
               )}
             </div>
@@ -288,36 +292,34 @@ export default function Sidebar({
         ) : (
           <div className="ep-list" id="sidebar-panel" role="tabpanel" aria-labelledby="sidebar-tab-flashcards">
             <div className="sidebar-info">
-              <p className="sidebar-info-heading">Spaced repetition</p>
+              <p className="sidebar-info-heading">{t("spacedRepetition")}</p>
               <div className="sidebar-stats">
                 <div className={`sidebar-stat ${dueFlashcardsCount > 0 ? "highlight" : ""}`}>
                   <span className="sidebar-stat-label">
-                    <Clock size={14} /> Due now
+                    <Clock size={14} /> {t("dueNow")}
                   </span>
                   <span className="sidebar-stat-value">{dueFlashcardsCount}</span>
                 </div>
                 <div className="sidebar-stat">
                   <span className="sidebar-stat-label">
-                    <Sparkles size={14} /> New
+                    <Sparkles size={14} /> {t("newCards")}
                   </span>
                   <span className="sidebar-stat-value">{flashcardStats?.newCount ?? 0}</span>
                 </div>
                 <div className="sidebar-stat">
                   <span className="sidebar-stat-label">
-                    <GraduationCap size={14} /> Learned
+                    <GraduationCap size={14} /> {t("learned")}
                   </span>
                   <span className="sidebar-stat-value">{flashcardStats?.learned ?? 0}</span>
                 </div>
               </div>
               {dueFlashcardsCount > 0 ? (
                 <button className="sidebar-cta" onClick={startReview}>
-                  <Play size={14} /> Start review
+                  <Play size={14} /> {t("startReview")}
                 </button>
               ) : (
                 <p className="sidebar-info-note">
-                  {vocabCount > 0
-                    ? "All caught up — no cards are due right now."
-                    : "Save words while reading to build your review deck."}
+                  {vocabCount > 0 ? t("allCaughtUp") : t("saveWordsToBuildDeck")}
                 </p>
               )}
             </div>
@@ -327,7 +329,7 @@ export default function Sidebar({
         <div className="sidebar-footer">
           {isAdmin && (
             <button className="sidebar-admin-btn" onClick={onOpenAdminModal}>
-              Open Admin Panel
+              {t("openAdminPanel")}
             </button>
           )}
           {user ? (
@@ -338,8 +340,8 @@ export default function Sidebar({
               <button
                 className="sidebar-signout-btn"
                 onClick={handleSignOut}
-                title="Sign Out"
-                aria-label="Sign out"
+                title={t("signOut")}
+                aria-label={t("signOut")}
               >
                 <LogOut size={16} />
               </button>
@@ -347,7 +349,7 @@ export default function Sidebar({
           ) : (
             <button className="sidebar-login-btn" onClick={onOpenAuthModal}>
               <LogIn size={15} />
-              Log In / Sign Up
+              {t("logInSignUp")}
             </button>
           )}
         </div>

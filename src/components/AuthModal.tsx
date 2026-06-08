@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { X, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useModalAccessibility } from "@/hooks/useModalAccessibility";
+import { useT } from "@/lib/i18n/LanguageProvider";
 
 type AuthModalProps = {
   isOpen: boolean;
@@ -12,6 +13,7 @@ type AuthModalProps = {
 };
 
 export default function AuthModal({ isOpen, onClose, initialMode = "login" }: AuthModalProps) {
+  const t = useT();
   const [mode, setMode] = useState<"login" | "signup" | "reset">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -43,7 +45,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
           redirectTo,
         });
         if (error) throw error;
-        setSuccessMsg("Check your email for the password reset link.");
+        setSuccessMsg(t("checkEmailReset"));
       } else if (mode === "login") {
         const { error } = await supabase.auth.signInWithPassword({
           email,
@@ -60,7 +62,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
         onClose();
       }
     } catch (err: unknown) {
-      setErrorMsg(err instanceof Error ? err.message : "An error occurred");
+      setErrorMsg(err instanceof Error ? err.message : t("authError"));
     } finally {
       setIsLoading(false);
     }
@@ -82,9 +84,9 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
       >
         <div className="modal-header">
           <h3 id={titleId} className="modal-title" style={{ fontSize: "20px", color: "var(--text-main)" }}>
-            {mode === "login" ? "Welcome Back" : mode === "signup" ? "Create Account" : "Reset Password"}
+            {mode === "login" ? t("welcomeBack") : mode === "signup" ? t("createAccount") : t("resetPassword")}
           </h3>
-          <button onClick={onClose} className="close-btn" disabled={isLoading} aria-label="Close">
+          <button onClick={onClose} className="close-btn" disabled={isLoading} aria-label={t("close")}>
             <X size={18} />
           </button>
         </div>
@@ -92,9 +94,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
         <form onSubmit={handleSubmit}>
           <div className="modal-body" style={{ flexDirection: "column", gap: "16px", alignItems: "stretch" }}>
             <p style={{ margin: 0, fontSize: "14px", color: "var(--text-muted)", textAlign: "center" }}>
-              {mode === "reset"
-                ? "Enter your email and we'll send a password reset link."
-                : "Log in to save vocabulary words securely."}
+              {mode === "reset" ? t("resetPasswordDesc") : t("loginDesc")}
             </p>
             
             {successMsg && (
@@ -117,7 +117,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
             )}
 
             <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-              <label htmlFor="auth-email" style={{ fontSize: "13px", fontWeight: 500 }}>Email</label>
+              <label htmlFor="auth-email" style={{ fontSize: "13px", fontWeight: 500 }}>{t("email")}</label>
               <input
                 id="auth-email"
                 type="email"
@@ -131,7 +131,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
             
             {mode !== "reset" && (
               <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                <label htmlFor="auth-password" style={{ fontSize: "13px", fontWeight: 500 }}>Password</label>
+                <label htmlFor="auth-password" style={{ fontSize: "13px", fontWeight: 500 }}>{t("password")}</label>
                 <input
                   id="auth-password"
                   type="password"
@@ -163,7 +163,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
                     }}
                     disabled={isLoading}
                   >
-                    Forgot password?
+                    {t("forgotPassword")}
                   </button>
                 )}
               </div>
@@ -180,10 +180,10 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
               disabled={isLoading}
             >
               {mode === "login"
-                ? "Need an account? Sign up"
+                ? t("needAccount")
                 : mode === "signup"
-                ? "Already have an account? Log in"
-                : "Back to Log In"}
+                ? t("haveAccount")
+                : t("backToLogin")}
             </button>
           </div>
 
@@ -195,7 +195,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
               style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "8px" }}
             >
               {isLoading && <Loader2 size={16} className="spinner" />}
-              {mode === "login" ? "Log In" : mode === "signup" ? "Sign Up" : "Send Reset Link"}
+              {mode === "login" ? t("logIn") : mode === "signup" ? t("signUp") : t("sendResetLink")}
             </button>
           </div>
         </form>

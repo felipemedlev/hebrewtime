@@ -2,6 +2,7 @@
 import { headers } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
 import type { AdminDashboardSummary, AdminUserStat, AdminUserStatsResponse, ExamplePhrase } from "@/lib/types";
+import { DEFAULT_LANG, isLangCode, LANGUAGE_NAMES_FOR_AI, type LangCode } from "@/lib/i18n/types";
 import {
   checkRateLimit,
   clampString,
@@ -383,11 +384,14 @@ export async function translateWord(
   accessToken: string | undefined,
   word: string,
   hebrewContext: string,
-  englishContext: string
+  translationContext: string,
+  targetLang: string = DEFAULT_LANG
 ) {
+  const lang: LangCode = isLangCode(targetLang) ? targetLang : DEFAULT_LANG;
+  const targetLanguageName = LANGUAGE_NAMES_FOR_AI[lang];
   const safeWord = clampString(word, INPUT_LIMITS.word);
   const safeHebrewContext = clampString(hebrewContext, INPUT_LIMITS.context);
-  const safeEnglishContext = clampString(englishContext, INPUT_LIMITS.context);
+  const safeTranslationContext = clampString(translationContext, INPUT_LIMITS.context);
 
   const ent = await getUserEntitlements(accessToken);
   // Anonymous (logged-out) users may translate too — their daily limit is
@@ -444,7 +448,7 @@ export async function translateWord(
   const userContent = [
     wrapUserContent("clicked_word", safeWord),
     wrapUserContent("hebrew_sentence", safeHebrewContext),
-    wrapUserContent("english_sentence", safeEnglishContext),
+    wrapUserContent("translation_sentence", safeTranslationContext),
   ].join("\n");
 
   const systemPrompt = `You are a Hebrew dictionary assistant. Your job is to identify and return the BASE DICTIONARY FORM (lemma) of a Hebrew word.
@@ -476,7 +480,7 @@ Verify your answer with pealim.com before responding.
 
 Return a JSON object with exactly four keys:
 1. "lemmaWord": The base Hebrew lemma without any prefixes and without nekudot. E.g.: נושא, לדמיין, חבר, ידע
-2. "translation": The English translation of the BASE WORD, no punctuation, no "the", no "to", no extra text.
+2. "translation": The ${targetLanguageName} translation of the BASE WORD, no punctuation, no articles, no "to" infinitive marker, no extra text. Write the meaning in ${targetLanguageName}.
 3. "wordWithNekudot": The BASE LEMMA fully vocalized with 100% grammatically correct Nekudot as verified on pealim.com. E.g.: נוֹשֵׂא, לְדַמְיֵן
 4. "verbFormWithNekudot": If the word is or relates to a verb, provide the infinitive form with complete accurate Nekudot (e.g. לְדַמְיֵן). If not a verb, return null.`;
 
@@ -535,8 +539,11 @@ export async function generateExamplePhrases(
   word: string,
   translation: string,
   count: number,
-  existingPhrases?: ExamplePhrase[]
+  existingPhrases?: ExamplePhrase[],
+  targetLang: string = DEFAULT_LANG
 ) {
+  const lang: LangCode = isLangCode(targetLang) ? targetLang : DEFAULT_LANG;
+  const targetLanguageName = LANGUAGE_NAMES_FOR_AI[lang];
   const safeWord = clampString(word, INPUT_LIMITS.word);
   const safeTranslation = clampString(translation, INPUT_LIMITS.translation);
   const safeCount = Math.min(
@@ -593,7 +600,7 @@ export async function generateExamplePhrases(
 
   const existingBlock =
     safeExistingPhrases.length > 0
-      ? `\nDo NOT repeat or closely paraphrase any of these existing example sentences:\n${safeExistingPhrases.map((p, i) => `${i + 1}. Hebrew: "${p.hebrew}" / English: "${p.english}"`).join("\n")}\n`
+      ? `\nDo NOT repeat or closely paraphrase any of these existing example sentences:\n${safeExistingPhrases.map((p, i) => `${i + 1}. Hebrew: "${p.hebrew}" / ${targetLanguageName}: "${p.english}"`).join("\n")}\n`
       : "";
 
   const systemPrompt = `You are a Hebrew language tutor helping intermediate learners understand how to use vocabulary in everyday conversation.
@@ -605,13 +612,13 @@ Generate exactly ${safeCount} natural, everyday Hebrew sentence${safeCount === 1
 Requirements:
 - Each sentence must naturally include the target word (or an inflected/conjugated form of it).
 - Hebrew sentences must be fully vocalized with grammatically correct Nekudot.
-- English translations should be natural and clear.
+- ${targetLanguageName} translations should be natural and clear.
 - Keep sentences at an intermediate level — not too simple, not overly complex.
 - Each sentence should demonstrate a different usage context or grammatical pattern.
 ${existingBlock}
 Return a JSON object with exactly one key "phrases" containing an array of ${safeCount} object${safeCount === 1 ? "" : "s"}, each with:
 - "hebrew": the Hebrew sentence with full Nekudot
-- "english": the English translation`;
+- "english": the ${targetLanguageName} translation (stored in the english field)`;
 
   const userContent = [
     wrapUserContent("target_word", safeWord),

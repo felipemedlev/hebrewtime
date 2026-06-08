@@ -1,3 +1,9 @@
+import type { LangCode } from "./i18n/types";
+
+export type { LangCode };
+
+export type EpisodeTranslations = Partial<Record<LangCode, string[]>>;
+
 export type SentenceTiming = {
   text: string;
   start: number;
@@ -38,6 +44,7 @@ export type Episode = {
   hebrew_paragraphs: (string | ParagraphTiming)[];
   hebrew_text: string;
   english_paragraphs: string[];
+  translations: EpisodeTranslations;
 };
 
 export type EpisodeListItem = {

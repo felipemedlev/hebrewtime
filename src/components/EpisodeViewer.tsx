@@ -7,6 +7,8 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import TranslationModal from "./TranslationModal";
 import { supabase } from "@/lib/supabase";
 import { hasReachedAnonTranslationLimit, incrementAnonTranslations } from "@/lib/anonUsage";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
+import { getTranslationParagraphs } from "@/lib/episodeTranslations";
 
 type EpisodeViewerProps = {
   episode: Episode;
@@ -28,7 +30,6 @@ type EpisodeViewerProps = {
   onRequireAuth: () => void;
   onRequireSubscription: () => void;
   isLoadingEntitlements: boolean;
-  isEnglishBlurred: boolean;
   isFinished: boolean;
   onToggleFinished: () => void;
 };
@@ -38,7 +39,7 @@ type ModalState = {
   word: string;
   lemmaWord: string | null;
   hebrewContext: string;
-  englishContext: string;
+  translationContext: string;
   translation: string | null;
   wordWithNekudot: string | null;
   verbFormWithNekudot: string | null;
@@ -90,8 +91,9 @@ function findActivePosition(
 
 function renderHebrewTokens(
   text: string,
-  eng: string | undefined,
-  onWordClick: (word: string, heb: string, eng: string) => void
+  translationPara: string | undefined,
+  onWordClick: (word: string, heb: string, ctx: string) => void,
+  translateLabel: (word: string) => string
 ) {
   return text.split(/(\s+)/).map((token, idx) => {
     if (token.trim() === "") {
@@ -108,16 +110,16 @@ function renderHebrewTokens(
         role={cleanWord ? "button" : undefined}
         tabIndex={cleanWord ? 0 : undefined}
         onClick={() => {
-          if (cleanWord) onWordClick(token, text, eng || "");
+          if (cleanWord) onWordClick(token, text, translationPara || "");
         }}
         onKeyDown={(event) => {
           if (!cleanWord) return;
           if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
-            onWordClick(token, text, eng || "");
+            onWordClick(token, text, translationPara || "");
           }
         }}
-        aria-label={cleanWord ? `Translate ${cleanWord}` : undefined}
+        aria-label={cleanWord ? translateLabel(cleanWord) : undefined}
       >
         {token}
       </span>
@@ -132,22 +134,25 @@ export default function EpisodeViewer({
   hasNext,
   onNavigate,
   onWordSaved,
-  onToast,
-  isPremium,
   isAuthenticated,
   onRequireAuth,
   onRequireSubscription,
   isLoadingEntitlements,
-  isEnglishBlurred,
   isFinished,
   onToggleFinished,
 }: EpisodeViewerProps) {
+  const { lang, isTranslationBlurred, t } = useLanguage();
+  const translationParagraphs = useMemo(
+    () => getTranslationParagraphs(episode, lang),
+    [episode, lang]
+  );
+
   const [modal, setModal] = useState<ModalState>({
     isOpen: false,
     word: "",
     lemmaWord: null,
     hebrewContext: "",
-    englishContext: "",
+    translationContext: "",
     translation: null,
     wordWithNekudot: null,
     verbFormWithNekudot: null,
@@ -168,7 +173,6 @@ export default function EpisodeViewer({
     return () => window.removeEventListener("playerTimeUpdate", handleTimeUpdate);
   }, []);
 
-  // Keyboard shortcuts: ←/→ to move between episodes (ignored while typing or in a modal).
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (modal.isOpen) return;
@@ -225,12 +229,10 @@ export default function EpisodeViewer({
   const handleWordClick = async (
     word: string,
     hebContext: string,
-    engContext: string
+    transContext: string
   ) => {
     if (isLoadingEntitlements) return;
 
-    // Logged-out visitors may translate up to the daily free limit (tracked
-    // locally). Saving to vocabulary still requires login.
     if (!isAuthenticated && hasReachedAnonTranslationLimit()) {
       onRequireSubscription();
       return;
@@ -247,7 +249,7 @@ export default function EpisodeViewer({
       word: cleanWord,
       lemmaWord: null,
       hebrewContext: hebContext,
-      englishContext: engContext || "",
+      translationContext: transContext || "",
       translation: null,
       wordWithNekudot: null,
       verbFormWithNekudot: null,
@@ -257,7 +259,13 @@ export default function EpisodeViewer({
     try {
       const { data } = await supabase.auth.getSession();
       const accessToken = data.session?.access_token;
-      const res = await translateWord(accessToken, cleanWord, hebContext, engContext || "");
+      const res = await translateWord(
+        accessToken,
+        cleanWord,
+        hebContext,
+        transContext || "",
+        lang
+      );
       if (res.type === "auth_required") {
         setModal((prev) => ({ ...prev, isOpen: false }));
         onRequireAuth();
@@ -310,7 +318,8 @@ export default function EpisodeViewer({
   const levelLabel =
     levelDisplayName ??
     episode.level.charAt(0).toUpperCase() + episode.level.slice(1);
-  const episodeMeta = `${levelLabel} · Episode ${String(episode.episode).padStart(2, "0")}`;
+  const episodeMeta = `${levelLabel} · ${t("episodes")} ${String(episode.episode).padStart(2, "0")}`;
+  const translateLabel = (word: string) => t("translateWord", { word });
 
   return (
     <>
@@ -322,7 +331,7 @@ export default function EpisodeViewer({
             <>
               <span>•</span>
               <a href={episode.url} target="_blank" rel="noopener noreferrer">
-                Original Post <ExternalLink size={12} />
+                {t("originalPost")} <ExternalLink size={12} />
               </a>
             </>
           ) : null}
@@ -334,16 +343,17 @@ export default function EpisodeViewer({
             aria-pressed={isFinished}
           >
             <CheckCircle size={14} />
-            {isFinished ? "Finished" : "Mark as finished"}
+            {isFinished ? t("finished") : t("markFinished")}
           </button>
         </div>
       </div>
 
       <div className="content-grid">
+        {/* eslint-disable-next-line react-hooks/refs -- sentence ref arrays initialized per paragraph during render */}
         {episode.hebrew_paragraphs.map((hebObj, i) => {
           const isSynced = isParagraphTiming(hebObj);
           const heb = isSynced ? hebObj.text : hebObj;
-          const eng = episode.english_paragraphs?.[i];
+          const trans = translationParagraphs[i];
           const hasSentences = isSynced && hebObj.sentences && hebObj.sentences.length > 0;
 
           const isParagraphActive =
@@ -376,20 +386,20 @@ export default function EpisodeViewer({
                         }}
                         className={`sentence-span ${isSentenceActive ? "active-sentence" : ""}`}
                       >
-                        {renderHebrewTokens(sent.text, eng, handleWordClick)}
+                        {renderHebrewTokens(sent.text, trans, handleWordClick, translateLabel)}
                         {j < hebObj.sentences!.length - 1 ? " " : ""}
                       </span>
                     );
                   })
                 ) : (
-                  renderHebrewTokens(heb, eng, handleWordClick)
+                  renderHebrewTokens(heb, trans, handleWordClick, translateLabel)
                 )}
               </div>
-              <div className={`text-english ${isEnglishBlurred ? "blurred" : ""}`}>
-                {eng ? (
-                  eng
+              <div className={`text-translation ${isTranslationBlurred ? "blurred" : ""}`}>
+                {trans ? (
+                  trans
                 ) : (
-                  <span className="text-english-empty">No translation</span>
+                  <span className="text-translation-empty">{t("noTranslation")}</span>
                 )}
               </div>
             </div>
@@ -403,7 +413,7 @@ export default function EpisodeViewer({
           aria-pressed={isFinished}
         >
           <CheckCircle size={20} />
-          {isFinished ? "Episode Finished" : "Mark as finished"}
+          {isFinished ? t("episodeFinished") : t("markFinished")}
         </button>
 
         <div className="nav-controls">
@@ -411,20 +421,20 @@ export default function EpisodeViewer({
             className="nav-btn"
             onClick={() => onNavigate("prev")}
             disabled={!hasPrev}
-            title="Previous episode (←)"
+            title={t("previousEpisode")}
           >
             <ChevronLeft size={16} />
-            Previous Episode
+            {t("previousEpisode")}
             <kbd className="nav-btn-kbd" aria-hidden="true">←</kbd>
           </button>
           <button
             className="nav-btn"
             onClick={() => onNavigate("next")}
             disabled={!hasNext}
-            title="Next episode (→)"
+            title={t("nextEpisode")}
           >
             <kbd className="nav-btn-kbd" aria-hidden="true">→</kbd>
-            Next Episode
+            {t("nextEpisode")}
             <ChevronRight size={16} />
           </button>
         </div>

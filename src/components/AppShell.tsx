@@ -25,6 +25,9 @@ import { useFinishedEpisodes } from "@/hooks/useFinishedEpisodes";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { useUsageTracking } from "@/hooks/useUsageTracking";
 import { generateExamplePhrases } from "@/app/actions";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
+import LanguageSelector from "./LanguageSelector";
+import type { MessageKey } from "@/lib/i18n/messages";
 
 type AppShellProps = {
   levels: Level[];
@@ -39,21 +42,21 @@ type SubscriptionPromptSource =
   | "example_limit"
   | "flashcards";
 
-const FREE_TIER_FEATURES = [
-  "Read all podcast transcripts",
-  "30 AI translations per day",
-  "Save up to 100 vocabulary words",
-  "5 AI example phrases per day",
-  "1 flashcard review session per day",
-] as const;
+const FREE_TIER_FEATURE_KEYS = [
+  "freeFeature1",
+  "freeFeature2",
+  "freeFeature3",
+  "freeFeature4",
+  "freeFeature5",
+] as const satisfies readonly MessageKey[];
 
-const PREMIUM_TIER_FEATURES = [
-  "Everything in Free",
-  "Unlimited AI translations",
-  "Unlimited vocabulary words",
-  "Unlimited AI example phrases",
-  "Unlimited flashcard review sessions",
-] as const;
+const PREMIUM_TIER_FEATURE_KEYS = [
+  "premiumFeature1",
+  "premiumFeature2",
+  "premiumFeature3",
+  "premiumFeature4",
+  "premiumFeature5",
+] as const satisfies readonly MessageKey[];
 
 export default function AppShell({
   levels,
@@ -75,8 +78,8 @@ export default function AppShell({
     title: string;
     description: string;
   } | null>(null);
-  const [isEnglishBlurred, setIsEnglishBlurred] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const { t, lang, isTranslationBlurred, toggleTranslationBlurred } = useLanguage();
   const [authInitialMode, setAuthInitialMode] = useState<"login" | "signup">("login");
   const [scrollPositions, setScrollPositions] = useState<Record<string, number>>({
     episodes: 0,
@@ -175,21 +178,6 @@ export default function AppShell({
     return () => el.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Persist English blur preference across sessions.
-  useEffect(() => {
-    const stored = window.localStorage.getItem("blur-english-translations");
-    if (stored === "1") {
-      setIsEnglishBlurred(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    window.localStorage.setItem(
-      "blur-english-translations",
-      isEnglishBlurred ? "1" : "0"
-    );
-  }, [isEnglishBlurred]);
-
   const showToast = useCallback((msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 2500);
@@ -198,35 +186,32 @@ export default function AppShell({
   const showSubscriptionPrompt = useCallback((source: SubscriptionPromptSource) => {
     if (source === "vocab_limit") {
       setSubscriptionPrompt({
-        title: "Vocabulary Limit Reached",
-        description:
-          "You've learned your first 100 words. Upgrade to continue building your Hebrew vocabulary.",
+        title: t("vocabLimitTitle"),
+        description: t("vocabLimitDesc"),
       });
       return;
     }
     if (source === "translation_limit") {
       setSubscriptionPrompt({
-        title: "Translation Limit Reached",
+        title: t("translationLimitTitle"),
         description: user
-          ? "You've used your 30 free translations for today. Upgrade to Premium for unlimited translations."
-          : "You've used your free translations for today. Log in or upgrade to Premium for unlimited translations.",
+          ? t("translationLimitDescAuth")
+          : t("translationLimitDescAnon"),
       });
       return;
     }
     if (source === "example_limit") {
       setSubscriptionPrompt({
-        title: "AI Example Limit Reached",
-        description:
-          "You've generated your 5 free AI examples for today. Upgrade to Premium for unlimited examples.",
+        title: t("exampleLimitTitle"),
+        description: t("exampleLimitDesc"),
       });
       return;
     }
     setSubscriptionPrompt({
-      title: "Daily Review Session Completed",
-      description:
-        "You've completed your 1 free flashcard review session for today! Upgrade to Premium to practice unlimited review sessions.",
+      title: t("flashcardsLimitTitle"),
+      description: t("flashcardsLimitDesc"),
     });
-  }, [user]);
+  }, [user, t]);
 
   const handleWordSaved = useCallback(
     async (word: Omit<VocabWord, "id" | "savedAt">) => {
@@ -252,29 +237,31 @@ export default function AppShell({
         accessToken,
         word.wordWithNekudot || word.word,
         word.translation,
-        3
+        3,
+        undefined,
+        lang
       );
 
       if (res.type === "auth_required") {
         setAuthInitialMode("login");
         setIsAuthModalOpen(true);
-        return { ok: false, message: "Please log in to generate examples." };
+        return { ok: false, message: t("pleaseLoginExamples") };
       }
       if (res.type === "limit_reached") {
         showSubscriptionPrompt("example_limit");
-        return { ok: false, message: "Daily AI example limit reached." };
+        return { ok: false, message: t("dailyExampleLimit") };
       }
       if (res.type === "error" || res.phrases.length === 0) {
-        return { ok: false, message: "Failed to generate examples. Please try again." };
+        return { ok: false, message: t("failedGenerateExamples") };
       }
 
       const updateRes = await updateWord(word.id, { examplePhrases: res.phrases });
       if (!updateRes?.updated) {
-        return { ok: false, message: updateRes?.message || "Failed to save examples." };
+        return { ok: false, message: updateRes?.message || t("failedSaveExamples") };
       }
       return { ok: true };
     },
-    [updateWord, showSubscriptionPrompt]
+    [updateWord, showSubscriptionPrompt, lang, t]
   );
 
   const regenerateExample = useCallback(
@@ -287,20 +274,21 @@ export default function AppShell({
         word.wordWithNekudot || word.word,
         word.translation,
         1,
-        existing
+        existing,
+        lang
       );
 
       if (res.type === "auth_required") {
         setAuthInitialMode("login");
         setIsAuthModalOpen(true);
-        return { ok: false, message: "Please log in to regenerate examples." };
+        return { ok: false, message: t("pleaseLoginRegenerate") };
       }
       if (res.type === "limit_reached") {
         showSubscriptionPrompt("example_limit");
-        return { ok: false, message: "Daily AI example limit reached." };
+        return { ok: false, message: t("dailyExampleLimit") };
       }
       if (res.type === "error" || res.phrases.length === 0) {
-        return { ok: false, message: "Failed to regenerate example. Please try again." };
+        return { ok: false, message: t("failedRegenerate") };
       }
 
       const updatedPhrases = [...existing];
@@ -308,11 +296,11 @@ export default function AppShell({
 
       const updateRes = await updateWord(word.id, { examplePhrases: updatedPhrases });
       if (!updateRes?.updated) {
-        return { ok: false, message: updateRes?.message || "Failed to save example." };
+        return { ok: false, message: updateRes?.message || t("failedSaveExample") };
       }
       return { ok: true };
     },
-    [updateWord, showSubscriptionPrompt]
+    [updateWord, showSubscriptionPrompt, lang, t]
   );
 
   const handleChangeViewMode = useCallback(
@@ -367,12 +355,12 @@ export default function AppShell({
           writeLastEpisodeForLevel(level, num);
           setLastEpisodesByLevel((prev) => ({ ...prev, [level]: num }));
         } else {
-          setEpisodeLoadError("Could not load this episode. Please try again.");
-          showToast("Could not load this episode. Please try again.");
+          setEpisodeLoadError(t("episodeLoadError"));
+          showToast(t("episodeLoadError"));
         }
       } catch {
-        setEpisodeLoadError("Could not load this episode. Please try again.");
-        showToast("Could not load this episode. Please try again.");
+        setEpisodeLoadError(t("episodeLoadError"));
+        showToast(t("episodeLoadError"));
       } finally {
         setIsEpisodeLoading(false);
       }
@@ -381,7 +369,7 @@ export default function AppShell({
         mainRef.current?.scrollTo({ top: 0, behavior: "smooth" });
       }, 50);
     },
-    [isMobile, showToast]
+    [isMobile, showToast, t]
   );
 
   const handleChangeLevel = useCallback(
@@ -461,7 +449,7 @@ export default function AppShell({
           <button
             className="toggle-sidebar-btn"
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            title={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
+            title={isSidebarOpen ? t("closeSidebar") : t("openSidebar")}
           >
             {isSidebarOpen ? (
               <PanelLeftClose size={20} />
@@ -470,19 +458,19 @@ export default function AppShell({
             )}
           </button>
 
+          <LanguageSelector />
+
           {viewMode === "episodes" && episode && (
             <button
-              className={`english-toggle-btn ${isEnglishBlurred ? "active" : ""}`}
-              onClick={() => setIsEnglishBlurred((prev) => !prev)}
-              aria-pressed={isEnglishBlurred}
+              className={`translation-toggle-btn ${isTranslationBlurred ? "active" : ""}`}
+              onClick={toggleTranslationBlurred}
+              aria-pressed={isTranslationBlurred}
               title={
-                isEnglishBlurred
-                  ? "Show English translations"
-                  : "Hide English translations"
+                isTranslationBlurred ? t("showTranslations") : t("hideTranslations")
               }
             >
-              {isEnglishBlurred ? <EyeOff size={14} /> : <Eye size={14} />}
-              {isEnglishBlurred ? "English hidden" : "English shown"}
+              {isTranslationBlurred ? <EyeOff size={14} /> : <Eye size={14} />}
+              {isTranslationBlurred ? t("translationHidden") : t("translationShown")}
             </button>
           )}
 
@@ -495,7 +483,7 @@ export default function AppShell({
                   setIsAuthModalOpen(true);
                 }}
               >
-                Log In
+                {t("logIn")}
               </button>
             ) : (
               <>
@@ -506,7 +494,7 @@ export default function AppShell({
                   className="topnav-signout-btn"
                   onClick={() => supabase.auth.signOut()}
                 >
-                  Sign Out
+                  {t("signOut")}
                 </button>
               </>
             )}
@@ -529,8 +517,8 @@ export default function AppShell({
               <button
                 className="subscription-prompt-close"
                 onClick={() => setSubscriptionPrompt(null)}
-                title="Dismiss"
-                aria-label="Dismiss premium prompt"
+                title={t("dismiss")}
+                aria-label={t("dismissPremium")}
               >
                 <X size={16} />
               </button>
@@ -550,32 +538,32 @@ export default function AppShell({
               <div className="tier-comparison">
                 <div className="tier-card tier-card--free">
                   <div className="tier-card-header">
-                    <span className="tier-card-label">Free</span>
+                    <span className="tier-card-label">{t("free")}</span>
                     <span className="tier-card-price">$0</span>
                   </div>
                   <ul className="tier-feature-list">
-                    {FREE_TIER_FEATURES.map((feature) => (
-                      <li key={feature}>
+                    {FREE_TIER_FEATURE_KEYS.map((key) => (
+                      <li key={key}>
                         <Check size={14} className="tier-feature-icon" aria-hidden="true" />
-                        <span>{feature}</span>
+                        <span>{t(key)}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
 
                 <div className="tier-card tier-card--premium">
-                  <div className="tier-card-badge">Recommended</div>
+                  <div className="tier-card-badge">{t("recommended")}</div>
                   <div className="tier-card-header">
-                    <span className="tier-card-label">Premium</span>
+                    <span className="tier-card-label">{t("premium")}</span>
                     <span className="tier-card-price">
-                      $9.99<span className="tier-card-price-unit">/mo</span>
+                      $9.99<span className="tier-card-price-unit">{t("perMonth")}</span>
                     </span>
                   </div>
                   <ul className="tier-feature-list">
-                    {PREMIUM_TIER_FEATURES.map((feature) => (
-                      <li key={feature}>
+                    {PREMIUM_TIER_FEATURE_KEYS.map((key) => (
+                      <li key={key}>
                         <Check size={14} className="tier-feature-icon tier-feature-icon--premium" aria-hidden="true" />
-                        <span>{feature}</span>
+                        <span>{t(key)}</span>
                       </li>
                     ))}
                   </ul>
@@ -591,7 +579,7 @@ export default function AppShell({
                     setIsAuthModalOpen(true);
                   }}
                 >
-                  Upgrade for $9.99/month
+                  {t("upgradePrice")}
                 </button>
                 {!user && (
                   <button
@@ -602,7 +590,7 @@ export default function AppShell({
                       setIsAuthModalOpen(true);
                     }}
                   >
-                    Already premium? Log in
+                    {t("alreadyPremiumLogIn")}
                   </button>
                 )}
               </div>
@@ -646,7 +634,7 @@ export default function AppShell({
           (isEpisodeLoading ? (
             <div className="empty-state">
               <div className="empty-state-spinner" aria-hidden="true" />
-              <p>Loading episode…</p>
+              <p>{t("loadingEpisode")}</p>
             </div>
           ) : episodeLoadError && !episode ? (
             <div className="empty-state">
@@ -659,7 +647,7 @@ export default function AppShell({
                     onClick={() => navigateToEpisode(currentLevel, currentEpNum)}
                   >
                     <RotateCcw size={16} />
-                    Try again
+                    {t("tryAgain")}
                   </button>
                 )}
                 <button
@@ -667,7 +655,7 @@ export default function AppShell({
                   onClick={() => setIsSidebarOpen(true)}
                 >
                   <ListTree size={16} />
-                  Browse episodes
+                  {t("browseEpisodes")}
                 </button>
               </div>
             </div>
@@ -676,8 +664,8 @@ export default function AppShell({
               <BookOpen size={48} strokeWidth={1} />
               <p>
                 {levelEpisodes.length > 0
-                  ? `Pick up where you left off in ${currentLevelName}, or browse the full list.`
-                  : "No episodes are available for this level yet."}
+                  ? t("pickUpWhereLeftOff", { level: currentLevelName })
+                  : t("noEpisodesForLevel")}
               </p>
               {levelEpisodes.length > 0 && (
                 <div className="empty-state-actions">
@@ -688,8 +676,8 @@ export default function AppShell({
                     >
                       <BookOpen size={16} />
                       {hasResumeProgress
-                        ? `Resume Episode ${String(resumeEpNum).padStart(2, "0")}`
-                        : "Start reading"}
+                        ? t("resumeEpisode", { num: String(resumeEpNum).padStart(2, "0") })
+                        : t("startReading")}
                     </button>
                   )}
                   <button
@@ -697,7 +685,7 @@ export default function AppShell({
                     onClick={() => setIsSidebarOpen(true)}
                   >
                     <ListTree size={16} />
-                    Browse episodes
+                    {t("browseEpisodes")}
                   </button>
                 </div>
               )}
@@ -725,7 +713,6 @@ export default function AppShell({
                   setIsAuthModalOpen(true);
                 }}
                 onRequireSubscription={() => showSubscriptionPrompt("translation_limit")}
-                isEnglishBlurred={isEnglishBlurred}
                 isFinished={episode ? isFinished(episode.level, episode.episode) : false}
                 onToggleFinished={() => {
                   if (episode) toggleFinished(episode.level, episode.episode);

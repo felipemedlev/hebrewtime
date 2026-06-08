@@ -314,8 +314,31 @@
   color: var(--text-main);
 }
 
-.english-toggle-btn {
+.language-selector {
   margin-left: var(--radius-lg);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  padding: var(--radius-sm) var(--radius-md);
+  color: var(--text-muted);
+  font-size: var(--text-base-sm);
+}
+
+.language-select {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  outline: none;
+}
+
+.translation-toggle-btn,
+.english-toggle-btn {
+  margin-left: var(--radius-md);
   display: inline-flex;
   align-items: center;
   gap: var(--radius-sm);
@@ -330,12 +353,14 @@
   transition: all var(--dur-base);
 }
 
+.translation-toggle-btn:hover,
 .english-toggle-btn:hover {
   color: var(--text-main);
   border-color: var(--gray-400);
   background: var(--surface-hover);
 }
 
+.translation-toggle-btn.active,
 .english-toggle-btn.active {
   color: var(--accent);
   border-color: var(--accent-border);
@@ -473,6 +498,7 @@
   line-height: var(--leading-extra);
   color: var(--text-main);
 }
+.text-translation,
 .text-english {
   font-size: var(--text-2xl);
   line-height: var(--leading-reading);
@@ -480,12 +506,14 @@
   transition: filter var(--dur-base) ease, opacity var(--dur-base) ease;
 }
 
+.text-translation.blurred,
 .text-english.blurred {
   filter: blur(var(--radius-sm));
   opacity: 0.75;
   user-select: none;
 }
 
+.text-translation-empty,
 .text-english-empty {
   color: var(--gray-575);
   font-style: italic;
