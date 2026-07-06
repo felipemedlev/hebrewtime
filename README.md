@@ -4,7 +4,7 @@ HebrewTime is a beautiful multilingual web-based reader for the Hebrew Time podc
 
 The platform supports multiple learning levels — **Beginner** (A1), **Intermediate** (B1 legacy), **Intermediate 2** (B1 generated), and **Advanced** (B2 generated) — each with its own episode series. Beginner, Intermediate 2, and Advanced episodes are AI-generated (~10 minutes each, narrated by a consistent persona) with sentence-level audio highlighting. Legacy Intermediate content comes from the original Hebrew Time podcast.
 
-The application allows Hebrew learners to read podcast transcripts and click on any word to get a contextual, AI-powered translation (complete with Nekudot) and save it to their personal vocabulary list. Premium users can also generate AI example sentences for saved words to see everyday usage in context. Since word translation and example-phrase generation use OpenAI credits, translation, vocabulary, and flashcards are gated behind a premium subscription prompt shown in-app at $10/month.
+The application allows Hebrew learners to read podcast transcripts and click on any word to look it up in a **Pealim-backed dictionary** (lemma, Nekudot, transliteration, and meanings from Supabase `dictionary_entries`), with OpenAI used only when no dictionary match is found or to disambiguate homonyms / translate glosses into the user's UI language. Saved words can open full conjugation tables. Example-phrase generation still uses OpenAI. Translation, vocabulary, and flashcards have free-tier daily limits; unlimited access is part of the premium upsell shown in-app.
 
 ## Key Features
 
@@ -14,20 +14,23 @@ The application allows Hebrew learners to read podcast transcripts and click on 
 - **Focus Mode for Hebrew Reading**: A top-bar toggle lets users blur all transcript translations on demand, so learners can practice Hebrew-first reading. The preference is saved in local storage.
 - **Mark Episodes as Finished**: Users can mark episodes they've completed. Finished state is tracked **per level** (`level:episode` keys), synced to Supabase `finished_episodes` with `level_slug` for authenticated users, and stored in local storage. Checkmarks appear in the sidebar and an elegant button at the end of the episode text.
 - **Scroll Position Persistence**: The application remembers your exact scroll position when switching between episodes, the vocabulary list, and flashcards, so you never lose your place.
-- **Premium-gated AI Translation**: Click any Hebrew word to translate it within the context of the sentence using OpenAI (gpt-5.4-mini). A specially tuned prompt ensures:
-  - 100% grammatically correct Nekudot vocalization based on the exact contextual meaning.
-  - The stored word is always the **base dictionary form (lemma)** — prefixes like ה (the), ל (to), ב (in), מ (from), ו (and), כ (as) are automatically stripped.
-  - For nouns: the singular indefinite form is saved (e.g., נושא, not הנושא).
-  - For verbs: the infinitive form is saved (e.g., לדמיין, not מדמיין or מְדַמְיְנִים).
-  - Translations omit articles: "topic" not "the topic", "imagine" not "to imagine".
-  - Lemma accuracy is cross-validated against pealim.com in the AI prompt.
-  - This is available only to premium users.
+- **Pealim-First Word Lookup**: Click any Hebrew word to translate it in context. Lookup order in `src/lib/dictionaryLookup.ts`:
+  1. Exact headword match on `dictionary_entries.word`
+  2. Same after stripping up to 3 Hebrew prefixes (ה, ו, ב, כ, ל, מ/מה, ש)
+  3. Conjugated-form match via JSONB containment on `forms[].hebrew_plain`
+  4. Fuzzy match via Postgres `pg_trgm` (`match_dictionary_word()` RPC)
+  5. **OpenAI fallback** (`gpt-5.4-mini`) only when steps 1–4 find nothing, or to pick among homonyms
+  - **Dictionary hit**: lemma, Nekudot, transliteration, and English meanings come directly from Pealim data. For non-English UI languages, a small OpenAI call translates the trusted English gloss only (lemma/nekudot are never AI-generated).
+  - **Saved lemma rules**: nouns → singular indefinite; verbs → infinitive (e.g. מְדַמְיֵן → `לדמיין`). Translations omit articles ("topic" not "the topic") and infinitive markers ("imagine" not "to imagine").
+  - **View conjugations**: when a dictionary match exists, users can open full Pealim conjugation/inflection tables (`DictionaryDetailsModal`) from the translation popup, Vocabulary tab (book icon), or Flashcards after revealing the answer.
+  - Available to all users within daily translation limits (logged-out quota in `localStorage`; authenticated non-premium capped server-side). Saving to vocabulary requires login.
 - **Premium Vocabulary Manager & Auth**: Users can create an account via Supabase Email Auth (including “Forgot password” recovery). Premium users can save synced vocabulary in Supabase PostgreSQL across devices.
   - Rendered in an elegant, minimal Apple/Notion-style data table on desktop and card layout on mobile. Desktop column order: **Source** (leftmost) → Pronunc. → Translation → Verb form → **Hebrew** (rightmost, for natural RTL reading) → Actions.
   - Supports inline editing of saved words directly on the vocabulary page (Hebrew with Nekudot, verb form, translation, and pronunciation). Pressing **Enter** in any edit field saves the row (same as clicking the ✓ button).
   - On mobile, the Hebrew word is right-aligned and actions sit on the left, preserving the RTL-natural reading flow in a card layout.
   - **Dynamic Search & Filtering**: A responsive search bar instantly filters your vocabulary list as you type. It works seamlessly for saved word meanings (any language), Hebrew words (even without typing specific Nekudot), and pronunciation.
   - Smart deduplication logic allows saving the exact same Hebrew word multiple times if its contextual meaning (translation) or pronunciation (Nekudot) differs.
+  - **Dictionary link**: saves from a dictionary hit store `dictionary_pealim_id` (FK to `dictionary_entries`) and Pealim transliteration in `pronunciation`, enabling the conjugation-details modal later.
   - **AI Example Phrases**: Each saved word can reveal 3 AI-generated example sentences (Hebrew with Nekudot + meaning in the user's active UI language) showing everyday usage. Phrases are **not** generated at save-time — the user expands an “Examples” panel (Vocabulary tab) or taps “Show examples” (Flashcards) to trigger generation on first use. Results are cached in `vocabulary.example_phrases` (JSONB) per user per word and load instantly on subsequent views. Any single phrase can be regenerated unlimited times via a per-phrase refresh button. Shared UI lives in `ExamplePhrasesPanel.tsx`; orchestration in `AppShell.tsx` calls `generateExamplePhrases` then persists via `useVocabulary.updateWord`.
 - **Top-of-Screen Subscription Upsell (Apple/Notion Style)**: If a non-premium user clicks the Vocabulary tab, Flashcards tab, or tries to translate a word, the app shows a large sticky promo panel with $10/month messaging and a CTA that opens auth/signup.
 - **Spaced Repetition Flashcard System (FSRS)**: An elegant, built-in flashcard system designed to help users master their saved vocabulary.
@@ -37,6 +40,7 @@ The application allows Hebrew learners to read podcast transcripts and click on 
   - **Snappy Anki-Style Card Transitions**: Utilizes React's key diffing pattern (`key={currentIndex}`) to unmount the rated card and mount the new card instantly on its front face. This completely prevents visual flip-back anomalies or mid-flip text replacement lag.
   - **Optimistic background syncs**: Rating actions are handled in the background asynchronously, making card swaps instantaneous and non-blocking.
   - **Example Phrases During Review**: Before or after flipping a card, users can tap “Show examples” to reveal a panel below the card (outside the 3D flip area). On first use, phrases are AI-generated and cached; later sessions read them from the database with zero extra fetch. Each phrase has an unlimited per-slot regenerate button. The examples panel resets when advancing to the next card.
+  - **Conjugation Details During Review**: After revealing a card, users with a linked `dictionary_pealim_id` can open full Pealim conjugation tables via “View conjugations”.
 - **Admin Dashboard & Premium Controls**: Admin users (`ADMIN_EMAILS`) can open a dedicated `/admin` dashboard in a new tab from the sidebar. The dashboard shows platform-wide stats (total users, premium users, active site time, episodes completed, words saved) and a searchable user table with per-user active time, last seen, episodes completed, words saved, flashcard reviews, and premium status. Admins can still grant/revoke premium access by email; granting premium automatically sends a Supabase invite email.
 - **First-Time Onboarding Landing Page**: After a user's first successful login, a full-screen onboarding overlay introduces the platform's core value proposition and main features (multilingual reading, click-to-translate, vocabulary/flashcards, audio-synced highlighting). All copy is i18n-aware via `useT()`. Users can complete it via "Start reading" or dismiss it with "Skip for now". Once completed or skipped, onboarding never reappears on any device. Non-authenticated visitors never see it. Completion is persisted in Supabase user metadata (`user_metadata.onboarded`) — no database migration required.
 
@@ -57,7 +61,7 @@ This project is built with **Next.js 16** (App Router) and **React 19**, focusin
 - **Styling**: Vanilla CSS split under `src/app/styles/` (imported via `globals.css`) for a clean, dependency-free aesthetic.
 - **Icons**: `lucide-react`
 - **Database & Auth**: Supabase (PostgreSQL) and `@supabase/supabase-js`.
-- **Data Fetching/AI**: OpenAI API (`gpt-5.4-mini`) for on-the-fly contextual word translations and lazy-generated example phrases (both premium-only).
+- **Data Fetching/AI**: Supabase `dictionary_entries` (Pealim) for word lookup, lemma, Nekudot, and conjugations; OpenAI (`gpt-5.4-mini`) for dictionary miss fallback, homonym disambiguation, non-English gloss translation, and lazy-generated example phrases.
 - **Scraper**: Python 3 (`requests`, `beautifulsoup4`, `openai`) for legacy Squarespace intermediate transcripts.
 - **Content Pipeline**: Python scripts for AI-generated beginner, Intermediate 2, and Advanced episodes (OpenAI script → sentence-level Gemini 3.1 Flash TTS timing → Supabase Storage + DB).
 - **Episode Storage**: Supabase PostgreSQL (`levels`, `episodes` with `translations` JSONB map) + Supabase Storage (`episode-audio` bucket).
@@ -74,16 +78,17 @@ Following a recent refactor, the app utilizes Next.js Server Components and dyna
   - `LanguageSelector.tsx`: Top-bar language picker (`en` / `ru` / `uk` / `pt` / `es` / `fr`); drives UI i18n and transcript column.
   - `LearningTrackSelector.tsx`: Dropdown to switch learning levels with finished count, resume episode, and progress bar.
   - `Sidebar.tsx`: Navigation, search, and tab switching (all labels via `useT()`).
-  - `EpisodeViewer.tsx`: Hebrew + selected-language reading, word-click handling (`translateWord` with `targetLang`), and conditional blurring of transcript translations.
-  - `VocabularyView.tsx`: Saved words in a desktop table / mobile card layout with search, filtering, inline editing, and expandable example-phrase panels.
-  - `FlashcardsView.tsx`: Core spaced-repetition card review view featuring a compact Review stats strip, 3D flip animations, snappy Anki-style deck swaps, and example phrases below the card.
+  - `EpisodeViewer.tsx`: Hebrew + selected-language reading, word-click handling (`translateWord` with `targetLang`), translation modal, and conjugation-details modal.
+  - `VocabularyView.tsx`: Saved words in a desktop table / mobile card layout with search, filtering, inline editing, expandable example-phrase panels, and dictionary conjugation details (book icon when `dictionary_pealim_id` is set).
+  - `FlashcardsView.tsx`: Core spaced-repetition card review view featuring a compact Review stats strip, 3D flip animations, snappy Anki-style deck swaps, example phrases below the card, and conjugation details after reveal.
   - `ExamplePhrasesPanel.tsx`: Shared UI for listing, generating, and regenerating example phrases (used by Vocabulary and Flashcards).
-  - `TranslationModal.tsx`: The AI translation popup.
+  - `TranslationModal.tsx`: Word translation popup (meaning, transliteration, verb form, save, link to conjugations).
+  - `DictionaryDetailsModal.tsx`: Lazy-loaded Pealim conjugation/inflection tables grouped by `conjugation_sections`, with audio playback.
   - `AuthModal.tsx`: The Supabase authentication UI for login, sign up, and password recovery.
   - `OnboardingOverlay.tsx`: Full-screen first-login landing page with hero, feature cards, and CSS mockups of core app capabilities.
   - `AdminDashboard.tsx`: Admin-only `/admin` dashboard with usage stats, searchable user list, and premium grant/revoke controls.
 - **Custom Hooks (`src/hooks/`)**:
-  - `useVocabulary.ts`: Manages syncing vocabulary (including `example_phrases`) to Supabase based on the user's login state.
+  - `useVocabulary.ts`: Manages syncing vocabulary (including `example_phrases` and `dictionary_pealim_id`) to Supabase based on the user's login state.
   - `useFlashcards.ts`: Tracks reviews and schedules next card review times via FSRS (`src/lib/fsrs.ts`), syncing flashcard progress state with Supabase.
   - `useEntitlements.ts`: Resolves auth/premium/admin status via server actions for gating translations, vocabulary, flashcards, and example phrases.
   - `useUser.ts`: Subscribes to Supabase auth events to track logged-in users.
@@ -108,6 +113,9 @@ Following a recent refactor, the app utilizes Next.js Server Components and dyna
 | **`ExamplePhrase.english` field name unchanged** | JSONB shape stays `{ hebrew, english }`; `english` holds meaning in active language |
 | **Admin dashboard stays English** | Internal tool; out of i18n scope |
 | **All new transcript/AI translations use `gpt-5.4-mini`** | Consistent cost/quality across scraper, pipeline, backfill, and server actions |
+| **Pealim `dictionary_entries` is the source of truth for lemma/Nekudot** | OpenAI is fallback only; do not regenerate vocalization via AI when a dictionary row exists |
+| **`vocabulary.dictionary_pealim_id` links saves to Pealim** | Enables conjugation modal on Vocabulary/Flashcards without re-lookup |
+| **`vocabulary.pronunciation` stores Pealim transliteration** | Populated on save from dictionary hit; user-editable inline |
 
 #### Supported language codes
 
@@ -196,20 +204,45 @@ ALTER TABLE public.episodes
 
 **CSS:** Translation column uses `.text-translation` (`.text-english` kept as alias). Blur toggle uses `.translation-toggle-btn`.
 
-#### Click-to-translate & example phrases (server actions)
+#### Click-to-translate, dictionary lookup & example phrases (server actions)
 
-Both respect the active `LangCode` passed from the client.
+Both word lookup and example phrases respect the active `LangCode` passed from the client.
+
+> **Prompt context for AI assistants:** Read [`docs/dictionary_entries.md`](docs/dictionary_entries.md) before changing dictionary lookup, conjugation UI, or `dictionary_entries` schema. Dictionary reads use `supabaseAdmin` (service role) in server actions so anonymous users are not blocked by RLS.
 
 **`translateWord(accessToken, word, hebrewContext, translationContext, targetLang?)`**
-- Hebrew lemma/Nekudot logic unchanged (prefix stripping, pealim.com prompt, etc.)
-- Only the returned `translation` meaning is in `targetLang`
-- `translationContext` is the translated sentence beside Hebrew (was `englishContext`)
-- Model: `gpt-5.4-mini`, `temperature: 0.2`
+
+Lookup pipeline (`src/lib/dictionaryLookup.ts` → `findDictionaryCandidates`):
+
+1. Strip niqqud; generate prefix-stripped candidates (0–3 leading prefix chars).
+2. For each candidate: `dictionary_entries` headword match, then `forms @> [{"hebrew_plain": …}]`.
+3. If still empty: `match_dictionary_word()` RPC (`pg_trgm`, similarity > 0.4).
+4. **0 candidates** → full OpenAI lemma+translation fallback (legacy prompt).
+5. **1 candidate** → return Pealim lemma, Nekudot, transliteration, meaning; translate gloss via OpenAI when `targetLang !== "en"`.
+6. **Multiple candidates** → one OpenAI call to pick `pealim_id` using sentence context; default to first on failure.
+
+**Success response fields:**
+
+| Field | Source | Notes |
+|-------|--------|-------|
+| `lemmaWord` | Pealim `word` or OpenAI | Stored in `vocabulary.word` |
+| `translation` | Pealim `meaning` (or gloss translation) | User's `targetLang` |
+| `wordWithNekudot` | Pealim `word_with_nekudot` | |
+| `verbFormWithNekudot` | Pealim infinitive if verb | `null` for non-verbs |
+| `pronunciation` | Pealim `transliteration` | Stored in `vocabulary.pronunciation` |
+| `dictionaryPealimId` | Pealim `pealim_id` | Stored in `vocabulary.dictionary_pealim_id`; `null` on OpenAI fallback |
+| `partOfSpeech` | Pealim `part_of_speech` | Display only |
+| `source` | `"dictionary"` \| `"openai"` | |
+
+Rate limits and daily caps unchanged. Dictionary hits still count toward translation quotas.
+
+**`getDictionaryEntryDetails(pealimId)`**
+
+Lazy-loaded when opening `DictionaryDetailsModal`. Returns full conjugation payload (`meanings`, `notes`, `conjugation_sections`, `forms`, audio URLs). Client caches by `pealim_id`. Table layout in `src/lib/dictionaryTableLayout.ts` handles merged colspan cells (`gender: null`) by spanning masculine+feminine columns.
 
 **`generateExamplePhrases(accessToken, word, translation, count, existingPhrases?, targetLang?)`**
-- Hebrew sentences with full Nekudot
-- Meaning stored in `ExamplePhrase.english` field but generated in `targetLang`
-- Model: `gpt-5.4-mini`, `temperature: 0.7`
+- Unchanged: Hebrew sentences with full Nekudot; meaning in `targetLang` stored in `ExamplePhrase.english`.
+- Model: `gpt-5.4-mini`, `temperature: 0.7`. Requires authentication.
 
 Callers: `EpisodeViewer.tsx` passes `lang` to `translateWord`; `AppShell.tsx` passes `lang` to `generateExamplePhrases`.
 
@@ -237,10 +270,12 @@ Shared utilities: `scripts/lib/translation_utils.py`
 |------|-------|
 | i18n core | `src/lib/i18n/*`, `src/components/LanguageSelector.tsx` |
 | Reader | `src/components/EpisodeViewer.tsx`, `src/lib/episodeTranslations.ts` |
-| Server AI | `src/app/actions.ts` (`targetLang` param) |
+| Dictionary lookup | `src/lib/dictionaryLookup.ts`, `src/lib/dictionaryTableLayout.ts`, `docs/dictionary_entries.md` |
+| Dictionary UI | `src/components/DictionaryDetailsModal.tsx`, `src/components/TranslationModal.tsx`, `src/app/styles/dictionary-details.css` |
+| Server actions | `src/app/actions.ts` (`translateWord`, `getDictionaryEntryDetails`, `generateExamplePhrases`) |
 | Data layer | `src/lib/types.ts`, `src/lib/episodes.ts` |
 | Styles | `src/app/styles/layout.css` (`.text-translation`, `.language-selector`) |
-| DB migration | `supabase/multilingual-translations.sql` |
+| DB migrations | `supabase/dictionary-migration.sql`, `supabase/dictionary-trgm-migration.sql`, `supabase/multilingual-translations.sql` |
 | Pipelines | `scraper.py`, `scripts/generate_episodes.py`, `scripts/lib/translation_utils.py`, `scripts/backfill_translations.py` |
 
 ## Setup & Local Development
