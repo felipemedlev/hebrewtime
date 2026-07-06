@@ -128,6 +128,14 @@
   white-space: nowrap;
 }
 
+.dictionary-details-table td[colspan] {
+  text-align: center;
+}
+
+.dictionary-details-table td[colspan] .dictionary-details-cell-hebrew {
+  font-size: var(--text-xl);
+}
+
 .dictionary-details-table th.row-header,
 .dictionary-details-table td.row-header {
   text-align: start;

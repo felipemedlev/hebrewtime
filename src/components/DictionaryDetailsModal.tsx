@@ -6,6 +6,10 @@ import { getDictionaryEntryDetails } from "@/app/actions";
 import { useModalAccessibility } from "@/hooks/useModalAccessibility";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import type { ConjugationSection, DictionaryEntryDetails, DictionaryForm } from "@/lib/types";
+import {
+  buildColumnLabels,
+  layoutRowCells,
+} from "@/lib/dictionaryTableLayout";
 
 type DictionaryDetailsModalProps = {
   isOpen: boolean;
@@ -31,19 +35,10 @@ function formsInSection(entry: DictionaryEntryDetails, section: ConjugationSecti
 function ConjugationTable({ forms }: { forms: DictionaryForm[] }) {
   if (forms.length === 0) return null;
 
-  const rowLabels: string[] = [];
-  const colLabels: string[] = [];
-  const cellMap = new Map<string, DictionaryForm>();
-
-  for (const form of forms) {
-    const row = form.row_label || "—";
-    const col = form.column_label || "—";
-    if (!rowLabels.includes(row)) rowLabels.push(row);
-    if (!colLabels.includes(col)) colLabels.push(col);
-    cellMap.set(`${row}::${col}`, form);
-  }
-
-  const hasColumns = colLabels.length > 1 || (colLabels.length === 1 && colLabels[0] !== "—");
+  const colLabels = buildColumnLabels(forms);
+  const hasColumns =
+    colLabels.length > 1 ||
+    (colLabels.length === 1 && forms.some((f) => f.column_label && f.column_label !== "—"));
 
   if (!hasColumns) {
     return (
@@ -64,6 +59,17 @@ function ConjugationTable({ forms }: { forms: DictionaryForm[] }) {
     );
   }
 
+  const rowLabels: string[] = [];
+  const formsByRow = new Map<string, DictionaryForm[]>();
+
+  for (const form of forms) {
+    const row = form.row_label || "—";
+    if (!rowLabels.includes(row)) rowLabels.push(row);
+    const bucket = formsByRow.get(row) ?? [];
+    bucket.push(form);
+    formsByRow.set(row, bucket);
+  }
+
   return (
     <div className="dictionary-details-table-wrap">
       <table className="dictionary-details-table">
@@ -76,19 +82,24 @@ function ConjugationTable({ forms }: { forms: DictionaryForm[] }) {
           </tr>
         </thead>
         <tbody>
-          {rowLabels.map((row) => (
-            <tr key={row}>
-              <td className="row-header">{row}</td>
-              {colLabels.map((col) => {
-                const form = cellMap.get(`${row}::${col}`);
-                return (
-                  <td key={`${row}-${col}`}>
-                    {form ? <FormCell form={form} /> : <span className="vocab-dash">—</span>}
+          {rowLabels.map((row) => {
+            const rowForms = formsByRow.get(row) ?? [];
+            const cells = layoutRowCells(rowForms, colLabels);
+            return (
+              <tr key={row}>
+                <td className="row-header">{row}</td>
+                {cells.map((cell) => (
+                  <td key={cell.key} colSpan={cell.colspan}>
+                    {cell.form ? (
+                      <FormCell form={cell.form} />
+                    ) : (
+                      <span className="vocab-dash">—</span>
+                    )}
                   </td>
-                );
-              })}
-            </tr>
-          ))}
+                ))}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
