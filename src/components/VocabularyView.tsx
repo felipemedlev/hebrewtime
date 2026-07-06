@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Bookmark, Trash2, LogIn, Edit2, Check, X, ExternalLink, Search, MessageSquare } from "lucide-react";
+import { Bookmark, Trash2, LogIn, Edit2, Check, X, ExternalLink, Search, MessageSquare, BookOpen } from "lucide-react";
 import type { VocabWord } from "@/lib/types";
 import { useUser } from "@/hooks/useUser";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import ExamplePhrasesPanel from "./ExamplePhrasesPanel";
+import DictionaryDetailsModal from "./DictionaryDetailsModal";
 
 const ALL_CHAPTERS_KEY = "__all__";
 
@@ -30,6 +31,7 @@ export default function VocabularyView({
   const { user } = useUser();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [detailsPealimId, setDetailsPealimId] = useState<number | null>(null);
   const [generatingId, setGeneratingId] = useState<string | null>(null);
   const [regeneratingSlot, setRegeneratingSlot] = useState<{ wordId: string; index: number } | null>(null);
   const [editValues, setEditValues] = useState<{
@@ -359,6 +361,15 @@ export default function VocabularyView({
                       </>
                     ) : (
                       <>
+                        {vw.dictionaryPealimId && (
+                          <button
+                            onClick={() => setDetailsPealimId(vw.dictionaryPealimId!)}
+                            title={t("viewConjugations")}
+                            className="vocab-action-btn details"
+                          >
+                            <BookOpen size={14} />
+                          </button>
+                        )}
                         <button
                           onClick={() => toggleExamples(vw.id)}
                           title={t("examples")}
@@ -417,6 +428,15 @@ export default function VocabularyView({
                         </>
                       ) : (
                         <>
+                          {vw.dictionaryPealimId && (
+                            <button
+                              onClick={() => setDetailsPealimId(vw.dictionaryPealimId!)}
+                              title={t("viewConjugations")}
+                              className="vocab-action-btn details"
+                            >
+                              <BookOpen size={14} />
+                            </button>
+                          )}
                           <button
                             onClick={() => toggleExamples(vw.id)}
                             title={t("examples")}
@@ -529,6 +549,11 @@ export default function VocabularyView({
           </div>
         </div>
       )}
+      <DictionaryDetailsModal
+        isOpen={detailsPealimId !== null}
+        pealimId={detailsPealimId}
+        onClose={() => setDetailsPealimId(null)}
+      />
     </div>
   );
 }

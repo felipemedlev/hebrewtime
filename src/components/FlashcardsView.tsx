@@ -23,6 +23,7 @@ import type {
 } from "@/lib/types";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import ExamplePhrasesPanel from "./ExamplePhrasesPanel";
+import DictionaryDetailsModal from "./DictionaryDetailsModal";
 
 function formatNextReview(iso: string | null, soonLabel: string): string {
   if (!iso) return "—";
@@ -74,6 +75,7 @@ export default function FlashcardsView({
   const [showExamples, setShowExamples] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [regeneratingIndex, setRegeneratingIndex] = useState<number | null>(null);
+  const [detailsPealimId, setDetailsPealimId] = useState<number | null>(null);
 
   const reviewQueue = sessionActive ? activeSessionCards : sessionQueue;
   const currentWord = reviewQueue[currentIndex]?.vocabWord;
@@ -105,6 +107,7 @@ export default function FlashcardsView({
     setCurrentIndex(0);
     setIsFlipped(false);
     setShowExamples(false);
+    setDetailsPealimId(null);
     setSessionActive(true);
     setViewTab("session");
   };
@@ -134,6 +137,7 @@ export default function FlashcardsView({
     // Reset flip state for the next card immediately
     setIsFlipped(false);
     setShowExamples(false);
+    setDetailsPealimId(null);
     
     if (currentIndex + 1 < reviewQueue.length) {
       setCurrentIndex(currentIndex + 1);
@@ -414,14 +418,26 @@ export default function FlashcardsView({
                         <span className="rating-btn-lbl">{t("easy")}</span>
                       </button>
                     </div>
-                    <button
-                      className={`flashcard-examples-toggle-btn compact${showExamples ? " active" : ""}`}
-                      onClick={handleToggleExamples}
-                      disabled={isGenerating}
-                    >
-                      <MessageSquare size={14} />
-                      {showExamples ? t("hideExamples") : t("showExamples")}
-                    </button>
+                    <div className="flashcard-pre-reveal-actions" style={{ marginTop: 0 }}>
+                      {currentWord?.dictionaryPealimId && (
+                        <button
+                          type="button"
+                          className="flashcard-examples-toggle-btn compact"
+                          onClick={() => setDetailsPealimId(currentWord.dictionaryPealimId!)}
+                        >
+                          <BookOpen size={14} />
+                          {t("viewConjugations")}
+                        </button>
+                      )}
+                      <button
+                        className={`flashcard-examples-toggle-btn compact${showExamples ? " active" : ""}`}
+                        onClick={handleToggleExamples}
+                        disabled={isGenerating}
+                      >
+                        <MessageSquare size={14} />
+                        {showExamples ? t("hideExamples") : t("showExamples")}
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -559,6 +575,11 @@ export default function FlashcardsView({
           )}
         </div>
       )}
+      <DictionaryDetailsModal
+        isOpen={detailsPealimId !== null}
+        pealimId={detailsPealimId}
+        onClose={() => setDetailsPealimId(null)}
+      />
     </div>
   );
 }

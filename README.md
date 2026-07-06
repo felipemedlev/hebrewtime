@@ -384,6 +384,8 @@ If you created the database before premium-aware RLS was added, run the full mig
 
 If you created `flashcard_progress` before FSRS columns were added, run [`supabase/fsrs-migration.sql`](supabase/fsrs-migration.sql) in the Supabase SQL Editor. Existing SM-2 rows are migrated automatically on the next review in the app.
 
+**Pealim dictionary (word lookup):** Run [`supabase/dictionary-migration.sql`](supabase/dictionary-migration.sql) to create the `dictionary_entries` reference table and link saved vocabulary via `vocabulary.dictionary_pealim_id`. Populate the table with the pealim scraper (see [`docs/dictionary_entries.md`](docs/dictionary_entries.md)). Then run [`supabase/dictionary-trgm-migration.sql`](supabase/dictionary-trgm-migration.sql) for fuzzy trigram matching used when exact headword/forms lookup fails.
+
 **Admin usage tracking:** To enable active site-time stats in the admin dashboard, run [`supabase/admin-usage-stats-migration.sql`](supabase/admin-usage-stats-migration.sql). This creates `user_activity_daily` and the `increment_user_activity()` RPC used by server actions. Active time is recorded only for authenticated users while the tab is visible and the user has interacted recently; stats appear in `/admin` after users browse the app post-migration.
 
 **Multilingual episode translations:** After the beginner-track migration, run [`supabase/multilingual-translations.sql`](supabase/multilingual-translations.sql) to add the `translations` JSONB column and backfill English from `english_paragraphs`. To generate Russian, Ukrainian, Portuguese, Spanish, and French for existing episodes:
@@ -848,6 +850,8 @@ WHERE email = 'your@email.com';
 - `/supabase/beginner-track-migration.sql` - Levels, episodes tables, finished_episodes level migration.
 - `/supabase/premium-rls-migration.sql` - Premium-aware RLS migration for existing Supabase projects.
 - `/supabase/fsrs-migration.sql` - Adds FSRS columns to `flashcard_progress` for existing Supabase projects.
+- `/supabase/dictionary-migration.sql` - Pealim `dictionary_entries` table and `vocabulary.dictionary_pealim_id` FK.
+- `/supabase/dictionary-trgm-migration.sql` - `pg_trgm` extension and fuzzy `match_dictionary_word()` RPC for dictionary lookup.
 - `/supabase/admin-usage-stats-migration.sql` - Adds `user_activity_daily` and `increment_user_activity()` for admin usage stats.
 
 ## Artifact Hygiene

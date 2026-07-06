@@ -5,6 +5,7 @@ import type { Episode, ParagraphTiming } from "@/lib/types";
 import { translateWord } from "@/app/actions";
 import { useState, useEffect, useRef, useMemo } from "react";
 import TranslationModal from "./TranslationModal";
+import DictionaryDetailsModal from "./DictionaryDetailsModal";
 import { supabase } from "@/lib/supabase";
 import { hasReachedAnonTranslationLimit, incrementAnonTranslations } from "@/lib/anonUsage";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
@@ -21,6 +22,9 @@ type EpisodeViewerProps = {
     wordWithNekudot?: string;
     verbFormWithNekudot?: string;
     translation: string;
+    pronunciation?: string;
+    dictionaryPealimId?: number | null;
+    partOfSpeech?: string | null;
     episodeTitle: string;
     episodeUrl: string;
   }) => Promise<{ added: boolean; message: string; type?: string }>;
@@ -43,6 +47,9 @@ type ModalState = {
   translation: string | null;
   wordWithNekudot: string | null;
   verbFormWithNekudot: string | null;
+  pronunciation: string | null;
+  partOfSpeech: string | null;
+  dictionaryPealimId: number | null;
   isTranslating: boolean;
 };
 
@@ -156,8 +163,12 @@ export default function EpisodeViewer({
     translation: null,
     wordWithNekudot: null,
     verbFormWithNekudot: null,
+    pronunciation: null,
+    partOfSpeech: null,
+    dictionaryPealimId: null,
     isTranslating: false,
   });
+  const [detailsPealimId, setDetailsPealimId] = useState<number | null>(null);
 
   const [currentTime, setCurrentTime] = useState(0);
   const paragraphRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -253,6 +264,9 @@ export default function EpisodeViewer({
       translation: null,
       wordWithNekudot: null,
       verbFormWithNekudot: null,
+      pronunciation: null,
+      partOfSpeech: null,
+      dictionaryPealimId: null,
       isTranslating: true,
     });
 
@@ -276,17 +290,31 @@ export default function EpisodeViewer({
         onRequireSubscription();
         return;
       }
+      if (res.type === "error") {
+        setModal((prev) => ({
+          ...prev,
+          translation: res.translation || "Translation error",
+          wordWithNekudot: res.wordWithNekudot || cleanWord,
+          isTranslating: false,
+        }));
+        return;
+      }
       if (!isAuthenticated && res.type === "success") {
         incrementAnonTranslations();
       }
-      setModal((prev) => ({
-        ...prev,
-        lemmaWord: res?.lemmaWord || cleanWord,
-        translation: res?.translation || "Translation error",
-        wordWithNekudot: res?.wordWithNekudot || cleanWord,
-        verbFormWithNekudot: res?.verbFormWithNekudot || null,
-        isTranslating: false,
-      }));
+      if (res.type === "success" && "lemmaWord" in res) {
+        setModal((prev) => ({
+          ...prev,
+          lemmaWord: res.lemmaWord || cleanWord,
+          translation: res.translation || "Translation error",
+          wordWithNekudot: res.wordWithNekudot || cleanWord,
+          verbFormWithNekudot: res.verbFormWithNekudot || null,
+          pronunciation: res.pronunciation ?? null,
+          partOfSpeech: res.partOfSpeech ?? null,
+          dictionaryPealimId: res.dictionaryPealimId ?? null,
+          isTranslating: false,
+        }));
+      }
     } catch {
       setModal((prev) => ({
         ...prev,
@@ -306,6 +334,9 @@ export default function EpisodeViewer({
       wordWithNekudot: modal.wordWithNekudot || wordToSave,
       verbFormWithNekudot: modal.verbFormWithNekudot || undefined,
       translation: modal.translation,
+      pronunciation: modal.pronunciation || undefined,
+      dictionaryPealimId: modal.dictionaryPealimId,
+      partOfSpeech: modal.partOfSpeech || undefined,
       episodeTitle: episode.title,
       episodeUrl: episode.url,
     });
@@ -446,9 +477,23 @@ export default function EpisodeViewer({
         wordWithNekudot={modal.wordWithNekudot}
         verbFormWithNekudot={modal.verbFormWithNekudot}
         translation={modal.translation}
+        pronunciation={modal.pronunciation}
+        partOfSpeech={modal.partOfSpeech}
+        dictionaryPealimId={modal.dictionaryPealimId}
         isTranslating={modal.isTranslating}
         onClose={() => setModal((prev) => ({ ...prev, isOpen: false }))}
         onSave={handleSave}
+        onOpenDetails={() => {
+          if (modal.dictionaryPealimId) {
+            setDetailsPealimId(modal.dictionaryPealimId);
+          }
+        }}
+      />
+
+      <DictionaryDetailsModal
+        isOpen={detailsPealimId !== null}
+        pealimId={detailsPealimId}
+        onClose={() => setDetailsPealimId(null)}
       />
     </>
   );

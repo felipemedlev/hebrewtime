@@ -63,6 +63,78 @@ export type ExamplePhrase = {
   english: string;
 };
 
+export type AuxForm = {
+  note: string | null;
+  hebrew_with_nekudot: string;
+  hebrew_plain: string;
+  transliteration: string | null;
+  audio_url: string | null;
+};
+
+export type DictionaryForm = {
+  form_id: string;
+  hebrew_with_nekudot: string;
+  hebrew_plain: string;
+  transliteration: string | null;
+  meaning: string | null;
+  audio_url: string | null;
+  row_label: string | null;
+  column_label: string | null;
+  section_title: string | null;
+  section_subtitle: string | null;
+  person: 1 | 2 | 3 | null;
+  gender: "masculine" | "feminine" | null;
+  number: "singular" | "plural" | null;
+  tense: "present" | "past" | "future" | "imperative" | "infinitive" | null;
+  state: "absolute" | "construct" | null;
+  voice: "active" | "passive" | null;
+  form_type: "verb" | "infinitive" | "noun" | "adjective" | "pronominal" | "numeral" | null;
+  aux_forms: AuxForm[];
+};
+
+export type ConjugationSection = {
+  title: string;
+  subtitle: string | null;
+  form_ids: string[];
+};
+
+export type DictionaryEntry = {
+  pealim_id: number;
+  slug?: string;
+  url?: string;
+  word: string;
+  word_with_nekudot: string;
+  transliteration: string | null;
+  audio_url: string | null;
+  root: string | null;
+  part_of_speech: string;
+  pos_detail: string | null;
+  meaning: string;
+  meanings: string[];
+  notes: string[];
+  conjugation_sections: ConjugationSection[];
+  forms: DictionaryForm[];
+  see_also_ids?: number[];
+  scraped_at?: string;
+};
+
+export type DictionaryEntryDetails = Pick<
+  DictionaryEntry,
+  | "pealim_id"
+  | "word"
+  | "word_with_nekudot"
+  | "transliteration"
+  | "audio_url"
+  | "root"
+  | "part_of_speech"
+  | "pos_detail"
+  | "meaning"
+  | "meanings"
+  | "notes"
+  | "conjugation_sections"
+  | "forms"
+>;
+
 export type VocabWord = {
   id: string;
   word: string;
@@ -70,6 +142,8 @@ export type VocabWord = {
   verbFormWithNekudot?: string;
   translation: string;
   pronunciation?: string;
+  dictionaryPealimId?: number | null;
+  partOfSpeech?: string | null;
   episodeTitle: string;
   episodeUrl: string;
   savedAt: number;
