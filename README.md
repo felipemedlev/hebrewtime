@@ -98,7 +98,7 @@ Following a recent refactor, the app utilizes Next.js Server Components and dyna
 
 ### Multilingual Platform (i18n + Transcripts)
 
-> **Prompt context for AI assistants:** This section documents how multilingual support works end-to-end. Read it before changing UI copy, episode data, translation pipelines, or click-to-translate behavior.
+> **Prompt context for AI assistants:** This section documents how multilingual support works end-to-end. Read it before changing UI copy, episode data, translation pipelines, click-to-translate behavior, or Pealim dictionary integration.
 
 #### Design decisions (do not regress without explicit intent)
 
@@ -282,7 +282,7 @@ Shared utilities: `scripts/lib/translation_utils.py`
 
 ### 1. Environment Variables
 
-Create a `.env` file in the root directory. You need an OpenAI API key for translations and example phrases, and Supabase keys for authentication and database support.
+Create a `.env` file in the root directory. You need Supabase keys for auth, vocabulary, and the Pealim dictionary. An OpenAI API key is still required for dictionary miss fallback, non-English gloss translation, and example phrases.
 
 ```env
 OPENAI_API_KEY=sk-your-openai-api-key-here
@@ -419,7 +419,7 @@ If you created the database before premium-aware RLS was added, run the full mig
 
 If you created `flashcard_progress` before FSRS columns were added, run [`supabase/fsrs-migration.sql`](supabase/fsrs-migration.sql) in the Supabase SQL Editor. Existing SM-2 rows are migrated automatically on the next review in the app.
 
-**Pealim dictionary (word lookup):** Run [`supabase/dictionary-migration.sql`](supabase/dictionary-migration.sql) to create the `dictionary_entries` reference table and link saved vocabulary via `vocabulary.dictionary_pealim_id`. Populate the table with the pealim scraper (see [`docs/dictionary_entries.md`](docs/dictionary_entries.md)). Then run [`supabase/dictionary-trgm-migration.sql`](supabase/dictionary-trgm-migration.sql) for fuzzy trigram matching used when exact headword/forms lookup fails.
+**Pealim dictionary (word lookup):** Run [`supabase/dictionary-migration.sql`](supabase/dictionary-migration.sql) to create the shared `dictionary_entries` reference table (~9k+ Pealim verbs/words with conjugations) and add `vocabulary.dictionary_pealim_id` (FK, `ON DELETE SET NULL`). Populate rows with your Pealim scraper (schema and JSONB shapes documented in [`docs/dictionary_entries.md`](docs/dictionary_entries.md)). Then run [`supabase/dictionary-trgm-migration.sql`](supabase/dictionary-trgm-migration.sql) for `pg_trgm` fuzzy matching via `match_dictionary_word()` when exact headword/forms lookup fails. RLS allows `authenticated` SELECT on `dictionary_entries`; server actions read via `supabaseAdmin` so logged-out translation still works.
 
 **Admin usage tracking:** To enable active site-time stats in the admin dashboard, run [`supabase/admin-usage-stats-migration.sql`](supabase/admin-usage-stats-migration.sql). This creates `user_activity_daily` and the `increment_user_activity()` RPC used by server actions. Active time is recorded only for authenticated users while the tab is visible and the user has interacted recently; stats appear in `/admin` after users browse the app post-migration.
 
@@ -474,11 +474,11 @@ EXECUTE FUNCTION public.set_updated_at();
 - **Non-authenticated (logged-out) users**: can read episodes and translate words up to the daily free limit. The logged-out daily translation limit is tracked client-side in `localStorage` (`hebrewtime-anon-usage`, see `src/lib/anonUsage.ts`), since there is no user id to track server-side. **Saving a word to vocabulary requires login** (`useVocabulary.addWord` returns `auth_required`, which opens the auth modal). Example phrases and flashcards remain login-gated.
 - **Authenticated non-premium users**: can read episodes, translate, save vocabulary, use flashcards, and generate example phrases up to per-day free limits (enforced server-side via `user_activity_daily`).
 - **Blocked action UX**: when a user hits a daily limit (or a vocabulary cap), they see a sticky top-of-screen subscription panel comparing Free vs Premium and can open auth/signup from the CTA. Logged-out users additionally see a "Log in" affordance.
-- **Premium users**: can translate words, generate example phrases (OpenAI usage), and access vocabulary and flashcards normally.
+- **Premium users**: unlimited translations (dictionary + OpenAI fallback), example phrases, vocabulary, and flashcards.
 - **Admin users** (`ADMIN_EMAILS`): automatically get premium access in server actions and the UI, and they can open the `/admin` dashboard (new tab from the sidebar) to view user stats and grant/revoke premium access for other users by email. Granting premium access automatically triggers a Supabase invite email to the recipient. Admin accounts also need a row in `premium_users` to pass database RLS for vocabulary/flashcard writes.
 
 **Security notes:**
-- OpenAI server actions enforce per-requester rate limits and input length bounds in `src/lib/actionGuards.ts`. `translateWord` allows logged-out callers (rate-limited by request IP as an abuse guard; daily quota enforced client-side), enforces a server-side daily cap for authenticated non-premium users, and is unlimited for premium/admin. `generateExamplePhrases` requires authentication.
+- OpenAI server actions enforce per-requester rate limits and input length bounds in `src/lib/actionGuards.ts`. `translateWord` allows logged-out callers (rate-limited by request IP as an abuse guard; daily quota enforced client-side), enforces a server-side daily cap for authenticated non-premium users, and is unlimited for premium/admin. Dictionary lookups run server-side via `supabaseAdmin` (not exposed to the browser). `generateExamplePhrases` requires authentication.
 - The audio proxy at `/api/audio` only accepts HTTPS Google Drive URLs (`src/lib/allowedAudioHosts.ts`); all other hosts are rejected.
 - Supabase Storage episode audio is streamed through `/api/episode-audio/[level]/[id]` using the server-side service role key (not end-user auth).
 
@@ -716,9 +716,9 @@ Note: in this repo’s current `@supabase/supabase-js`/`@supabase/auth-js` versi
 
 ### 7. Vocabulary Word Saving — Lemma Rules
 
-When a user saves a Hebrew word, the app always stores the **base dictionary form (lemma)**, not the surface form that appeared in the text. This is enforced by the OpenAI prompt in `src/app/actions.ts → translateWord`.
+When a user saves a Hebrew word, the app stores the **base dictionary form (lemma)** from Pealim when available, not the clicked surface form. OpenAI fallback applies the same lemma rules when no dictionary row matches.
 
-**Prefix stripping** — the following prefixes are removed before saving:
+**Prefix stripping** (lookup tries the clicked word, then variants with up to 3 leading prefixes removed):
 
 | Prefix | Meaning |
 |--------|---------|
@@ -740,13 +740,25 @@ When a user saves a Hebrew word, the app always stores the **base dictionary for
 - No "to" for verbs: `לדמיין` = "imagine" not "to imagine"
 - In other languages, return the base dictionary meaning without articles or infinitive markers
 
-**OpenAI response contract** (`translateWord` returns 4 fields):
-1. `lemmaWord` — base lemma without prefixes and without nekudot (stored in `vocabulary.word`)
-2. `translation` — base meaning in the user's active language (`targetLang`, default `en`)
-3. `wordWithNekudot` — base lemma with 100% accurate nekudot (stored in `vocabulary.word_with_nekudot`)
-4. `verbFormWithNekudot` — infinitive with nekudot if verb, otherwise `null`
+**`translateWord` success response** (stored via `EpisodeViewer` → `useVocabulary.addWord`):
 
-In `EpisodeViewer.tsx`, `modal.lemmaWord` (from the API response) is used as the `word` field when calling `addWord`, so the raw prefixed surface form is **never** persisted to Supabase.
+| Response field | `vocabulary` column | Notes |
+|----------------|---------------------|-------|
+| `lemmaWord` | `word` | Plain Hebrew lemma |
+| `wordWithNekudot` | `word_with_nekudot` | From Pealim or OpenAI fallback |
+| `verbFormWithNekudot` | `verb_form_with_nekudot` | Infinitive with Nekudot if verb |
+| `translation` | `translation` | Meaning in active UI language |
+| `pronunciation` | `pronunciation` | Pealim transliteration when from dictionary |
+| `dictionaryPealimId` | `dictionary_pealim_id` | Enables conjugation modal later |
+
+In `EpisodeViewer.tsx`, `modal.lemmaWord` is used as `word` when calling `addWord`, so the raw prefixed surface form is **never** persisted.
+
+**Conjugation details UI** (`DictionaryDetailsModal`):
+- Opened from translation popup (“View conjugations”), Vocabulary row book icon, or Flashcards post-reveal button.
+- Renders `conjugation_sections` + `forms` as pivoted tables; merged Pealim colspan cells (`gender: null`) span masculine+feminine columns via `dictionaryTableLayout.ts`.
+- Pealim section/POS labels remain English (sourced data).
+
+Words saved before dictionary integration lack `dictionary_pealim_id` until re-saved from a dictionary-backed translation.
 
 ### 8. AI Example Phrases
 
@@ -766,7 +778,7 @@ Premium users can generate contextual example sentences for any saved vocabulary
 
 **Server action** (`src/app/actions.ts → generateExamplePhrases`):
 - Signature: `generateExamplePhrases(accessToken, word, translation, count, existingPhrases?, targetLang?)`
-- Same premium/auth guard as `translateWord` via `getUserEntitlements`.
+- Requires authentication; premium/free limits enforced via `getUserEntitlements` and `user_activity_daily`.
 - Model: `gpt-5.4-mini`, `response_format: { type: "json_object" }`, `temperature: 0.7`.
 - Returns `{ phrases: ExamplePhrase[], type: "success" | "auth_required" | "limit_reached" | "error" }`.
 - Prompt asks for natural intermediate-level Hebrew sentences with full Nekudot; meaning in `targetLang` stored in the `english` JSON field.
@@ -815,7 +827,7 @@ Authenticated users see a one-time onboarding overlay on their first login. It i
 - Hero with value proposition, accent headline, and primary CTA.
 - 2×2 feature card grid (1 column on mobile) covering:
   - Multilingual side-by-side reading (with CSS mockup of Hebrew + translation rows; copy via `useT()`).
-  - Click-to-translate with Nekudot (highlighted word + dark translation popup mockup).
+  - Click-to-translate with Pealim-backed Nekudot and meanings (highlighted word + translation popup mockup).
   - Vocabulary & FSRS flashcards (mini table with Due/Learned/New badges).
   - Audio-synced paragraph highlighting (active paragraph + mini player mockup).
 - Footer CTA with pricing note ("Free to read · Premium from $10/month").
@@ -857,7 +869,7 @@ WHERE email = 'your@email.com';
 
 - `/src/app/page.tsx` - The main server-rendered entrypoint.
 - `/src/app/admin/page.tsx` - Admin dashboard route (`/admin`) for usage stats and premium management.
-- `/src/app/actions.ts` - Server actions for premium checks, admin premium management, `translateWord`, and `generateExamplePhrases` (OpenAI).
+- `/src/app/actions.ts` - Server actions: premium checks, admin stats, `translateWord` (Pealim-first + OpenAI fallback), `getDictionaryEntryDetails`, `generateExamplePhrases`.
 - `/src/app/update-password/page.tsx` - Password reset callback (recovery redirect session via `getSession()`, then `updateUser()`).
 - `/src/app/api/episode/[level]/[id]/route.ts` - Level-aware episode JSON API (dynamic/no-store so regenerated episodes appear immediately).
 - `/src/app/api/episode-audio/[level]/[id]/route.ts` - Supabase Storage audio proxy using server-side service role auth.
@@ -869,16 +881,21 @@ WHERE email = 'your@email.com';
 - `/src/lib/actionGuards.ts` - Input bounds and in-memory rate limiting for OpenAI server actions.
 - `/src/lib/allowedAudioHosts.ts` - HTTPS allowlist used by the audio proxy.
 - `/src/lib/fsrs.ts` - FSRS scheduler wrapper (ts-fsrs) for review intervals and retrievability stats.
-- `/src/lib/types.ts` - Shared TypeScript types including `VocabWord`, `ExamplePhrase`, and flashcard types.
+- `/src/lib/dictionaryLookup.ts` - Pealim dictionary candidate search (headword, forms JSONB, trigram fuzzy).
+- `/src/lib/dictionaryTableLayout.ts` - Conjugation table pivot layout (handles merged colspan cells).
+- `/src/lib/types.ts` - Shared types: `VocabWord`, `DictionaryEntry`, `DictionaryForm`, `ExamplePhrase`, flashcard types.
 - `/src/components/LearningTrackSelector.tsx` - Level-switching dropdown with progress and resume.
 - `/src/components/MediaPlayer.tsx` - Custom bottom audio player with large-touch-target seek bar for mobile.
 - `/src/components/AdminDashboard.tsx` - Admin-only dashboard UI for usage stats and premium grant/revoke.
 - `/src/components/OnboardingOverlay.tsx` - Full-screen first-login onboarding landing page with feature cards and CSS mockups.
 - `/src/components/ExamplePhrasesPanel.tsx` - Shared UI for AI-generated example phrase lists (Vocabulary + Flashcards).
+- `/src/components/DictionaryDetailsModal.tsx` - Pealim conjugation/inflection tables with audio.
+- `/src/components/TranslationModal.tsx` - Click-to-translate popup with save and link to conjugations.
 - `/src/hooks/useOnboarding.ts` - First-login onboarding visibility and Supabase user-metadata persistence.
 - `/src/hooks/useUsageTracking.ts` - Active site-time tracking for authenticated users.
 - `/src/app/globals.css` - Entry point that imports modular stylesheets from `/src/app/styles/`.
-- `/src/app/styles/` - Split design system: `base.css`, `sidebar.css`, `layout.css`, `vocabulary.css`, `vocabulary-interactive.css`, `responsive.css`, `modals.css`, `media-player.css`, `flashcards.css`, `example-phrases.css`, `onboarding.css`, `admin.css`, and related partials.
+- `/src/app/styles/` - Split design system: `base.css`, `sidebar.css`, `layout.css`, `vocabulary.css`, `vocabulary-interactive.css`, `responsive.css`, `modals.css`, `media-player.css`, `flashcards.css`, `example-phrases.css`, `dictionary-details.css`, `onboarding.css`, `admin.css`, and related partials.
+- `/docs/dictionary_entries.md` - Canonical reference for `dictionary_entries` schema, `forms`/`conjugation_sections` JSONB shapes, and query patterns.
 
 ### Database migrations
 
@@ -887,6 +904,7 @@ WHERE email = 'your@email.com';
 - `/supabase/fsrs-migration.sql` - Adds FSRS columns to `flashcard_progress` for existing Supabase projects.
 - `/supabase/dictionary-migration.sql` - Pealim `dictionary_entries` table and `vocabulary.dictionary_pealim_id` FK.
 - `/supabase/dictionary-trgm-migration.sql` - `pg_trgm` extension and fuzzy `match_dictionary_word()` RPC for dictionary lookup.
+- `/supabase/multilingual-translations.sql` - `episodes.translations` JSONB column for six-language paragraph maps.
 - `/supabase/admin-usage-stats-migration.sql` - Adds `user_activity_daily` and `increment_user_activity()` for admin usage stats.
 
 ## Artifact Hygiene
@@ -899,4 +917,4 @@ WHERE email = 'your@email.com';
 | `scripts/.checkpoints/` | No (gitignored) | Local pipeline cache (MP3 + alignment JSON). Safe to delete after Supabase verification; regeneration re-runs TTS. |
 | `secrets/` | No (gitignored) | GCP service account JSON keys. |
 | `__pycache__/`, `*.pyc` | No (gitignored) | Python bytecode. |
-| `episodes.json.bak.*`, `episodes_checkpoint.json` | No (gitignored) | Scraper resume/backup artifacts. |_
+| `episodes.json.bak.*`, `episodes_checkpoint.json` | No (gitignored) | Scraper resume/backup artifacts. |
