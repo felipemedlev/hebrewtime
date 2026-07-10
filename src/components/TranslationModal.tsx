@@ -47,7 +47,7 @@ export default function TranslationModal({
     >
       <div
         ref={dialogRef}
-        className="modal-content"
+        className="modal-content translation-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -93,20 +93,19 @@ export default function TranslationModal({
           )}
         </div>
 
-        <div className="modal-footer dictionary-details-footer">
+        <div className="modal-footer translation-modal-footer">
           {dictionaryPealimId && !isTranslating && (
             <button
               type="button"
-              className="dictionary-details-secondary-btn"
+              className="translation-modal-secondary-btn"
               onClick={onOpenDetails}
-              style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6 }}
             >
-              <BookOpen size={16} />
+              <BookOpen size={14} />
               {t("viewConjugations")}
             </button>
           )}
           <button
-            className="save-btn"
+            className="translation-modal-save-btn"
             disabled={
               isTranslating ||
               !translation ||

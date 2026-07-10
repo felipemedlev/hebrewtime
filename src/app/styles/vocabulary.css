@@ -379,3 +379,40 @@
   font-size: var(--text-base-sm);
   color: var(--text-muted);
 }
+
+.vocab-add-fab {
+  position: fixed;
+  right: var(--space-5);
+  bottom: calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
+  z-index: 60;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: none;
+  background: var(--text-main);
+  color: var(--color-white);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 8px 24px var(--overlay-15);
+  transition: transform var(--dur-base), box-shadow var(--dur-base);
+}
+
+.vocab-add-fab:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px var(--overlay-20);
+}
+
+.vocab-add-fab:active {
+  transform: translateY(0);
+}
+
+@media (max-width: 800px) {
+  .vocab-add-fab {
+    right: var(--space-4);
+    bottom: calc(var(--space-5) + env(safe-area-inset-bottom, 0px));
+    width: 48px;
+    height: 48px;
+  }
+}

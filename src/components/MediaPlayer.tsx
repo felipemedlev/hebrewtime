@@ -12,6 +12,8 @@ type MediaPlayerProps = {
   episodeNum: number | null;
   episodeLevel?: string | null;
   isSidebarOpen?: boolean;
+  viewMode?: "episodes" | "vocabulary" | "flashcards";
+  isMobile?: boolean;
 };
 
 function formatTime(seconds: number): string {
@@ -29,6 +31,8 @@ export default function MediaPlayer({
   episodeNum,
   episodeLevel = null,
   isSidebarOpen = false,
+  viewMode = "episodes",
+  isMobile = false,
 }: MediaPlayerProps) {
   const t = useT();
   const [isExpanded, setIsExpanded] = useState(true);
@@ -43,7 +47,14 @@ export default function MediaPlayer({
   const audioRef = useRef<HTMLAudioElement>(null);
   const seekRef = useRef<HTMLInputElement>(null);
 
+  const isSecondaryView = viewMode === "vocabulary" || viewMode === "flashcards";
+  const hideBar = isMobile && isSecondaryView;
 
+  useEffect(() => {
+    if (isSecondaryView) {
+      setIsExpanded(false);
+    }
+  }, [isSecondaryView, viewMode]);
 
   // When episode changes, reset playback
   useEffect(() => {
@@ -155,7 +166,10 @@ export default function MediaPlayer({
   if (!resolvedUrl) return null;
 
   return (
-    <div className={`media-player-bar ${isExpanded ? "expanded" : "collapsed"} ${isSidebarOpen ? "sidebar-open" : ""}`}>
+    <div
+      className={`media-player-bar ${isExpanded ? "expanded" : "collapsed"} ${isSidebarOpen ? "sidebar-open" : ""} ${hideBar ? "media-player-hidden" : ""}`}
+      aria-hidden={hideBar}
+    >
       {/* Hidden native audio element for playback control */}
       <audio
         ref={audioRef}

@@ -444,7 +444,18 @@ export default function AppShell({
         finishedEpisodes={finishedEpisodes}
       />
 
-      <main className="main-content" ref={mainRef}>
+      <main
+        className={`main-content ${
+          !episode?.audio_url
+            ? "player-pad-none"
+            : viewMode === "vocabulary" || viewMode === "flashcards"
+              ? isMobile
+                ? "player-pad-none"
+                : "player-pad-mini"
+              : "player-pad-full"
+        }`}
+        ref={mainRef}
+      >
         <div className={`top-nav ${isScrolled ? "scrolled" : ""}`}>
           <button
             className="toggle-sidebar-btn"
@@ -465,12 +476,17 @@ export default function AppShell({
               className={`translation-toggle-btn ${isTranslationBlurred ? "active" : ""}`}
               onClick={toggleTranslationBlurred}
               aria-pressed={isTranslationBlurred}
+              aria-label={
+                isTranslationBlurred ? t("showTranslations") : t("hideTranslations")
+              }
               title={
                 isTranslationBlurred ? t("showTranslations") : t("hideTranslations")
               }
             >
               {isTranslationBlurred ? <EyeOff size={14} /> : <Eye size={14} />}
-              {isTranslationBlurred ? t("translationHidden") : t("translationShown")}
+              <span className="translation-toggle-label">
+                {isTranslationBlurred ? t("translationHidden") : t("translationShown")}
+              </span>
             </button>
           )}
 
@@ -607,6 +623,13 @@ export default function AppShell({
               if (res) showToast(res.message);
             }}
             isPremium={entitlements.isPremium}
+            isAuthenticated={entitlements.isAuthenticated}
+            onWordSaved={handleWordSaved}
+            onRequireAuth={() => {
+              setAuthInitialMode("login");
+              setIsAuthModalOpen(true);
+            }}
+            onRequireSubscription={() => showSubscriptionPrompt("translation_limit")}
             generateExamples={generateExamples}
             regenerateExample={regenerateExample}
           />
@@ -732,6 +755,8 @@ export default function AppShell({
         episodeNum={episode?.episode ?? null}
         episodeLevel={episode?.level ?? currentLevel}
         isSidebarOpen={isSidebarOpen}
+        viewMode={viewMode}
+        isMobile={isMobile}
       />
 
       <AuthModal

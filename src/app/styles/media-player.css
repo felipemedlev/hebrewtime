@@ -26,6 +26,13 @@
   height: 48px;
 }
 
+.media-player-bar.media-player-hidden {
+  visibility: hidden;
+  pointer-events: none;
+  height: 0;
+  overflow: hidden;
+}
+
 .media-player-header {
   display: flex;
   align-items: center;
@@ -310,7 +317,7 @@
     padding: 0 var(--radius-lg) var(--space-3) var(--radius-lg);
     gap: var(--radius-sm);
   }
-  .main-content {
+  .main-content.player-pad-full {
     padding-bottom: 130px;
   }
   .mp-seek-input::-webkit-slider-thumb {

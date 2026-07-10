@@ -644,6 +644,48 @@ export async function getDictionaryEntryDetails(pealimId: number): Promise<{
   };
 }
 
+export async function resolveDictionarySuggestion(
+  pealimId: number,
+  targetLang: string = DEFAULT_LANG
+) {
+  const lang: LangCode = isLangCode(targetLang) ? targetLang : DEFAULT_LANG;
+
+  if (!Number.isInteger(pealimId) || pealimId <= 0) {
+    return { type: "error" as const, translation: "Invalid word." };
+  }
+
+  const hdrs = await headers();
+  const ip =
+    hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    hdrs.get("x-real-ip")?.trim() ||
+    "anon";
+  if (!checkRateLimit(`ip:${ip}`, "resolveDictionarySuggestion")) {
+    return {
+      type: "error" as const,
+      translation: "Too many requests. Please wait a moment.",
+    };
+  }
+
+  if (!supabaseAdmin) {
+    return { type: "error" as const, translation: "Dictionary unavailable." };
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("dictionary_entries")
+    .select("*")
+    .eq("pealim_id", pealimId)
+    .maybeSingle();
+
+  if (error || !data) {
+    console.error("Failed to resolve dictionary suggestion:", error);
+    return { type: "error" as const, translation: "Word not found." };
+  }
+
+  const entry = mapDictionaryRow(data);
+  const apiKey = process.env.OPENAI_API_KEY;
+  return buildDictionaryTranslationResult(entry, lang, apiKey);
+}
+
 export async function translateWord(
   accessToken: string | undefined,
   word: string,

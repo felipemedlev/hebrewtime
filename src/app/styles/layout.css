@@ -8,7 +8,18 @@
   position: relative;
   scroll-behavior: smooth;
   height: 100vh;
+}
+
+.main-content.player-pad-full {
   padding-bottom: 200px;
+}
+
+.main-content.player-pad-mini {
+  padding-bottom: 72px;
+}
+
+.main-content.player-pad-none {
+  padding-bottom: var(--space-6);
 }
 
 /* Top bar for toggling sidebar */
@@ -380,8 +391,7 @@
   .topnav-email {
     display: none;
   }
-  .main-content {
-    /* Reduce bottom padding on mobile — 200px is too much for small screens */
+  .main-content.player-pad-full {
     padding-bottom: 120px;
   }
 }

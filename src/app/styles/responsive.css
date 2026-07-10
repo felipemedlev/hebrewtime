@@ -127,6 +127,15 @@
     padding: var(--radius-sm) var(--radius-md);
     font-size: var(--text-sm);
   }
+
+  .translation-toggle-label {
+    display: none;
+  }
+
+  .translation-toggle-btn {
+    padding: var(--radius-sm);
+    margin-left: var(--radius-sm);
+  }
   .nav-controls {
     flex-direction: column;
     gap: var(--space-3);

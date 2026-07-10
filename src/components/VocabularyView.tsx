@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Bookmark, Trash2, LogIn, Edit2, Check, X, ExternalLink, Search, MessageSquare, BookOpen } from "lucide-react";
+import { Bookmark, Trash2, LogIn, Edit2, Check, X, ExternalLink, Search, MessageSquare, BookOpen, Plus } from "lucide-react";
 import type { VocabWord } from "@/lib/types";
 import { useUser } from "@/hooks/useUser";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import ExamplePhrasesPanel from "./ExamplePhrasesPanel";
 import DictionaryDetailsModal from "./DictionaryDetailsModal";
+import AddVocabWordModal from "./AddVocabWordModal";
 
 const ALL_CHAPTERS_KEY = "__all__";
 
@@ -15,6 +16,12 @@ type VocabularyViewProps = {
   onDeleteWord: (id: string) => void;
   onEditWord?: (id: string, updates: Partial<VocabWord>) => void;
   isPremium: boolean;
+  isAuthenticated: boolean;
+  onWordSaved: (
+    word: Omit<VocabWord, "id" | "savedAt">
+  ) => Promise<{ added: boolean; message: string; type?: string }>;
+  onRequireAuth: () => void;
+  onRequireSubscription: () => void;
   generateExamples: (word: VocabWord) => Promise<{ ok: boolean; message?: string }>;
   regenerateExample: (word: VocabWord, index: number) => Promise<{ ok: boolean; message?: string }>;
 };
@@ -24,6 +31,10 @@ export default function VocabularyView({
   onDeleteWord,
   onEditWord,
   isPremium,
+  isAuthenticated,
+  onWordSaved,
+  onRequireAuth,
+  onRequireSubscription,
   generateExamples,
   regenerateExample,
 }: VocabularyViewProps) {
@@ -48,6 +59,7 @@ export default function VocabularyView({
 
   const [selectedChapter, setSelectedChapter] = useState<string>(ALL_CHAPTERS_KEY);
   const [sortBy, setSortBy] = useState<"date" | "episode" | "translation" | "hebrew">("date");
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   const chapters = useMemo(() => {
@@ -553,6 +565,27 @@ export default function VocabularyView({
         isOpen={detailsPealimId !== null}
         pealimId={detailsPealimId}
         onClose={() => setDetailsPealimId(null)}
+      />
+
+      {user && (
+        <button
+          type="button"
+          className="vocab-add-fab"
+          onClick={() => setIsAddModalOpen(true)}
+          aria-label={t("addWord")}
+          title={t("addWord")}
+        >
+          <Plus size={22} strokeWidth={2.5} />
+        </button>
+      )}
+
+      <AddVocabWordModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onWordSaved={onWordSaved}
+        onRequireAuth={onRequireAuth}
+        onRequireSubscription={onRequireSubscription}
+        isAuthenticated={isAuthenticated}
       />
     </div>
   );

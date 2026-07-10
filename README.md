@@ -11,7 +11,7 @@ The application allows Hebrew learners to read podcast transcripts and click on 
 - **Multi-Level Learning Tracks**: Switch between **Beginner**, **Intermediate**, **Intermediate 2**, and **Advanced** via a dropdown (`LearningTrackSelector`) in the sidebar. Each level has its own numbered episode list with per-level finished counts, resume episode, and progress bar. Vocabulary and flashcards are shared across levels. The selected level persists in local storage (`hebrewtime-level`); last-opened episode per level is stored in `hebrewtime-last-episode-by-level`.
 - **Multilingual Interface**: One language preference drives both the full UI (i18n) and the transcript translation shown beside Hebrew. Smooth side-by-side Hebrew + selected language paragraphs.
 - **Audio-Synchronized Highlighting**: As the podcast audio plays, the current Hebrew sentence is automatically highlighted and smoothly scrolled into view. Generated tracks (Beginner, Intermediate 2, Advanced) use sentence-level timestamps from the Gemini TTS pipeline. Legacy Intermediate episodes use Whisper alignment via `scripts/lib/alignment.py`, which can produce paragraph-level and sentence-level timings.
-- **Focus Mode for Hebrew Reading**: A top-bar toggle lets users blur all transcript translations on demand, so learners can practice Hebrew-first reading. The preference is saved in local storage.
+- **Focus Mode for Hebrew Reading**: A top-bar toggle lets users blur all transcript translations on demand, so learners can practice Hebrew-first reading. The preference is saved in local storage. On mobile (≤800px), the toggle shows only the eye icon to save top-bar space; `aria-label` and `title` still describe the action.
 - **Mark Episodes as Finished**: Users can mark episodes they've completed. Finished state is tracked **per level** (`level:episode` keys), synced to Supabase `finished_episodes` with `level_slug` for authenticated users, and stored in local storage. Checkmarks appear in the sidebar and an elegant button at the end of the episode text.
 - **Scroll Position Persistence**: The application remembers your exact scroll position when switching between episodes, the vocabulary list, and flashcards, so you never lose your place.
 - **Pealim-First Word Lookup**: Click any Hebrew word to translate it in context. Lookup order in `src/lib/dictionaryLookup.ts`:
@@ -22,12 +22,14 @@ The application allows Hebrew learners to read podcast transcripts and click on 
   5. **OpenAI fallback** (`gpt-5.4-mini`) only when steps 1–4 find nothing, or to pick among homonyms
   - **Dictionary hit**: lemma, Nekudot, transliteration, and English meanings come directly from Pealim data. For non-English UI languages, a small OpenAI call translates the trusted English gloss only (lemma/nekudot are never AI-generated).
   - **Saved lemma rules**: nouns → singular indefinite; verbs → infinitive (e.g. מְדַמְיֵן → `לדמיין`). Translations omit articles ("topic" not "the topic") and infinitive markers ("imagine" not "to imagine").
-  - **View conjugations**: when a dictionary match exists, users can open full Pealim conjugation/inflection tables (`DictionaryDetailsModal`) from the translation popup, Vocabulary tab (book icon), or Flashcards after revealing the answer.
+  - **View conjugations**: when a dictionary match exists, users can open full Pealim conjugation/inflection tables (`DictionaryDetailsModal`) from the translation popup, Vocabulary tab (book icon), or Flashcards after revealing the answer. The conjugation modal locks page scroll, contains overscroll inside the modal body (preventing iOS pull-to-refresh while scrolling tables), and on mobile anchors as a bottom sheet within the viewport.
+  - **Compact translation popup**: The word-click `TranslationModal` uses a slimmer footer with smaller “View conjugations” and “Add to Vocabulary” actions so the popup takes less space on small screens.
   - Available to all users within daily translation limits (logged-out quota in `localStorage`; authenticated non-premium capped server-side). Saving to vocabulary requires login.
 - **Premium Vocabulary Manager & Auth**: Users can create an account via Supabase Email Auth (including “Forgot password” recovery). Premium users can save synced vocabulary in Supabase PostgreSQL across devices.
   - Rendered in an elegant, minimal Apple/Notion-style data table on desktop and card layout on mobile. Desktop column order: **Source** (leftmost) → Pronunc. → Translation → Verb form → **Hebrew** (rightmost, for natural RTL reading) → Actions.
   - Supports inline editing of saved words directly on the vocabulary page (Hebrew with Nekudot, verb form, translation, and pronunciation). Pressing **Enter** in any edit field saves the row (same as clicking the ✓ button).
   - On mobile, the Hebrew word is right-aligned and actions sit on the left, preserving the RTL-natural reading flow in a card layout.
+  - **Manual add (no episode link)**: Logged-in users see a floating circular **+** button on the Vocabulary tab. It opens `AddVocabWordModal` to look up any Hebrew word via `translateWord` (no episode context) and save it with an empty Source column (shown as “—” in the table).
   - **Dynamic Search & Filtering**: A responsive search bar instantly filters your vocabulary list as you type. It works seamlessly for saved word meanings (any language), Hebrew words (even without typing specific Nekudot), and pronunciation.
   - Smart deduplication logic allows saving the exact same Hebrew word multiple times if its contextual meaning (translation) or pronunciation (Nekudot) differs.
   - **Dictionary link**: saves from a dictionary hit store `dictionary_pealim_id` (FK to `dictionary_entries`) and Pealim transliteration in `pronunciation`, enabling the conjugation-details modal later.
@@ -49,6 +51,7 @@ The application allows Hebrew learners to read podcast transcripts and click on 
   - **Custom play/pause and mute controls** with animated press feedback, eliminating the cramped native browser chrome.
   - **Live time display** (elapsed / total) that updates in real-time while scrubbing.
   - **Responsive layout integration**: The player seamlessly aligns with the main content area, automatically syncing its width and animations with the sidebar to avoid overlap on desktop.
+  - **Tab-aware visibility**: On the Vocabulary and Review (flashcards) tabs, the player collapses to a minimized header strip on desktop so more list/review space remains visible. On mobile, the bar is hidden on those tabs (audio keeps playing in the background if already started). Main content bottom padding adjusts via `player-pad-*` classes so no empty gap is left under the list.
 - **Responsive Workspace**: Features a highly performant, draggable sidebar that lets users seamlessly expand or contract their reading workspace. The custom width bridges native DOM events to CSS variables for 60fps adjustments without heavy React re-renders, smoothly syncing with the bottom media player layout and persisting width preferences via local storage. It also includes an elegant slide-out sidebar for mobile devices, incorporating robust scroll-bleed prevention by utilizing `overscroll-behavior: none` alongside dynamic `pointer-events: none` isolation to mathematically guarantee iOS Safari cannot chain-scroll the background.
 - **Automated Scraping**: Python script to scrape episode transcripts from Squarespace and auto-translate to all six supported languages via OpenAI (`gpt-5.4-mini`).
 
@@ -79,11 +82,12 @@ Following a recent refactor, the app utilizes Next.js Server Components and dyna
   - `LearningTrackSelector.tsx`: Dropdown to switch learning levels with finished count, resume episode, and progress bar.
   - `Sidebar.tsx`: Navigation, search, and tab switching (all labels via `useT()`).
   - `EpisodeViewer.tsx`: Hebrew + selected-language reading, word-click handling (`translateWord` with `targetLang`), translation modal, and conjugation-details modal.
-  - `VocabularyView.tsx`: Saved words in a desktop table / mobile card layout with search, filtering, inline editing, expandable example-phrase panels, and dictionary conjugation details (book icon when `dictionary_pealim_id` is set).
+  - `VocabularyView.tsx`: Saved words in a desktop table / mobile card layout with search, filtering, inline editing, expandable example-phrase panels, dictionary conjugation details (book icon when `dictionary_pealim_id` is set), and a floating **+** FAB to add words without an episode link.
   - `FlashcardsView.tsx`: Core spaced-repetition card review view featuring a compact Review stats strip, 3D flip animations, snappy Anki-style deck swaps, example phrases below the card, and conjugation details after reveal.
   - `ExamplePhrasesPanel.tsx`: Shared UI for listing, generating, and regenerating example phrases (used by Vocabulary and Flashcards).
-  - `TranslationModal.tsx`: Word translation popup (meaning, transliteration, verb form, save, link to conjugations).
-  - `DictionaryDetailsModal.tsx`: Lazy-loaded Pealim conjugation/inflection tables grouped by `conjugation_sections`, with audio playback.
+  - `TranslationModal.tsx`: Compact word translation popup (meaning, transliteration, verb form, save, link to conjugations).
+  - `AddVocabWordModal.tsx`: Vocabulary-tab modal to search/translate a Hebrew word and save it with no related episode.
+  - `DictionaryDetailsModal.tsx`: Lazy-loaded Pealim conjugation/inflection tables grouped by `conjugation_sections`, with audio playback and viewport-contained scroll (body scroll lock + overscroll containment).
   - `AuthModal.tsx`: The Supabase authentication UI for login, sign up, and password recovery.
   - `OnboardingOverlay.tsx`: Full-screen first-login landing page with hero, feature cards, and CSS mockups of core app capabilities.
   - `AdminDashboard.tsx`: Admin-only `/admin` dashboard with usage stats, searchable user list, and premium grant/revoke controls.
@@ -95,6 +99,7 @@ Following a recent refactor, the app utilizes Next.js Server Components and dyna
   - `useOnboarding.ts`: Derives whether to show the first-login onboarding overlay from `user.user_metadata.onboarded` and persists dismissal via `supabase.auth.updateUser({ data: { onboarded: true } })`.
   - `useFinishedEpisodes.ts`: Manages per-level finished state in local storage and syncs to Supabase `finished_episodes` (with `level_slug`) for authenticated users. Migrates legacy numeric-only localStorage entries to `intermediate:{episode}` keys.
   - `useUsageTracking.ts`: Tracks authenticated active site time (visible tab + recent interaction) and syncs daily rollups to Supabase for the admin dashboard.
+  - `useModalAccessibility.ts`: Focus trap, Escape-to-close, and document body scroll lock while modals are open.
 
 ### Multilingual Platform (i18n + Transcripts)
 
@@ -885,12 +890,13 @@ WHERE email = 'your@email.com';
 - `/src/lib/dictionaryTableLayout.ts` - Conjugation table pivot layout (handles merged colspan cells).
 - `/src/lib/types.ts` - Shared types: `VocabWord`, `DictionaryEntry`, `DictionaryForm`, `ExamplePhrase`, flashcard types.
 - `/src/components/LearningTrackSelector.tsx` - Level-switching dropdown with progress and resume.
-- `/src/components/MediaPlayer.tsx` - Custom bottom audio player with large-touch-target seek bar for mobile.
+- `/src/components/MediaPlayer.tsx` - Custom bottom audio player; tab-aware collapse/hide on Vocabulary and Review; large-touch-target seek bar for mobile.
 - `/src/components/AdminDashboard.tsx` - Admin-only dashboard UI for usage stats and premium grant/revoke.
 - `/src/components/OnboardingOverlay.tsx` - Full-screen first-login onboarding landing page with feature cards and CSS mockups.
 - `/src/components/ExamplePhrasesPanel.tsx` - Shared UI for AI-generated example phrase lists (Vocabulary + Flashcards).
-- `/src/components/DictionaryDetailsModal.tsx` - Pealim conjugation/inflection tables with audio.
-- `/src/components/TranslationModal.tsx` - Click-to-translate popup with save and link to conjugations.
+- `/src/components/DictionaryDetailsModal.tsx` - Pealim conjugation/inflection tables with audio and viewport-contained scroll.
+- `/src/components/TranslationModal.tsx` - Compact click-to-translate popup with save and link to conjugations.
+- `/src/components/AddVocabWordModal.tsx` - Vocabulary-tab search/translate modal for saving words without an episode link.
 - `/src/hooks/useOnboarding.ts` - First-login onboarding visibility and Supabase user-metadata persistence.
 - `/src/hooks/useUsageTracking.ts` - Active site-time tracking for authenticated users.
 - `/src/app/globals.css` - Entry point that imports modular stylesheets from `/src/app/styles/`.

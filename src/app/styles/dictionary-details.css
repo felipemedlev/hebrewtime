@@ -1,14 +1,32 @@
 /* Dictionary details modal */
+.dictionary-details-overlay {
+  align-items: center;
+  justify-content: center;
+  overscroll-behavior: contain;
+  overscroll-behavior-y: none;
+}
+
 .dictionary-details-overlay .modal-content {
   max-width: 640px;
-  max-height: min(85vh, 720px);
+  width: min(95vw, 640px);
+  max-height: min(90dvh, 90vh);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dictionary-details-overlay .modal-header {
+  flex-shrink: 0;
 }
 
 .dictionary-details-body {
   padding: var(--space-4) var(--space-6) var(--space-6);
   min-height: 120px;
-  max-height: calc(85vh - 140px);
+  flex: 1 1 auto;
+  max-height: none;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   align-items: stretch;
   justify-content: flex-start;
   flex-direction: column;
@@ -217,13 +235,20 @@
 }
 
 @media (max-width: 580px) {
+  .dictionary-details-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
   .dictionary-details-overlay .modal-content {
-    width: 95%;
-    max-height: 90vh;
+    width: 100%;
+    max-width: none;
+    max-height: min(92dvh, 92vh);
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
   }
 
   .dictionary-details-body {
-    max-height: calc(90vh - 140px);
     padding: var(--space-3) var(--space-4) var(--space-4);
   }
 
