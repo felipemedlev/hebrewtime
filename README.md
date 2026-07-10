@@ -36,6 +36,9 @@ The application allows Hebrew learners to read podcast transcripts and click on 
   - **AI Example Phrases**: Each saved word can reveal 3 AI-generated example sentences (Hebrew with Nekudot + meaning in the user's active UI language) showing everyday usage. Phrases are **not** generated at save-time — the user expands an “Examples” panel (Vocabulary tab) or taps “Show examples” (Flashcards) to trigger generation on first use. Results are cached in `vocabulary.example_phrases` (JSONB) per user per word and load instantly on subsequent views. Any single phrase can be regenerated unlimited times via a per-phrase refresh button. Shared UI lives in `ExamplePhrasesPanel.tsx`; orchestration in `AppShell.tsx` calls `generateExamplePhrases` then persists via `useVocabulary.updateWord`.
 - **Top-of-Screen Subscription Upsell (Apple/Notion Style)**: If a non-premium user clicks the Vocabulary tab, Flashcards tab, or tries to translate a word, the app shows a large sticky promo panel with $10/month messaging and a CTA that opens auth/signup.
 - **Spaced Repetition Flashcard System (FSRS)**: An elegant, built-in flashcard system designed to help users master their saved vocabulary.
+  - **Review practice hub**: The Review tab opens on a modality picker — **Flashcards** (existing FSRS), **Fill in the word** (AI cloze exercises), plus Coming soon cards (Matching, Reverse cards, Listening). Sidebar “Start review” still deep-links into a flashcard session.
+  - **Fill-in-the-word**: OpenAI (`gpt-5.4-mini`) generates Hebrew sentences with a blank; the learner types the missing word. Answers are graded with niqqud-normalized comparison. Session score, streak, and historical accuracy are tracked in `review_practice_attempts` (separate from FSRS). Free users: 3 fill-in generation sessions/day via `user_activity_daily.fill_in_count`.
+  - **Practice stats**: A stats view aggregates FSRS flashcard metrics (mastery, avg recall) with fill-in accuracy (today / 7-day) and a weak-words list.
   - **FSRS Scheduling** ([ts-fsrs](https://github.com/open-spaced-repetition/ts-fsrs)): Uses the Free Spaced Repetition Scheduler with 90% target retention, predicting memory stability and difficulty per card. Due cards load dynamically (up to 20 per session).
   - **Compact Review Stats Strip**: Shows Due, New, Learning, Learned, Reviewed Today, Avg Recall (FSRS retrievability), Next Review ETA (when caught up), and Mastery progress in a low-height summary strip. On mobile, the stats become a horizontal scroll strip so the main flashcard/review area stays high on the screen.
   - **Clean Review Navigation**: The Review tab no longer shows an overlaid due-count badge; due counts remain available in the sidebar context text and the compact stats strip.
@@ -83,7 +86,9 @@ Following a recent refactor, the app utilizes Next.js Server Components and dyna
   - `Sidebar.tsx`: Navigation, search, and tab switching (all labels via `useT()`).
   - `EpisodeViewer.tsx`: Hebrew + selected-language reading, word-click handling (`translateWord` with `targetLang`), translation modal, and conjugation-details modal.
   - `VocabularyView.tsx`: Saved words in a desktop table / mobile card layout with search, filtering, inline editing, expandable example-phrase panels, dictionary conjugation details (book icon when `dictionary_pealim_id` is set), and a floating **+** FAB to add words without an episode link.
-  - `FlashcardsView.tsx`: Core spaced-repetition card review view featuring a compact Review stats strip, 3D flip animations, snappy Anki-style deck swaps, example phrases below the card, and conjugation details after reveal.
+  - `FlashcardsView.tsx`: FSRS spaced-repetition card review (entered from the Review hub).
+  - `ReviewView.tsx`: Review tab shell — modality hub, routes to Flashcards / Fill-in / Stats.
+  - `ReviewHub.tsx`, `FillInView.tsx`, `ReviewStatsView.tsx`: Practice modality picker, cloze typing session, and combined stats.
   - `ExamplePhrasesPanel.tsx`: Shared UI for listing, generating, and regenerating example phrases (used by Vocabulary and Flashcards).
   - `TranslationModal.tsx`: Compact word translation popup (meaning, transliteration, verb form, save, link to conjugations).
   - `AddVocabWordModal.tsx`: Vocabulary-tab modal to search/translate a Hebrew word and save it with no related episode.
@@ -911,7 +916,7 @@ WHERE email = 'your@email.com';
 - `/supabase/dictionary-migration.sql` - Pealim `dictionary_entries` table and `vocabulary.dictionary_pealim_id` FK.
 - `/supabase/dictionary-trgm-migration.sql` - `pg_trgm` extension and fuzzy `match_dictionary_word()` RPC for dictionary lookup.
 - `/supabase/multilingual-translations.sql` - `episodes.translations` JSONB column for six-language paragraph maps.
-- `/supabase/admin-usage-stats-migration.sql` - Adds `user_activity_daily` and `increment_user_activity()` for admin usage stats.
+- `/supabase/review-practice-attempts-migration.sql` - Fill-in practice attempts table + `fill_in_count` daily counter.
 
 ## Artifact Hygiene
 

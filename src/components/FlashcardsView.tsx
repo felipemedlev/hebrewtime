@@ -14,6 +14,7 @@ import {
   PlusCircle,
   TrendingUp,
   CalendarClock,
+  ArrowLeft,
 } from "lucide-react";
 import type {
   VocabWord,
@@ -50,6 +51,8 @@ type FlashcardsViewProps = {
   regenerateExample: (word: VocabWord, index: number) => Promise<{ ok: boolean; message?: string }>;
   isPremium?: boolean;
   onRequireSubscription?: () => void;
+  onBackToHub?: () => void;
+  showBackToHub?: boolean;
 };
 
 export default function FlashcardsView({
@@ -65,6 +68,8 @@ export default function FlashcardsView({
   regenerateExample,
   isPremium = false,
   onRequireSubscription,
+  onBackToHub,
+  showBackToHub = false,
 }: FlashcardsViewProps) {
   const t = useT();
   const [sessionActive, setSessionActive] = useState(false);
@@ -200,6 +205,12 @@ export default function FlashcardsView({
 
   return (
     <div className="flashcards-container">
+      {showBackToHub && onBackToHub && (
+        <button type="button" className="review-back-btn" onClick={onBackToHub}>
+          <ArrowLeft size={16} />
+          {t("backToHub")}
+        </button>
+      )}
       {/* Stats dashboard */}
       <div className="flashcards-stats-dashboard">
         <div className="flashcard-stat-tile highlight-due">

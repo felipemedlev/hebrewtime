@@ -190,6 +190,50 @@ export type FlashcardItem = {
   progress: FlashcardProgress | null;
 };
 
+export type ReviewModality = "fill_in";
+
+export type FillInVocabInput = {
+  index: number;
+  word: string;
+  translation: string;
+  wordWithNekudot?: string;
+};
+
+export type FillInExercisePayload = {
+  index: number;
+  maskedHebrew: string;
+  fullHebrew: string;
+  sentenceMeaning: string;
+  answer: string;
+  answerWithNekudot: string;
+};
+
+export type FillInExercise = FillInExercisePayload & {
+  vocabId: string;
+};
+
+export type ReviewPracticeAttempt = {
+  id: string;
+  user_id: string;
+  vocab_id: string;
+  modality: ReviewModality;
+  correct: boolean;
+  created_at: string;
+};
+
+export type ReviewPracticeStats = {
+  fillInAttemptsToday: number;
+  fillInCorrectToday: number;
+  fillInAttempts7d: number;
+  fillInCorrect7d: number;
+  fillInAttemptsAll: number;
+  fillInCorrectAll: number;
+  fillInAccuracy7d: number;
+  fillInAccuracyToday: number;
+  practicedVocabIds: Set<string>;
+  weakWords: { vocabId: string; attempts: number; correct: number }[];
+};
+
 export type AdminUserStat = {
   userId: string;
   email: string;

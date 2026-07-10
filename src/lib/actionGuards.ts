@@ -1,6 +1,7 @@
 const RATE_LIMITS = {
   translateWord: { maxRequests: 30, windowMs: 60_000 },
   generateExamplePhrases: { maxRequests: 20, windowMs: 60_000 },
+  generateFillInExercises: { maxRequests: 20, windowMs: 60_000 },
   searchDictionarySuggestions: { maxRequests: 60, windowMs: 60_000 },
   resolveDictionarySuggestion: { maxRequests: 30, windowMs: 60_000 },
 } as const;
@@ -16,6 +17,7 @@ export const INPUT_LIMITS = {
   translation: 200,
   maxPhraseCount: 3,
   maxExistingPhrases: 10,
+  maxFillInItems: 10,
   phraseText: 500,
 } as const;
 

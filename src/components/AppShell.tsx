@@ -12,7 +12,7 @@ import {
 import Sidebar from "./Sidebar";
 import EpisodeViewer from "./EpisodeViewer";
 import VocabularyView from "./VocabularyView";
-import FlashcardsView from "./FlashcardsView";
+import ReviewView from "./ReviewView";
 import MediaPlayer from "./MediaPlayer";
 import AuthModal from "./AuthModal";
 import { useVocabulary } from "@/hooks/useVocabulary";
@@ -24,7 +24,9 @@ import OnboardingOverlay from "./OnboardingOverlay";
 import { useFinishedEpisodes } from "@/hooks/useFinishedEpisodes";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { useUsageTracking } from "@/hooks/useUsageTracking";
-import { generateExamplePhrases } from "@/app/actions";
+import { useReviewPracticeStats } from "@/hooks/useReviewPracticeStats";
+import { generateExamplePhrases, generateFillInExercises } from "@/app/actions";
+import type { FillInExercise } from "@/lib/types";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import LanguageSelector from "./LanguageSelector";
 import type { MessageKey } from "@/lib/i18n/messages";
@@ -40,7 +42,8 @@ type SubscriptionPromptSource =
   | "vocab_limit"
   | "translation_limit"
   | "example_limit"
-  | "flashcards";
+  | "flashcards"
+  | "fill_in_limit";
 
 const FREE_TIER_FEATURE_KEYS = [
   "freeFeature1",
@@ -97,12 +100,14 @@ export default function AppShell({
   const { vocabWords, addWord, deleteWord, updateWord } = useVocabulary(entitlements.isPremium);
   const {
     learnedCards,
+    dueCards,
     sessionQueue,
     isProgressLoaded,
     submitReview,
     unlearnWord,
     stats
   } = useFlashcards(vocabWords);
+  const { stats: practiceStats, recordAttempt } = useReviewPracticeStats();
   const { shouldShow: shouldShowOnboarding, dismiss: dismissOnboarding } = useOnboarding();
   const { finishedEpisodes, isFinished, toggleFinished } = useFinishedEpisodes();
   useUsageTracking();
@@ -207,6 +212,13 @@ export default function AppShell({
       });
       return;
     }
+    if (source === "fill_in_limit") {
+      setSubscriptionPrompt({
+        title: t("fillInLimitTitle"),
+        description: t("fillInLimitDesc"),
+      });
+      return;
+    }
     setSubscriptionPrompt({
       title: t("flashcardsLimitTitle"),
       description: t("flashcardsLimitDesc"),
@@ -301,6 +313,51 @@ export default function AppShell({
       return { ok: true };
     },
     [updateWord, showSubscriptionPrompt, lang, t]
+  );
+
+  const generateFillIn = useCallback(
+    async (
+      words: VocabWord[]
+    ): Promise<{ ok: boolean; exercises?: FillInExercise[]; message?: string }> => {
+      const { data } = await supabase.auth.getSession();
+      const accessToken = data.session?.access_token;
+      const items = words.map((word, index) => ({
+        index,
+        word: word.word,
+        translation: word.translation,
+        wordWithNekudot: word.wordWithNekudot,
+      }));
+
+      const res = await generateFillInExercises(accessToken, items, lang);
+
+      if (res.type === "auth_required") {
+        setAuthInitialMode("login");
+        setIsAuthModalOpen(true);
+        return { ok: false, message: t("pleaseLoginFillIn") };
+      }
+      if (res.type === "limit_reached") {
+        showSubscriptionPrompt("fill_in_limit");
+        return { ok: false, message: t("fillInLimitDesc") };
+      }
+      if (res.type === "error" || res.exercises.length === 0) {
+        return { ok: false, message: t("failedGenerateFillIn") };
+      }
+
+      const exercises: FillInExercise[] = res.exercises
+        .map((ex) => {
+          const word = words[ex.index];
+          if (!word) return null;
+          return { ...ex, vocabId: word.id };
+        })
+        .filter((ex): ex is FillInExercise => ex !== null);
+
+      if (exercises.length === 0) {
+        return { ok: false, message: t("failedGenerateFillIn") };
+      }
+
+      return { ok: true, exercises };
+    },
+    [lang, showSubscriptionPrompt, t]
   );
 
   const handleChangeViewMode = useCallback(
@@ -637,17 +694,21 @@ export default function AppShell({
 
         {/* Keep mounted while reviewing so in-progress session state survives tab switches */}
         <div hidden={viewMode !== "flashcards"}>
-          <FlashcardsView
+          <ReviewView
             vocabWords={vocabWords}
             learnedCards={learnedCards}
+            dueCards={dueCards}
             sessionQueue={sessionQueue}
             isLoaded={isProgressLoaded}
             submitReview={submitReview}
             unlearnWord={unlearnWord}
             stats={stats}
+            practiceStats={practiceStats}
             startSignal={reviewStartSignal}
             generateExamples={generateExamples}
             regenerateExample={regenerateExample}
+            generateFillIn={generateFillIn}
+            recordAttempt={recordAttempt}
             isPremium={entitlements.isPremium}
             onRequireSubscription={() => showSubscriptionPrompt("flashcards")}
           />
