@@ -373,7 +373,8 @@ CREATE TABLE IF NOT EXISTS public.flashcard_progress (
   difficulty DOUBLE PRECISION,
   state INTEGER NOT NULL DEFAULT 0,
   lapses INTEGER NOT NULL DEFAULT 0,
-  UNIQUE (user_id, vocab_id)
+  direction TEXT NOT NULL DEFAULT 'forward',
+  UNIQUE (user_id, vocab_id, direction)
 );
 ALTER TABLE public.flashcard_progress ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Premium users view own flashcard progress" ON public.flashcard_progress FOR SELECT USING (auth.uid() = user_id AND public.user_has_premium_access());

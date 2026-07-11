@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Brain } from "lucide-react";
 import type {
   VocabWord,
@@ -80,6 +80,13 @@ export default function ReviewView({
   const t = useT();
   const [reviewMode, setReviewMode] = useState<ReviewMode>("hub");
   const [flashcardStartSignal, setFlashcardStartSignal] = useState(0);
+  const hasLoadedOnce = useRef(false);
+
+  useEffect(() => {
+    if (isLoaded) {
+      hasLoadedOnce.current = true;
+    }
+  }, [isLoaded]);
 
   useEffect(() => {
     if (startSignal > 0) {
@@ -88,7 +95,7 @@ export default function ReviewView({
     }
   }, [startSignal]);
 
-  if (!isLoaded) {
+  if (!isLoaded && !hasLoadedOnce.current) {
     return (
       <div
         className="vocab-loading"

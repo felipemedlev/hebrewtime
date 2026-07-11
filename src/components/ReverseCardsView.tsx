@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   ArrowLeftRight,
   RotateCcw,
@@ -77,6 +77,11 @@ export default function ReverseCardsView({
   const [isGenerating, setIsGenerating] = useState(false);
   const [regeneratingIndex, setRegeneratingIndex] = useState<number | null>(null);
   const [detailsPealimId, setDetailsPealimId] = useState<number | null>(null);
+  const hasLoadedOnce = useRef(isLoaded);
+
+  if (isLoaded) {
+    hasLoadedOnce.current = true;
+  }
 
   const reviewQueue = sessionActive ? activeSessionCards : sessionQueue;
   const currentWord = reviewQueue[currentIndex]?.vocabWord;
@@ -128,7 +133,7 @@ export default function ReverseCardsView({
     setDetailsPealimId(null);
 
     if (currentIndex + 1 < reviewQueue.length) {
-      setCurrentIndex(currentIndex + 1);
+      setCurrentIndex((index) => index + 1);
     } else {
       setSessionActive(false);
       setActiveSessionCards([]);
@@ -165,7 +170,7 @@ export default function ReverseCardsView({
     return result;
   };
 
-  if (!isLoaded) {
+  if (!isLoaded && !hasLoadedOnce.current) {
     return (
       <div
         className="vocab-loading"

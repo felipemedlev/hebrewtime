@@ -313,11 +313,7 @@ export default function Sidebar({
                   <span className="sidebar-stat-value">{flashcardStats?.learned ?? 0}</span>
                 </div>
               </div>
-              {dueFlashcardsCount > 0 ? (
-                <button className="sidebar-cta" onClick={startReview}>
-                  <Play size={14} /> {t("startReview")}
-                </button>
-              ) : (
+              {dueFlashcardsCount === 0 && (
                 <p className="sidebar-info-note">
                   {vocabCount > 0 ? t("allCaughtUp") : t("saveWordsToBuildDeck")}
                 </p>

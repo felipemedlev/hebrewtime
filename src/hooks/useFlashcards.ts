@@ -126,14 +126,16 @@ export function useFlashcards(vocabWords: VocabWord[]) {
   const [progresses, setProgresses] = useState<FlashcardProgress[]>([]);
   const [isProgressLoaded, setIsProgressLoaded] = useState(false);
 
-  const loadProgress = useCallback(async () => {
+  const loadProgress = useCallback(async (options?: { silent?: boolean }) => {
     if (!user) {
       setProgresses([]);
       setIsProgressLoaded(true);
       return;
     }
 
-    setIsProgressLoaded(false);
+    if (!options?.silent) {
+      setIsProgressLoaded(false);
+    }
     try {
       const { data, error } = await supabase
         .from("flashcard_progress")
@@ -238,7 +240,7 @@ export function useFlashcards(vocabWords: VocabWord[]) {
 
       if (error) {
         console.error("Failed to save flashcard review progress:", error);
-        loadProgress();
+        loadProgress({ silent: true });
       } else if (data) {
         setProgresses((prev) => {
           const normalized = normalizeProgress(data as FlashcardProgress);
@@ -282,7 +284,7 @@ export function useFlashcards(vocabWords: VocabWord[]) {
 
       if (error) {
         console.error("Failed to unlearn word:", error);
-        loadProgress();
+        loadProgress({ silent: true });
       }
     },
     [user, loadProgress]

@@ -10,3 +10,6 @@ ALTER TABLE public.flashcard_progress
 ALTER TABLE public.flashcard_progress
   ADD CONSTRAINT flashcard_progress_user_id_vocab_id_direction_key
   UNIQUE (user_id, vocab_id, direction);
+
+-- Refresh PostgREST schema cache so the API sees the new column immediately.
+NOTIFY pgrst, 'reload schema';

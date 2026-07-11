@@ -31,16 +31,27 @@ type MatchingTile = {
   side: "hebrew" | "translation";
 };
 
+function shuffle<T>(items: T[]): T[] {
+  return [...items].sort(() => Math.random() - 0.5);
+}
+
 function pickRoundWords(
   vocabWords: VocabWord[],
   dueCards: FlashcardItem[],
-  practicedIds: Set<string>
+  practicedIds: Set<string>,
+  excludeIds: Set<string> = new Set()
 ): VocabWord[] {
   const dueIds = new Set(dueCards.map((c) => c.vocabWord.id));
-  const dueWords = vocabWords.filter((w) => dueIds.has(w.id));
-  const neverPracticed = vocabWords.filter((w) => !practicedIds.has(w.id));
-  const rest = vocabWords.filter(
-    (w) => !dueIds.has(w.id) && practicedIds.has(w.id)
+
+  const prefer = (words: VocabWord[]) =>
+    shuffle(words.filter((w) => !excludeIds.has(w.id)));
+
+  const dueWords = prefer(vocabWords.filter((w) => dueIds.has(w.id)));
+  const neverPracticed = prefer(
+    vocabWords.filter((w) => !practicedIds.has(w.id))
+  );
+  const rest = prefer(
+    vocabWords.filter((w) => !dueIds.has(w.id) && practicedIds.has(w.id))
   );
 
   const pool: VocabWord[] = [];
@@ -58,8 +69,13 @@ function pickRoundWords(
   for (const w of rest) add(w);
 
   if (pool.length < ROUND_SIZE) {
-    const shuffled = [...vocabWords].sort(() => Math.random() - 0.5);
-    for (const w of shuffled) add(w);
+    for (const w of shuffle(vocabWords.filter((w) => excludeIds.has(w.id)))) {
+      add(w);
+    }
+  }
+
+  if (pool.length < ROUND_SIZE) {
+    for (const w of shuffle(vocabWords)) add(w);
   }
 
   return pool.slice(0, ROUND_SIZE);
@@ -110,17 +126,30 @@ export default function MatchingView({
   const [results, setResults] = useState<{ vocabId: string; correct: boolean }[]>([]);
   const [bestStreak, setBestStreak] = useState(0);
   const [currentStreak, setCurrentStreak] = useState(0);
+  const [usedThisSession, setUsedThisSession] = useState<Set<string>>(
+    () => new Set()
+  );
 
   const practicedIds = practiceStats.practicedVocabIdsByModality.matching;
 
   const sessionWords = useMemo(
-    () => pickRoundWords(vocabWords, dueCards, practicedIds),
-    [vocabWords, dueCards, practicedIds]
+    () => pickRoundWords(vocabWords, dueCards, practicedIds, usedThisSession),
+    [vocabWords, dueCards, practicedIds, usedThisSession]
   );
 
   const startRound = useCallback(() => {
-    const words = pickRoundWords(vocabWords, dueCards, practicedIds);
+    const words = pickRoundWords(
+      vocabWords,
+      dueCards,
+      practicedIds,
+      usedThisSession
+    );
     const { hebrewTiles: h, translationTiles: tr } = buildTiles(words);
+    setUsedThisSession((prev) => {
+      const next = new Set(prev);
+      for (const word of words) next.add(word.id);
+      return next;
+    });
     setRoundWords(words);
     setHebrewTiles(h);
     setTranslationTiles(tr);
@@ -132,7 +161,7 @@ export default function MatchingView({
     setBestStreak(0);
     setCurrentStreak(0);
     setPhase("active");
-  }, [vocabWords, dueCards, practicedIds]);
+  }, [vocabWords, dueCards, practicedIds, usedThisSession]);
 
   const completeRound = useCallback(
     (finalResults: { vocabId: string; correct: boolean }[]) => {

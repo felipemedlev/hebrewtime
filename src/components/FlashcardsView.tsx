@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Brain,
   RotateCcw,
@@ -81,6 +81,11 @@ export default function FlashcardsView({
   const [isGenerating, setIsGenerating] = useState(false);
   const [regeneratingIndex, setRegeneratingIndex] = useState<number | null>(null);
   const [detailsPealimId, setDetailsPealimId] = useState<number | null>(null);
+  const hasLoadedOnce = useRef(isLoaded);
+
+  if (isLoaded) {
+    hasLoadedOnce.current = true;
+  }
 
   const reviewQueue = sessionActive ? activeSessionCards : sessionQueue;
   const currentWord = reviewQueue[currentIndex]?.vocabWord;
@@ -182,7 +187,7 @@ export default function FlashcardsView({
     return result;
   };
 
-  if (!isLoaded) {
+  if (!isLoaded && !hasLoadedOnce.current) {
     return (
       <div className="vocab-loading" style={{ height: "400px", display: "flex", justifyContent: "center", alignItems: "center" }}>
         <div className="vocab-spinner"></div>
