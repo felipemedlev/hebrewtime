@@ -1,6 +1,7 @@
 /* Vocabulary View */
 .vocabulary-view {
   width: 100%;
+  min-width: 0;
   animation: fadeIn var(--dur-slow) ease;
 }
 
@@ -99,6 +100,7 @@
   max-width: 960px;
   margin: 0 auto;
   width: 100%;
+  min-width: 0;
 }
 .vocab-page-title-row {
   display: flex;
@@ -131,6 +133,55 @@
   font-size: var(--text-md);
   color: var(--text-muted);
   line-height: var(--leading-normal);
+}
+
+.vocab-filter-toolbar {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+}
+
+.vocab-filter-search {
+  position: relative;
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.vocab-filter-search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-tertiary);
+}
+
+.vocab-filter-search-input {
+  width: 100%;
+  padding: 6px 12px 6px 32px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 13px;
+  outline: none;
+  color: var(--text);
+}
+
+.vocab-filter-select {
+  flex: 1 1 140px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 6px 28px 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+  appearance: auto;
 }
 
 /* Empty state */
@@ -268,19 +319,23 @@
 }
 
 .vocab-source-link {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 5px;
   color: var(--text-muted);
   text-decoration: none;
   font-size: var(--text-base-sm);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  min-width: 0;
   max-width: 100%;
   transition: color var(--dur-fast);
 }
 .vocab-source-link:hover { color: var(--text-main); }
+.vocab-source-link span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
 .vocab-source-icon { flex-shrink: 0; opacity: 0.5; }
 
 .vocab-action-btn {
@@ -381,6 +436,8 @@
 .vocab-card-source {
   font-size: var(--text-base-sm);
   color: var(--text-muted);
+  min-width: 0;
+  overflow: hidden;
 }
 
 .vocab-add-fab {
@@ -411,7 +468,23 @@
   transform: translateY(0);
 }
 
+@media (max-width: 960px) {
+  .vocab-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
 @media (max-width: 800px) {
+  .vocab-filter-select {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .vocab-card-item.editing {
+    margin: 0;
+  }
+
   .vocab-add-fab {
     right: var(--space-4);
     bottom: calc(var(--space-5) + env(safe-area-inset-bottom, 0px));

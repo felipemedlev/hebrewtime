@@ -10,6 +10,11 @@ import DictionaryDetailsModal from "./DictionaryDetailsModal";
 import AddVocabWordModal from "./AddVocabWordModal";
 
 const ALL_CHAPTERS_KEY = "__all__";
+const CHAPTER_LABEL_MAX = 48;
+
+function truncateLabel(text: string, max = CHAPTER_LABEL_MAX): string {
+  return text.length > max ? `${text.slice(0, max)}…` : text;
+}
 
 type VocabularyViewProps = {
   vocabWords: VocabWord[];
@@ -157,65 +162,38 @@ export default function VocabularyView({
         </div>
 
         {vocabWords.length > 0 && (
-          <div style={{ display: "flex", gap: "12px", marginTop: "16px", flexWrap: "wrap", alignItems: "center" }}>
-            <div style={{ position: "relative", flex: "1 1 200px" }}>
+          <div className="vocab-filter-toolbar">
+            <div className="vocab-filter-search">
               <label htmlFor="vocab-search" className="sr-only">{t("searchVocabulary")}</label>
-              <Search size={14} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "var(--text-tertiary)" }} aria-hidden="true" />
+              <Search size={14} className="vocab-filter-search-icon" aria-hidden="true" />
               <input
                 id="vocab-search"
                 type="search"
                 placeholder={t("searchPlaceholder")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "6px 12px 6px 32px",
-                  borderRadius: "8px",
-                  border: "1px solid var(--border)",
-                  background: "var(--surface)",
-                  fontSize: "13px",
-                  outline: "none",
-                  color: "var(--text)"
-                }}
+                className="vocab-filter-search-input"
               />
             </div>
             <select
+              className="vocab-filter-select"
               value={selectedChapter}
               onChange={(e) => setSelectedChapter(e.target.value)}
               aria-label={t("filterByChapter")}
-              style={{
-                padding: "6px 28px 6px 12px",
-                borderRadius: "8px",
-                border: "1px solid var(--border)",
-                background: "var(--surface)",
-                fontSize: "13px",
-                cursor: "pointer",
-                outline: "none",
-                appearance: "auto"
-              }}
             >
               {chapters.map((ch) => (
                 <option key={ch} value={ch}>
-                  {ch === ALL_CHAPTERS_KEY ? t("allChapters") : ch}
+                  {ch === ALL_CHAPTERS_KEY ? t("allChapters") : truncateLabel(ch)}
                 </option>
               ))}
             </select>
             <select
+              className="vocab-filter-select"
               value={sortBy}
               onChange={(e) =>
                 setSortBy(e.target.value as "date" | "episode" | "translation" | "hebrew")
               }
               aria-label={t("sortBy")}
-              style={{
-                padding: "6px 28px 6px 12px",
-                borderRadius: "8px",
-                border: "1px solid var(--border)",
-                background: "var(--surface)",
-                fontSize: "13px",
-                cursor: "pointer",
-                outline: "none",
-                appearance: "auto"
-              }}
             >
               <option value="date">{t("sortByDate")}</option>
               <option value="episode">{t("sortByEpisode")}</option>
