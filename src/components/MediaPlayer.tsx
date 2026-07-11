@@ -46,6 +46,8 @@ export default function MediaPlayer({
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const seekRef = useRef<HTMLInputElement>(null);
+  const lastHighlightDispatchRef = useRef(0);
+  const HIGHLIGHT_INTERVAL_MS = 250;
 
   const isSecondaryView = viewMode === "vocabulary" || viewMode === "flashcards";
   const hideBar = isMobile && isSecondaryView;
@@ -78,8 +80,11 @@ export default function MediaPlayer({
       if (!isScrubbing) {
         const time = audio.currentTime;
         setCurrentTime(time);
-        // Dispatch custom event for EpisodeViewer to sync highlighting
-        window.dispatchEvent(new CustomEvent("playerTimeUpdate", { detail: time }));
+        const now = Date.now();
+        if (now - lastHighlightDispatchRef.current >= HIGHLIGHT_INTERVAL_MS) {
+          lastHighlightDispatchRef.current = now;
+          window.dispatchEvent(new CustomEvent("playerTimeUpdate", { detail: time }));
+        }
       }
     };
     const onDurationChange = () => setDuration(audio.duration);

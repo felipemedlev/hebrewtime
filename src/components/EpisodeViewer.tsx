@@ -3,7 +3,7 @@
 import { ExternalLink, ChevronLeft, ChevronRight, CheckCircle } from "lucide-react";
 import type { Episode, ParagraphTiming } from "@/lib/types";
 import { translateWord } from "@/app/actions";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback, memo } from "react";
 import TranslationModal from "./TranslationModal";
 import DictionaryDetailsModal from "./DictionaryDetailsModal";
 import { supabase } from "@/lib/supabase";
@@ -134,6 +134,76 @@ function renderHebrewTokens(
   });
 }
 
+type EpisodeParagraphProps = {
+  index: number;
+  hebObj: string | ParagraphTiming;
+  trans: string | undefined;
+  isParagraphActive: boolean;
+  activeSentenceIndex: number | null;
+  isTranslationBlurred: boolean;
+  noTranslationLabel: string;
+  onWordClick: (word: string, heb: string, ctx: string) => void;
+  translateLabel: (word: string) => string;
+  onParagraphRef: (index: number, el: HTMLDivElement | null) => void;
+  onSentenceRef: (
+    paragraphIndex: number,
+    sentenceIndex: number,
+    el: HTMLSpanElement | null
+  ) => void;
+};
+
+const EpisodeParagraph = memo(function EpisodeParagraph({
+  index,
+  hebObj,
+  trans,
+  isParagraphActive,
+  activeSentenceIndex,
+  isTranslationBlurred,
+  noTranslationLabel,
+  onWordClick,
+  translateLabel,
+  onParagraphRef,
+  onSentenceRef,
+}: EpisodeParagraphProps) {
+  const isSynced = isParagraphTiming(hebObj);
+  const heb = isSynced ? hebObj.text : hebObj;
+  const hasSentences = isSynced && hebObj.sentences && hebObj.sentences.length > 0;
+
+  return (
+    <div
+      ref={(el) => onParagraphRef(index, el)}
+      className={`para-pair ${isParagraphActive ? "active-paragraph" : ""}`}
+    >
+      <div className="text-hebrew font-serif" dir="rtl">
+        {hasSentences ? (
+          hebObj.sentences!.map((sent, j) => {
+            const isSentenceActive = activeSentenceIndex === j;
+            return (
+              <span
+                key={j}
+                ref={(el) => onSentenceRef(index, j, el)}
+                className={`sentence-span ${isSentenceActive ? "active-sentence" : ""}`}
+              >
+                {renderHebrewTokens(sent.text, trans, onWordClick, translateLabel)}
+                {j < hebObj.sentences!.length - 1 ? " " : ""}
+              </span>
+            );
+          })
+        ) : (
+          renderHebrewTokens(heb, trans, onWordClick, translateLabel)
+        )}
+      </div>
+      <div className={`text-translation ${isTranslationBlurred ? "blurred" : ""}`}>
+        {trans ? (
+          trans
+        ) : (
+          <span className="text-translation-empty">{noTranslationLabel}</span>
+        )}
+      </div>
+    </div>
+  );
+});
+
 export default function EpisodeViewer({
   episode,
   levelDisplayName,
@@ -237,7 +307,21 @@ export default function EpisodeViewer({
     el?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [activePosition]);
 
-  const handleWordClick = async (
+  const onParagraphRef = useCallback((index: number, el: HTMLDivElement | null) => {
+    paragraphRefs.current[index] = el;
+  }, []);
+
+  const onSentenceRef = useCallback(
+    (paragraphIndex: number, sentenceIndex: number, el: HTMLSpanElement | null) => {
+      if (!sentenceRefs.current[paragraphIndex]) {
+        sentenceRefs.current[paragraphIndex] = [];
+      }
+      sentenceRefs.current[paragraphIndex][sentenceIndex] = el;
+    },
+    []
+  );
+
+  const handleWordClick = useCallback(async (
     word: string,
     hebContext: string,
     transContext: string
@@ -322,7 +406,13 @@ export default function EpisodeViewer({
         isTranslating: false,
       }));
     }
-  };
+  }, [
+    isLoadingEntitlements,
+    isAuthenticated,
+    onRequireSubscription,
+    onRequireAuth,
+    lang,
+  ]);
 
   const handleSave = async () => {
     if (!modal.translation) return;
@@ -350,7 +440,8 @@ export default function EpisodeViewer({
     levelDisplayName ??
     episode.level.charAt(0).toUpperCase() + episode.level.slice(1);
   const episodeMeta = `${levelLabel} · ${t("episodes")} ${String(episode.episode).padStart(2, "0")}`;
-  const translateLabel = (word: string) => t("translateWord", { word });
+  const translateLabel = useCallback((word: string) => t("translateWord", { word }), [t]);
+  const noTranslationLabel = t("noTranslation");
 
   return (
     <>
@@ -380,60 +471,32 @@ export default function EpisodeViewer({
       </div>
 
       <div className="content-grid">
-        {/* eslint-disable-next-line react-hooks/refs -- sentence ref arrays initialized per paragraph during render */}
         {episode.hebrew_paragraphs.map((hebObj, i) => {
           const isSynced = isParagraphTiming(hebObj);
-          const heb = isSynced ? hebObj.text : hebObj;
-          const trans = translationParagraphs[i];
           const hasSentences = isSynced && hebObj.sentences && hebObj.sentences.length > 0;
-
           const isParagraphActive =
             activePosition?.paragraphIndex === i &&
             (activePosition.sentenceIndex === null || !hasSentences);
-
-          if (!sentenceRefs.current[i]) {
-            sentenceRefs.current[i] = [];
-          }
+          const activeSentenceIndex =
+            activePosition?.paragraphIndex === i && activePosition.sentenceIndex !== null
+              ? activePosition.sentenceIndex
+              : null;
 
           return (
-            <div
+            <EpisodeParagraph
               key={i}
-              ref={(el) => {
-                paragraphRefs.current[i] = el;
-              }}
-              className={`para-pair ${isParagraphActive ? "active-paragraph" : ""}`}
-            >
-              <div className="text-hebrew font-serif" dir="rtl">
-                {hasSentences ? (
-                  hebObj.sentences!.map((sent, j) => {
-                    const isSentenceActive =
-                      activePosition?.paragraphIndex === i &&
-                      activePosition.sentenceIndex === j;
-                    return (
-                      <span
-                        key={j}
-                        ref={(el) => {
-                          sentenceRefs.current[i][j] = el;
-                        }}
-                        className={`sentence-span ${isSentenceActive ? "active-sentence" : ""}`}
-                      >
-                        {renderHebrewTokens(sent.text, trans, handleWordClick, translateLabel)}
-                        {j < hebObj.sentences!.length - 1 ? " " : ""}
-                      </span>
-                    );
-                  })
-                ) : (
-                  renderHebrewTokens(heb, trans, handleWordClick, translateLabel)
-                )}
-              </div>
-              <div className={`text-translation ${isTranslationBlurred ? "blurred" : ""}`}>
-                {trans ? (
-                  trans
-                ) : (
-                  <span className="text-translation-empty">{t("noTranslation")}</span>
-                )}
-              </div>
-            </div>
+              index={i}
+              hebObj={hebObj}
+              trans={translationParagraphs[i]}
+              isParagraphActive={isParagraphActive}
+              activeSentenceIndex={activeSentenceIndex}
+              isTranslationBlurred={isTranslationBlurred}
+              noTranslationLabel={noTranslationLabel}
+              onWordClick={handleWordClick}
+              translateLabel={translateLabel}
+              onParagraphRef={onParagraphRef}
+              onSentenceRef={onSentenceRef}
+            />
           );
         })}
 

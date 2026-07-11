@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isKnownLevelSlug } from "@/lib/episodes";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -17,8 +18,12 @@ export async function GET(
     return NextResponse.json({ error: "Server not configured" }, { status: 500 });
   }
 
-  if (isNaN(episodeNum)) {
+  if (isNaN(episodeNum) || episodeNum < 1) {
     return NextResponse.json({ error: "Invalid episode number" }, { status: 400 });
+  }
+
+  if (!(await isKnownLevelSlug(level))) {
+    return NextResponse.json({ error: "Invalid level" }, { status: 400 });
   }
 
   const objectPath = `${level}/${String(episodeNum).padStart(2, "0")}.mp3`;

@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { cache } from "react";
 import type {
   Episode,
   EpisodeListItem,
@@ -11,6 +12,12 @@ import { isLangCode, type LangCode } from "./i18n/types";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+const LEVEL_SLUG_REGEX = /^[a-z0-9-]+$/;
+
+export function isLevelSlugFormatValid(level: string): boolean {
+  return LEVEL_SLUG_REGEX.test(level) && level.length > 0 && level.length <= 64;
+}
 
 type EpisodeRow = {
   id: string;
@@ -163,7 +170,7 @@ function legacyEpisodesForLevel(level: string): Episode[] {
   return loadLegacyEpisodes().filter((ep) => ep.level === level);
 }
 
-export async function getLevels(): Promise<Level[]> {
+export const getLevels = cache(async function getLevels(): Promise<Level[]> {
   const rows = await supabaseFetch<LevelRow[]>(
     "levels?select=slug,name,cefr,sort_order&order=sort_order.asc"
   );
@@ -185,6 +192,12 @@ export async function getLevels(): Promise<Level[]> {
     cefr: row.cefr,
     sortOrder: row.sort_order,
   }));
+});
+
+export async function isKnownLevelSlug(level: string): Promise<boolean> {
+  if (!isLevelSlugFormatValid(level)) return false;
+  const levels = await getLevels();
+  return levels.some((entry) => entry.slug === level);
 }
 
 export async function getDefaultLevel(): Promise<string> {
@@ -195,7 +208,9 @@ export async function getDefaultLevel(): Promise<string> {
   return levels[0]?.slug ?? "intermediate";
 }
 
-export async function getEpisodesList(level: string): Promise<EpisodeListItem[]> {
+export const getEpisodesList = cache(async function getEpisodesList(
+  level: string
+): Promise<EpisodeListItem[]> {
   const rows = await supabaseFetch<EpisodeRow[]>(
     `episodes?select=id,level_slug,episode_number,title&level_slug=eq.${encodeURIComponent(level)}&is_published=eq.true&order=episode_number.asc`
   );
@@ -213,7 +228,7 @@ export async function getEpisodesList(level: string): Promise<EpisodeListItem[]>
     episode: ep.episode,
     title: ep.title,
   }));
-}
+});
 
 export async function getAllPublishedEpisodeParams(): Promise<
   { level: string; id: string }[]

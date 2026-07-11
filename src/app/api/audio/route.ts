@@ -1,5 +1,53 @@
 import { NextRequest, NextResponse } from "next/server";
-import { buildProxiedAudioUrl, isAllowedAudioProxyUrl } from "@/lib/allowedAudioHosts";
+import {
+  buildProxiedAudioUrl,
+  isAllowedAudioContentType,
+  isAllowedAudioProxyUrl,
+  isAllowedAudioRedirectUrl,
+} from "@/lib/allowedAudioHosts";
+
+const MAX_REDIRECTS = 3;
+const FETCH_HEADERS = {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+};
+
+async function fetchAllowedAudio(initialUrl: string): Promise<Response> {
+  let currentUrl = initialUrl;
+
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    const response = await fetch(currentUrl, {
+      redirect: "manual",
+      headers: FETCH_HEADERS,
+    });
+
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get("location");
+      if (!location) {
+        return new NextResponse("Invalid redirect response", { status: 502 });
+      }
+
+      const nextUrl = new URL(location, currentUrl).href;
+      if (!isAllowedAudioRedirectUrl(nextUrl)) {
+        return new NextResponse("Redirect target not allowed", { status: 403 });
+      }
+
+      currentUrl = nextUrl;
+      continue;
+    }
+
+    if (!response.ok) {
+      return response;
+    }
+
+    if (!isAllowedAudioContentType(response.headers.get("content-type"))) {
+      return new NextResponse("Invalid content type", { status: 415 });
+    }
+
+    return response;
+  }
+
+  return new NextResponse("Too many redirects", { status: 502 });
+}
 
 export async function GET(request: NextRequest) {
   const url = request.nextUrl.searchParams.get("url");
@@ -18,11 +66,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const response = await fetch(fetchUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-      },
-    });
+    const response = await fetchAllowedAudio(fetchUrl);
 
     if (!response.ok) {
       console.error(`Failed to fetch from ${fetchUrl}:`, response.status);

@@ -722,6 +722,22 @@ export async function translateWord(
     return { translation: "Too many requests. Please wait a moment.", wordWithNekudot: safeWord, type: "error" };
   }
 
+  // Anonymous users also have a server-enforced daily cap (per IP, in-memory).
+  if (!ent.isAuthenticated) {
+    const hdrs = await headers();
+    const ip =
+      hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      hdrs.get("x-real-ip")?.trim() ||
+      "anon";
+    if (!checkRateLimit(`anon-daily:ip:${ip}`, "translateWordAnonDaily")) {
+      return {
+        translation: "Daily translation limit reached.",
+        wordWithNekudot: safeWord,
+        type: "limit_reached",
+      };
+    }
+  }
+
   // Authenticated non-premium users have a server-enforced daily cap.
   if (ent.isAuthenticated && !ent.isPremium && user?.id) {
     if (!supabaseAdmin) {

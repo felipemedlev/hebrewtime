@@ -12,12 +12,13 @@ import { getServerLang } from "@/lib/i18n/languagePreference.server";
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const initialLang = await getServerLang();
-  const levels = await getLevels();
+  const [initialLang, levels] = await Promise.all([getServerLang(), getLevels()]);
   const defaultLevel = await getDefaultLevel();
-  const firstNum = await getFirstEpisodeNum(defaultLevel);
+  const [firstNum, episodeList] = await Promise.all([
+    getFirstEpisodeNum(defaultLevel),
+    getAllEpisodesList(),
+  ]);
   const initialEpisode = firstNum ? await getEpisode(defaultLevel, firstNum) : null;
-  const episodeList = await getAllEpisodesList();
 
   return (
     <LanguageProvider initialLang={initialLang}>
