@@ -260,6 +260,7 @@
   align-items: center;
   justify-content: flex-end;
   gap: 2px;
+  padding-left: var(--space-5);
 }
 .vocab-dash {
   color: var(--text-muted);
@@ -304,6 +305,8 @@
 .vocab-action-btn.examples     { color: var(--text-muted); }
 .vocab-action-btn.examples:hover,
 .vocab-action-btn.examples.active { background: var(--accent-surface); color: var(--accent); }
+.vocab-action-btn.details        { color: var(--accent); }
+.vocab-action-btn.details:hover  { background: var(--accent-surface); color: var(--accent); }
 
 .vocab-edit-input {
   width: 100%;
@@ -383,7 +386,7 @@
 .vocab-add-fab {
   position: fixed;
   right: var(--space-5);
-  bottom: calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
+  bottom: calc(var(--space-9) + env(safe-area-inset-bottom, 0px));
   z-index: 60;
   width: 52px;
   height: 52px;
