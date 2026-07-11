@@ -99,13 +99,15 @@ export default function AppShell({
   const { entitlements, isLoading: isLoadingEntitlements } = useEntitlements();
   const { vocabWords, addWord, deleteWord, updateWord } = useVocabulary(entitlements.isPremium);
   const {
+    forward,
+    reverse,
     learnedCards,
     dueCards,
     sessionQueue,
     isProgressLoaded,
     submitReview,
     unlearnWord,
-    stats
+    stats,
   } = useFlashcards(vocabWords);
   const { stats: practiceStats, recordAttempt } = useReviewPracticeStats();
   const { shouldShow: shouldShowOnboarding, dismiss: dismissOnboarding } = useOnboarding();
@@ -699,6 +701,10 @@ export default function AppShell({
             learnedCards={learnedCards}
             dueCards={dueCards}
             sessionQueue={sessionQueue}
+            reverseLearnedCards={reverse.learnedCards}
+            reverseDueCards={reverse.dueCards}
+            reverseSessionQueue={reverse.sessionQueue}
+            reverseStats={reverse.stats}
             isLoaded={isProgressLoaded}
             submitReview={submitReview}
             unlearnWord={unlearnWord}

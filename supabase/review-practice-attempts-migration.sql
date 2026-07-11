@@ -58,4 +58,6 @@ END;
 $$;
 
 REVOKE ALL ON FUNCTION public.increment_fill_in_count(UUID, DATE) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.increment_fill_in_count(UUID, DATE) FROM anon;
+REVOKE ALL ON FUNCTION public.increment_fill_in_count(UUID, DATE) FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.increment_fill_in_count(UUID, DATE) TO service_role;

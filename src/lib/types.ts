@@ -152,10 +152,13 @@ export type VocabWord = {
 
 export type FlashcardRating = 0 | 1 | 3 | 5; // Again (0), Hard (1), Good (3), Easy (5)
 
+export type FlashcardDirection = "forward" | "reverse";
+
 export type FlashcardProgress = {
   id: string;
   user_id: string;
   vocab_id: string;
+  direction: FlashcardDirection;
   ease_factor: number;
   interval_days: number;
   repetitions: number;
@@ -190,7 +193,7 @@ export type FlashcardItem = {
   progress: FlashcardProgress | null;
 };
 
-export type ReviewModality = "fill_in";
+export type ReviewModality = "fill_in" | "matching";
 
 export type FillInVocabInput = {
   index: number;
@@ -230,8 +233,17 @@ export type ReviewPracticeStats = {
   fillInCorrectAll: number;
   fillInAccuracy7d: number;
   fillInAccuracyToday: number;
-  practicedVocabIds: Set<string>;
+  matchingAttemptsToday: number;
+  matchingCorrectToday: number;
+  matchingAttempts7d: number;
+  matchingCorrect7d: number;
+  matchingAttemptsAll: number;
+  matchingCorrectAll: number;
+  matchingAccuracy7d: number;
+  matchingAccuracyToday: number;
+  practicedVocabIdsByModality: Record<ReviewModality, Set<string>>;
   weakWords: { vocabId: string; attempts: number; correct: number }[];
+  matchingWeakWords: { vocabId: string; attempts: number; correct: number }[];
 };
 
 export type AdminUserStat = {

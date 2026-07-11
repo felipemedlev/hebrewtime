@@ -21,7 +21,7 @@ type FillInViewProps = {
   generateFillIn: (
     words: VocabWord[]
   ) => Promise<{ ok: boolean; exercises?: FillInExercise[]; message?: string }>;
-  recordAttempt: (vocabId: string, correct: boolean) => Promise<void>;
+  recordAttempt: (vocabId: string, correct: boolean, modality: "fill_in") => Promise<void>;
   onRequireSubscription?: () => void;
 };
 
@@ -32,11 +32,13 @@ function pickSessionWords(
 ): VocabWord[] {
   const dueIds = new Set(dueCards.map((c) => c.vocabWord.id));
   const neverPracticed = vocabWords.filter(
-    (w) => !practiceStats.practicedVocabIds.has(w.id)
+    (w) => !practiceStats.practicedVocabIdsByModality.fill_in.has(w.id)
   );
   const dueWords = vocabWords.filter((w) => dueIds.has(w.id));
   const rest = vocabWords.filter(
-    (w) => !dueIds.has(w.id) && practiceStats.practicedVocabIds.has(w.id)
+    (w) =>
+      !dueIds.has(w.id) &&
+      practiceStats.practicedVocabIdsByModality.fill_in.has(w.id)
   );
 
   const pool: VocabWord[] = [];
@@ -112,7 +114,7 @@ export default function FillInView({
 
   const advance = useCallback(
     (correct: boolean, vocabId: string) => {
-      void recordAttempt(vocabId, correct);
+      void recordAttempt(vocabId, correct, "fill_in");
       const nextResults = [...results, { vocabId, correct }];
       setResults(nextResults);
 

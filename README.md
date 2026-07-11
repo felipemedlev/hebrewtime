@@ -36,9 +36,11 @@ The application allows Hebrew learners to read podcast transcripts and click on 
   - **AI Example Phrases**: Each saved word can reveal 3 AI-generated example sentences (Hebrew with Nekudot + meaning in the user's active UI language) showing everyday usage. Phrases are **not** generated at save-time — the user expands an “Examples” panel (Vocabulary tab) or taps “Show examples” (Flashcards) to trigger generation on first use. Results are cached in `vocabulary.example_phrases` (JSONB) per user per word and load instantly on subsequent views. Any single phrase can be regenerated unlimited times via a per-phrase refresh button. Shared UI lives in `ExamplePhrasesPanel.tsx`; orchestration in `AppShell.tsx` calls `generateExamplePhrases` then persists via `useVocabulary.updateWord`.
 - **Top-of-Screen Subscription Upsell (Apple/Notion Style)**: If a non-premium user clicks the Vocabulary tab, Flashcards tab, or tries to translate a word, the app shows a large sticky promo panel with $10/month messaging and a CTA that opens auth/signup.
 - **Spaced Repetition Flashcard System (FSRS)**: An elegant, built-in flashcard system designed to help users master their saved vocabulary.
-  - **Review practice hub**: The Review tab opens on a modality picker — **Flashcards** (existing FSRS), **Fill in the word** (AI cloze exercises), plus Coming soon cards (Matching, Reverse cards, Listening). Sidebar “Start review” still deep-links into a flashcard session.
+  - **Review practice hub**: The Review tab opens on a modality picker — **Flashcards** (FSRS spaced repetition), **Fill in the word** (AI cloze exercises), **Matching** (tap-to-match Hebrew ↔ translation), and **Reverse cards** (translation → Hebrew FSRS with a separate schedule from forward flashcards). Sidebar “Start review” still deep-links into a forward flashcard session.
   - **Fill-in-the-word**: OpenAI (`gpt-5.4-mini`) generates Hebrew sentences with a blank; the learner types the missing word. Answers are graded with niqqud-normalized comparison. Session score, streak, and historical accuracy are tracked in `review_practice_attempts` (separate from FSRS). Free users: 3 fill-in generation sessions/day via `user_activity_daily.fill_in_count`.
-  - **Practice stats**: A stats view aggregates FSRS flashcard metrics (mastery, avg recall) with fill-in accuracy (today / 7-day) and a weak-words list.
+  - **Matching**: Client-only tap-to-match rounds (6 pairs) from saved vocabulary. Correct/incorrect attempts are tracked in `review_practice_attempts` with modality `matching`. No AI generation and no daily session cap.
+  - **Reverse cards**: FSRS flip-and-rate sessions with translation on the front and Hebrew on the back. Progress is stored in `flashcard_progress` with `direction = 'reverse'` (separate schedule from forward flashcards). Free users: 1 reverse session/day (same pattern as forward flashcards).
+  - **Practice stats**: A stats view aggregates FSRS flashcard metrics (forward + reverse), fill-in accuracy, matching accuracy, and weak-words lists per modality.
   - **FSRS Scheduling** ([ts-fsrs](https://github.com/open-spaced-repetition/ts-fsrs)): Uses the Free Spaced Repetition Scheduler with 90% target retention, predicting memory stability and difficulty per card. Due cards load dynamically (up to 20 per session).
   - **Compact Review Stats Strip**: Shows Due, New, Learning, Learned, Reviewed Today, Avg Recall (FSRS retrievability), Next Review ETA (when caught up), and Mastery progress in a low-height summary strip. On mobile, the stats become a horizontal scroll strip so the main flashcard/review area stays high on the screen.
   - **Clean Review Navigation**: The Review tab no longer shows an overlaid due-count badge; due counts remain available in the sidebar context text and the compact stats strip.
@@ -88,7 +90,7 @@ Following a recent refactor, the app utilizes Next.js Server Components and dyna
   - `VocabularyView.tsx`: Saved words in a desktop table / mobile card layout with search, filtering, inline editing, expandable example-phrase panels, dictionary conjugation details (book icon when `dictionary_pealim_id` is set), and a floating **+** FAB to add words without an episode link.
   - `FlashcardsView.tsx`: FSRS spaced-repetition card review (entered from the Review hub).
   - `ReviewView.tsx`: Review tab shell — modality hub, routes to Flashcards / Fill-in / Stats.
-  - `ReviewHub.tsx`, `FillInView.tsx`, `ReviewStatsView.tsx`: Practice modality picker, cloze typing session, and combined stats.
+  - `ReviewHub.tsx`, `FillInView.tsx`, `MatchingView.tsx`, `ReverseCardsView.tsx`, `ReviewStatsView.tsx`: Practice modality picker, cloze typing, tap-to-match, reverse FSRS cards, and combined stats.
   - `ExamplePhrasesPanel.tsx`: Shared UI for listing, generating, and regenerating example phrases (used by Vocabulary and Flashcards).
   - `TranslationModal.tsx`: Compact word translation popup (meaning, transliteration, verb form, save, link to conjugations).
   - `AddVocabWordModal.tsx`: Vocabulary-tab modal to search/translate a Hebrew word and save it with no related episode.
@@ -913,6 +915,7 @@ WHERE email = 'your@email.com';
 - `/supabase/beginner-track-migration.sql` - Levels, episodes tables, finished_episodes level migration.
 - `/supabase/premium-rls-migration.sql` - Premium-aware RLS migration for existing Supabase projects.
 - `/supabase/fsrs-migration.sql` - Adds FSRS columns to `flashcard_progress` for existing Supabase projects.
+- `/supabase/flashcard-direction-migration.sql` - Adds `direction` column to `flashcard_progress` for separate forward/reverse FSRS schedules.
 - `/supabase/dictionary-migration.sql` - Pealim `dictionary_entries` table and `vocabulary.dictionary_pealim_id` FK.
 - `/supabase/dictionary-trgm-migration.sql` - `pg_trgm` extension and fuzzy `match_dictionary_word()` RPC for dictionary lookup.
 - `/supabase/multilingual-translations.sql` - `episodes.translations` JSONB column for six-language paragraph maps.

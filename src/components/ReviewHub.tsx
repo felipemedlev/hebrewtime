@@ -5,7 +5,6 @@ import {
   PenLine,
   Shuffle,
   ArrowLeftRight,
-  Headphones,
   BarChart3,
   Flame,
   BookOpen,
@@ -15,10 +14,17 @@ import {
 import type { FlashcardStats, ReviewPracticeStats } from "@/lib/types";
 import { useT } from "@/lib/i18n/LanguageProvider";
 
-export type ReviewMode = "hub" | "flashcards" | "fill-in" | "stats";
+export type ReviewMode =
+  | "hub"
+  | "flashcards"
+  | "fill-in"
+  | "matching"
+  | "reverse"
+  | "stats";
 
 type ReviewHubProps = {
   flashcardStats: FlashcardStats;
+  reverseStats: FlashcardStats;
   practiceStats: ReviewPracticeStats;
   vocabCount: number;
   onSelectMode: (mode: ReviewMode) => void;
@@ -26,6 +32,7 @@ type ReviewHubProps = {
 
 export default function ReviewHub({
   flashcardStats,
+  reverseStats,
   practiceStats,
   vocabCount,
   onSelectMode,
@@ -60,24 +67,22 @@ export default function ReviewHub({
       icon: Shuffle,
       title: t("modalityMatching"),
       description: t("modalityMatchingDesc"),
-      meta: t("comingSoon"),
-      available: false,
+      meta:
+        practiceStats.matchingAttempts7d > 0
+          ? t("matchingAccuracy7d", { percent: practiceStats.matchingAccuracy7d })
+          : t("modalityMatchingNew"),
+      available: true,
     },
     {
       id: "reverse" as const,
       icon: ArrowLeftRight,
       title: t("modalityReverse"),
       description: t("modalityReverseDesc"),
-      meta: t("comingSoon"),
-      available: false,
-    },
-    {
-      id: "listening" as const,
-      icon: Headphones,
-      title: t("modalityListening"),
-      description: t("modalityListeningDesc"),
-      meta: t("comingSoon"),
-      available: false,
+      meta: t("reviewDueWords", {
+        count: reverseStats.due,
+        wordLabel: reverseStats.due === 1 ? t("word") : t("words"),
+      }),
+      available: true,
     },
   ];
 
@@ -113,7 +118,6 @@ export default function ReviewHub({
       <div className="review-modality-grid">
         {modalities.map((modality) => {
           const Icon = modality.icon;
-          const isLive = modality.available && modality.id !== "matching";
 
           return (
             <button
@@ -121,16 +125,13 @@ export default function ReviewHub({
               type="button"
               className={`review-modality-card${modality.available ? "" : " is-disabled"}`}
               disabled={!modality.available}
-              onClick={() => {
-                if (modality.id === "flashcards") onSelectMode("flashcards");
-                if (modality.id === "fill-in") onSelectMode("fill-in");
-              }}
+              onClick={() => onSelectMode(modality.id)}
             >
               <div className="review-modality-top">
                 <div className="review-modality-icon">
                   <Icon size={20} />
                 </div>
-                {isLive && <ChevronRight size={16} className="review-modality-arrow" />}
+                <ChevronRight size={16} className="review-modality-arrow" />
               </div>
               <h3>{modality.title}</h3>
               <p>{modality.description}</p>

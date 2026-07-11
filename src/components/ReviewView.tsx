@@ -9,11 +9,14 @@ import type {
   FlashcardStats,
   ReviewPracticeStats,
   FillInExercise,
+  ReviewModality,
 } from "@/lib/types";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import FlashcardsView from "./FlashcardsView";
 import ReviewHub, { type ReviewMode } from "./ReviewHub";
 import FillInView from "./FillInView";
+import MatchingView from "./MatchingView";
+import ReverseCardsView from "./ReverseCardsView";
 import ReviewStatsView from "./ReviewStatsView";
 
 type ReviewViewProps = {
@@ -21,9 +24,20 @@ type ReviewViewProps = {
   learnedCards: FlashcardItem[];
   dueCards: FlashcardItem[];
   sessionQueue: FlashcardItem[];
+  reverseLearnedCards: FlashcardItem[];
+  reverseDueCards: FlashcardItem[];
+  reverseSessionQueue: FlashcardItem[];
+  reverseStats: FlashcardStats;
   isLoaded: boolean;
-  submitReview: (vocabId: string, rating: FlashcardRating) => Promise<void>;
-  unlearnWord: (vocabId: string) => Promise<void>;
+  submitReview: (
+    vocabId: string,
+    rating: FlashcardRating,
+    direction?: "forward" | "reverse"
+  ) => Promise<void>;
+  unlearnWord: (
+    vocabId: string,
+    direction?: "forward" | "reverse"
+  ) => Promise<void>;
   stats: FlashcardStats;
   practiceStats: ReviewPracticeStats;
   startSignal?: number;
@@ -32,7 +46,11 @@ type ReviewViewProps = {
   generateFillIn: (
     words: VocabWord[]
   ) => Promise<{ ok: boolean; exercises?: FillInExercise[]; message?: string }>;
-  recordAttempt: (vocabId: string, correct: boolean) => Promise<void>;
+  recordAttempt: (
+    vocabId: string,
+    correct: boolean,
+    modality: ReviewModality
+  ) => Promise<void>;
   isPremium?: boolean;
   onRequireSubscription?: () => void;
 };
@@ -42,6 +60,10 @@ export default function ReviewView({
   learnedCards,
   dueCards,
   sessionQueue,
+  reverseLearnedCards,
+  reverseDueCards,
+  reverseSessionQueue,
+  reverseStats,
   isLoaded,
   submitReview,
   unlearnWord,
@@ -94,8 +116,8 @@ export default function ReviewView({
         learnedCards={learnedCards}
         sessionQueue={sessionQueue}
         isLoaded={isLoaded}
-        submitReview={submitReview}
-        unlearnWord={unlearnWord}
+        submitReview={(vocabId, rating) => submitReview(vocabId, rating, "forward")}
+        unlearnWord={(vocabId) => unlearnWord(vocabId, "forward")}
         stats={stats}
         startSignal={flashcardStartSignal}
         generateExamples={generateExamples}
@@ -104,6 +126,25 @@ export default function ReviewView({
         onRequireSubscription={onRequireSubscription}
         onBackToHub={() => setReviewMode("hub")}
         showBackToHub
+      />
+    );
+  }
+
+  if (reviewMode === "reverse") {
+    return (
+      <ReverseCardsView
+        vocabWords={vocabWords}
+        learnedCards={reverseLearnedCards}
+        sessionQueue={reverseSessionQueue}
+        isLoaded={isLoaded}
+        submitReview={(vocabId, rating) => submitReview(vocabId, rating, "reverse")}
+        unlearnWord={(vocabId) => unlearnWord(vocabId, "reverse")}
+        stats={reverseStats}
+        generateExamples={generateExamples}
+        regenerateExample={regenerateExample}
+        isPremium={isPremium}
+        onRequireSubscription={onRequireSubscription}
+        onBack={() => setReviewMode("hub")}
       />
     );
   }
@@ -122,10 +163,23 @@ export default function ReviewView({
     );
   }
 
+  if (reviewMode === "matching") {
+    return (
+      <MatchingView
+        vocabWords={vocabWords}
+        dueCards={dueCards}
+        practiceStats={practiceStats}
+        onBack={() => setReviewMode("hub")}
+        recordAttempt={recordAttempt}
+      />
+    );
+  }
+
   if (reviewMode === "stats") {
     return (
       <ReviewStatsView
         flashcardStats={stats}
+        reverseStats={reverseStats}
         practiceStats={practiceStats}
         vocabWords={vocabWords}
         onBack={() => setReviewMode("hub")}
@@ -136,6 +190,7 @@ export default function ReviewView({
   return (
     <ReviewHub
       flashcardStats={stats}
+      reverseStats={reverseStats}
       practiceStats={practiceStats}
       vocabCount={vocabWords.length}
       onSelectMode={setReviewMode}
