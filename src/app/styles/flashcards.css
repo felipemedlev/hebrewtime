@@ -4,6 +4,8 @@
 
 .flashcards-container {
   max-width: 800px;
+  min-width: 0;
+  width: 100%;
   margin: 0 auto;
   padding: var(--space-6) var(--space-6);
   display: flex;
@@ -147,6 +149,8 @@
     overflow-y: hidden;
     padding: var(--radius-sm);
     margin-inline: calc(-1 * var(--space-1));
+    min-width: 0;
+    max-width: 100%;
     scroll-snap-type: x proximity;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
@@ -543,9 +547,11 @@
 
 .vocab-words-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
   gap: var(--space-4);
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .vocab-card-header {
@@ -555,6 +561,25 @@
   border-bottom: 1px solid var(--border);
   padding-bottom: var(--radius-lg);
   margin-bottom: var(--radius-lg);
+  min-width: 0;
+}
+
+.flashcards-learned-wrapper .vocab-words-container {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.flashcards-learned-wrapper .vocab-card {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.flashcards-learned-wrapper .vocab-card-header > div {
+  min-width: 0;
+}
+
+.flashcards-learned-wrapper .vocab-learned-badge {
+  min-width: 0;
 }
 
 .vocab-card-hebrew-container {
@@ -562,6 +587,14 @@
   flex-direction: column;
   align-items: flex-end;
   width: 100%;
+  min-width: 0;
+}
+
+.flashcards-learned-wrapper .vocab-card-hebrew,
+.flashcards-learned-wrapper .vocab-card-verb,
+.flashcards-learned-wrapper .vocab-card-translation {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .flashcards-session-wrapper,
@@ -569,6 +602,8 @@
   animation: fadeIn var(--dur-slow) var(--ease-standard);
   min-height: 300px;
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
 }
@@ -629,6 +664,8 @@
     padding: 6px;
     gap: var(--space-1);
     margin: 0;
+    min-width: 0;
+    max-width: 100%;
     border-radius: var(--radius-xl);
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
@@ -774,7 +811,7 @@
     max-width: 100%;
   }
   .vocab-words-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: var(--space-3);
   }
 }
