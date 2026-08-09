@@ -14,20 +14,21 @@ import requests
 from dotenv import load_dotenv
 from openai import OpenAI
 
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "scripts"))
+PIPELINE_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(PIPELINE_DIR))
 
+from lib.paths import CHECKPOINT_DIR, ENV_PATH  # noqa: E402
 from lib.translation_utils import (  # noqa: E402
     TARGET_LANGS,
     normalize_paragraph_texts,
     translate_paragraphs,
 )
 
-load_dotenv(ROOT / ".env")
+load_dotenv(ENV_PATH)
 
 SUPABASE_URL = os.environ.get("NEXT_PUBLIC_SUPABASE_URL", "").rstrip("/")
 SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
-CHECKPOINT_PATH = ROOT / "scripts" / ".checkpoints" / "translation_backfill.json"
+CHECKPOINT_PATH = CHECKPOINT_DIR / "translation_backfill.json"
 
 
 def headers() -> dict:
@@ -94,7 +95,7 @@ def main() -> None:
 
     langs_to_fill = [args.lang] if args.lang else ["en", *TARGET_LANGS]
     if "en" in langs_to_fill:
-        langs_to_fill = [l for l in langs_to_fill if l != "en"]  # en from english_paragraphs
+        langs_to_fill = [l for l in langs_to_fill if l != "en"]
 
     total_jobs = 0
     for ep in episodes:

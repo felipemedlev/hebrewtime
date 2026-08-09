@@ -6,12 +6,14 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "scripts"))
+PIPELINE_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(PIPELINE_DIR))
 
 from dotenv import load_dotenv
 
-load_dotenv(ROOT / ".env")
+from lib.paths import ENV_PATH  # noqa: E402
+
+load_dotenv(ENV_PATH)
 
 from generate_episodes import (  # noqa: E402
     ensure_gcp_env,
@@ -58,7 +60,7 @@ def main() -> None:
     try:
         response = client.synthesize_speech(request=request)
         print(f"OK — received {len(response.audio_content)} bytes of audio.")
-        print("You can run: python3 scripts/generate_episodes.py --level beginner --episode 1")
+        print("You can run: python3 pipeline/generate_episodes.py --level beginner --episode 1")
     except gcp_exceptions.PermissionDenied as exc:
         print(format_tts_permission_error(project_id, client_email, str(exc)))
         raise SystemExit(1) from exc

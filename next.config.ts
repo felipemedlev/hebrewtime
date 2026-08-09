@@ -40,6 +40,9 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["127.195.200.208", "localhost"],
+  outputFileTracingIncludes: {
+    "/": ["pipeline/data/episodes.json"],
+  },
   logging: {
     fetches: {
       fullUrl: false,

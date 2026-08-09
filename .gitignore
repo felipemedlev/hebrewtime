@@ -41,15 +41,15 @@ yarn-error.log*
 next-env.d.ts
 
 # pipeline checkpoints (local cache; regenerate via generate_episodes.py)
-/scripts/.checkpoints/
+/pipeline/.checkpoints/
 
 # python bytecode
 __pycache__/
 *.py[cod]
 
 # scraper / maintenance artifacts
-episodes.json.bak.*
-episodes_checkpoint.json
+pipeline/data/episodes.json.bak.*
+pipeline/data/episodes_checkpoint.json
 
 # GCP service account keys (never commit)
 /secrets/

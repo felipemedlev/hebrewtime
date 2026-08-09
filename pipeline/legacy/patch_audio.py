@@ -1,15 +1,24 @@
+#!/usr/bin/env python3
+"""Normalize or backfill audio_url values in the legacy episodes archive."""
+
+from __future__ import annotations
+
 import json
 import re
-import requests
+import sys
 import time
-import os
+from pathlib import Path
 
-checkpoint_path = "episodes_checkpoint.json"
-episodes_path = "episodes.json"
+import requests
 
-source_path = checkpoint_path if os.path.exists(checkpoint_path) else episodes_path
+PIPELINE_DIR = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PIPELINE_DIR))
 
-with open(source_path, "r", encoding="utf-8") as f:
+from lib.paths import LEGACY_EPISODES_CHECKPOINT_PATH, LEGACY_EPISODES_PATH  # noqa: E402
+
+source_path = LEGACY_EPISODES_CHECKPOINT_PATH if LEGACY_EPISODES_CHECKPOINT_PATH.exists() else LEGACY_EPISODES_PATH
+
+with source_path.open(encoding="utf-8") as f:
     episodes = json.load(f)
 
 updated = False
@@ -26,7 +35,7 @@ for ep in episodes:
         try:
             resp = requests.get(url, timeout=15)
             resp.raise_for_status()
-            
+
             audio_match = re.search(r"\"(https://[^\"]+\.mp3[^\"]*)\"", resp.text)
             if audio_match:
                 ep["audio_url"] = audio_match.group(1)
@@ -41,7 +50,7 @@ for ep in episodes:
             print(f"Failed to fetch {url}: {e}")
 
 if updated:
-    with open(source_path, "w", encoding="utf-8") as f:
+    with source_path.open("w", encoding="utf-8") as f:
         json.dump(episodes, f, ensure_ascii=False, indent=2)
     print(f"{source_path} updated!")
 else:

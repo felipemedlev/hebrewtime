@@ -16,13 +16,23 @@ from dotenv import load_dotenv
 from openai import BadRequestError, OpenAI
 from pydub import AudioSegment
 
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "scripts"))
+PIPELINE_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(PIPELINE_DIR))
 
 from lib.alignment import split_hebrew_sentences  # noqa: E402
+from lib.paths import (  # noqa: E402
+    CHECKPOINT_DIR,
+    DEFAULT_CREDENTIALS_CANDIDATES,
+    ENV_PATH,
+    PIPELINE_DIR as _PIPELINE_DIR,
+    REPO_ROOT,
+    default_script_bank_path,
+    list_curriculum_levels,
+    resolve_curriculum_path,
+)
 from lib.translation_utils import build_translations_map  # noqa: E402
 
-load_dotenv(ROOT / ".env")
+load_dotenv(ENV_PATH)
 
 SUPABASE_URL = os.environ.get("NEXT_PUBLIC_SUPABASE_URL", "").rstrip("/")
 SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
@@ -30,15 +40,6 @@ AUDIO_BUCKET = os.environ.get("SUPABASE_AUDIO_BUCKET", "episode-audio")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 
 DEFAULT_TTS_MODEL = "gemini-3.1-flash-tts-preview"
-
-CHECKPOINT_DIR = ROOT / "scripts" / ".checkpoints"
-GENERATED_DIR = ROOT / "scripts" / "generated"
-DEFAULT_CREDENTIALS_CANDIDATES = [
-    ROOT / "secrets" / "gcp-service-account.json",
-    ROOT / "secrets" / "google-tts.json",
-    ROOT / "gcp-service-account.json",
-]
-
 
 def resolve_credentials_path() -> Path | None:
     raw = (
@@ -52,7 +53,7 @@ def resolve_credentials_path() -> Path | None:
     if raw:
         path = Path(raw).expanduser()
         if not path.is_absolute():
-            path = (ROOT / path).resolve()
+            path = (REPO_ROOT / path).resolve()
         candidates.append(path)
 
         # Common mistake: path truncated before "hebrewtime" when unquoted in shell
@@ -69,7 +70,7 @@ def resolve_credentials_path() -> Path | None:
     if raw:
         path = Path(raw).expanduser()
         if not path.is_absolute():
-            path = (ROOT / path).resolve()
+            path = (REPO_ROOT / path).resolve()
 
         if path.is_dir():
             json_files = sorted(path.glob("*.json"))
@@ -77,7 +78,7 @@ def resolve_credentials_path() -> Path | None:
                 "GOOGLE_APPLICATION_CREDENTIALS must be a service account JSON file, not a directory.\n"
                 f"Current value points to directory: {path}\n"
                 "Download a key from GCP (IAM → Service Accounts → Keys) and set e.g.:\n"
-                f'GOOGLE_APPLICATION_CREDENTIALS="{ROOT / "secrets" / "gcp-service-account.json"}"\n'
+                f'GOOGLE_APPLICATION_CREDENTIALS="{REPO_ROOT / "secrets" / "gcp-service-account.json"}"\n'
                 + (
                     f"JSON files found in that directory: {[f.name for f in json_files]}\n"
                     if json_files
@@ -99,7 +100,7 @@ def load_service_account_info() -> dict:
     if not path:
         raise SystemExit(
             "Google service account JSON not found. "
-            f'Set GOOGLE_APPLICATION_CREDENTIALS="{ROOT / "secrets" / "gcp-service-account.json"}"'
+            f'Set GOOGLE_APPLICATION_CREDENTIALS="{REPO_ROOT / "secrets" / "gcp-service-account.json"}"'
         )
     with path.open(encoding="utf-8") as f:
         return json.load(f)
@@ -136,7 +137,7 @@ def format_tts_permission_error(project_id: str, client_email: str, detail: str)
         f"       --member='serviceAccount:{client_email}' \\\n"
         "       --role='roles/aiplatform.user'\n"
         "  3. Billing enabled on the project\n"
-        "  4. Wait ~1–2 min, then: python3 scripts/verify_gcp_tts.py\n\n"
+        "  4. Wait ~1–2 min, then: python3 pipeline/verify_gcp_tts.py\n\n"
         f"Raw error: {detail}"
     )
 
@@ -157,11 +158,6 @@ def service_headers(extra: dict | None = None) -> dict:
 def load_curriculum(path: Path) -> dict:
     with path.open(encoding="utf-8") as f:
         return json.load(f)
-
-
-def default_script_bank_path(level: str) -> Path:
-    GENERATED_DIR.mkdir(parents=True, exist_ok=True)
-    return GENERATED_DIR / f"{level}_scripts.json"
 
 
 def load_script_bank(path: Path) -> dict:
@@ -788,7 +784,7 @@ def process_episode(
     elif audio_only:
         raise SystemExit(
             f"Missing pre-generated script for {level} episode {num}. "
-            f"Run: python3 scripts/generate_episodes.py --level {level} --episode {num} --scripts-only"
+            f"Run: python3 pipeline/generate_episodes.py --level {level} --episode {num} --scripts-only"
         )
     else:
         if openai_client is None:
@@ -859,6 +855,11 @@ def process_episode(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate level episodes via AI pipeline")
+    parser.add_argument(
+        "--list-levels",
+        action="store_true",
+        help="Print available curriculum level slugs and exit.",
+    )
     parser.add_argument("--level", default="beginner")
     parser.add_argument("--episode", type=int, help="Generate a single episode number")
     parser.add_argument(
@@ -886,14 +887,23 @@ def main() -> None:
     )
     parser.add_argument(
         "--script-bank",
-        help="Path to persistent generated script JSON (default: scripts/generated/{level}_scripts.json).",
+        help="Path to persistent generated script JSON (default: pipeline/data/scripts/{level}.json).",
     )
     parser.add_argument(
         "--curriculum",
-        default=str(ROOT / "beginner_curriculum.json"),
-        help="Path to curriculum JSON",
+        help="Optional override path to curriculum JSON (default: pipeline/curriculum/{level}.json).",
     )
     args = parser.parse_args()
+
+    if args.list_levels:
+        levels = list_curriculum_levels()
+        if not levels:
+            print("No curriculum files found in pipeline/curriculum/")
+        else:
+            print("Available levels:")
+            for level in levels:
+                print(f"  - {level}")
+        return
 
     if args.scripts_only and args.audio_only:
         raise SystemExit("--scripts-only and --audio-only cannot be used together.")
@@ -904,7 +914,12 @@ def main() -> None:
     if not args.audio_only and not OPENAI_API_KEY:
         raise SystemExit("Missing OPENAI_API_KEY")
 
-    curriculum_path = Path(args.curriculum)
+    curriculum_path = resolve_curriculum_path(args.level, args.curriculum)
+    if not curriculum_path.exists():
+        raise SystemExit(
+            f"Curriculum not found: {curriculum_path}\n"
+            f"Create pipeline/curriculum/{args.level}.json or pass --curriculum PATH."
+        )
     curriculum = load_curriculum(curriculum_path)
     curriculum_level = curriculum.get("level")
     if curriculum_level and args.level != curriculum_level:
@@ -920,7 +935,7 @@ def main() -> None:
     openai_client = None if args.audio_only else OpenAI(api_key=OPENAI_API_KEY)
     script_bank_path = Path(args.script_bank) if args.script_bank else default_script_bank_path(args.level)
     if not script_bank_path.is_absolute():
-        script_bank_path = (ROOT / script_bank_path).resolve()
+        script_bank_path = (_PIPELINE_DIR / script_bank_path).resolve()
     script_bank = load_script_bank(script_bank_path)
     script_bank["level"] = args.level
 

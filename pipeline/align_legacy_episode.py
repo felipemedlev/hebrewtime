@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Sync episode timestamps using Whisper alignment (uses scripts/lib/alignment.py)."""
+"""Sync episode timestamps using Whisper alignment (uses pipeline/lib/alignment.py)."""
 
 import argparse
 import json
@@ -12,18 +12,19 @@ import requests
 from dotenv import load_dotenv
 from openai import OpenAI
 
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "scripts"))
+PIPELINE_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(PIPELINE_DIR))
 
 from lib.alignment import align_episode  # noqa: E402
+from lib.paths import ENV_PATH, LEGACY_EPISODES_PATH  # noqa: E402
 
-load_dotenv(ROOT / ".env")
+load_dotenv(ENV_PATH)
 
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 
 def load_episode_from_json(level: str, episode_number: int) -> dict | None:
-    json_path = ROOT / "episodes.json"
+    json_path = LEGACY_EPISODES_PATH
     if not json_path.exists():
         return None
     with json_path.open(encoding="utf-8") as f:
@@ -37,7 +38,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Whisper timestamp sync for an episode")
     parser.add_argument("--level", default="intermediate")
     parser.add_argument("--episode", type=int, default=1)
-    parser.add_argument("--json-path", default=str(ROOT / "episodes.json"))
+    parser.add_argument("--json-path", default=str(LEGACY_EPISODES_PATH))
     args = parser.parse_args()
 
     with open(args.json_path, encoding="utf-8") as f:
@@ -71,7 +72,7 @@ def main() -> None:
         new_paras = align_episode(original_paras, audio_path, client)
         ep["hebrew_paragraphs"] = new_paras
 
-        print("Saving updated episodes.json...")
+        print(f"Saving updated {args.json_path}...")
         with open(args.json_path, "w", encoding="utf-8") as f:
             json.dump(episodes, f, ensure_ascii=False, indent=2)
         print(f"Done! Episode {args.episode} synchronized.")

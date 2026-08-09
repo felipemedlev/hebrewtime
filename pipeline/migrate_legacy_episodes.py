@@ -12,8 +12,12 @@ from pathlib import Path
 import requests
 from dotenv import load_dotenv
 
-ROOT = Path(__file__).resolve().parent.parent
-load_dotenv(ROOT / ".env")
+PIPELINE_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(PIPELINE_DIR))
+
+from lib.paths import ENV_PATH, LEGACY_EPISODES_PATH  # noqa: E402
+
+load_dotenv(ENV_PATH)
 
 SUPABASE_URL = os.environ.get("NEXT_PUBLIC_SUPABASE_URL", "").rstrip("/")
 SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
@@ -96,7 +100,7 @@ def upsert_episode(ep: dict, dry_run: bool) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Migrate episodes.json to Supabase")
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--json-path", default=str(ROOT / "episodes.json"))
+    parser.add_argument("--json-path", default=str(LEGACY_EPISODES_PATH))
     args = parser.parse_args()
 
     json_path = Path(args.json_path)

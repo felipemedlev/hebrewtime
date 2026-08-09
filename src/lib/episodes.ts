@@ -132,7 +132,7 @@ function loadLegacyEpisodes(): Episode[] {
   if (legacyCache) return legacyCache;
 
   try {
-    const filePath = path.join(process.cwd(), "episodes.json");
+    const filePath = path.join(process.cwd(), "pipeline", "data", "episodes.json");
     const raw = fs.readFileSync(filePath, "utf-8");
     const data = JSON.parse(raw) as Array<Record<string, unknown>>;
 
