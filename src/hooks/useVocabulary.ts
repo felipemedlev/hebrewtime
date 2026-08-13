@@ -35,6 +35,7 @@ export function useVocabulary(isPremium = false) {
               translation: d.translation,
               pronunciation: d.pronunciation,
               dictionaryPealimId: d.dictionary_pealim_id ?? null,
+              entryKind: (d.entry_kind as VocabWord["entryKind"]) ?? "word",
               episodeTitle: d.episode_title,
               episodeUrl: d.episode_url,
               savedAt: d.saved_at,
@@ -93,6 +94,7 @@ export function useVocabulary(isPremium = false) {
           translation: word.translation,
           pronunciation: word.pronunciation || null,
           dictionary_pealim_id: word.dictionaryPealimId ?? null,
+          entry_kind: word.entryKind ?? "word",
           episode_title: word.episodeTitle,
           episode_url: word.episodeUrl,
           saved_at: newWord.savedAt,
@@ -156,6 +158,8 @@ export function useVocabulary(isPremium = false) {
       if (updates.verbFormWithNekudot !== undefined) dbUpdates.verb_form_with_nekudot = updates.verbFormWithNekudot || null;
       if (updates.translation !== undefined) dbUpdates.translation = updates.translation;
       if (updates.pronunciation !== undefined) dbUpdates.pronunciation = updates.pronunciation || null;
+      if (updates.dictionaryPealimId !== undefined) dbUpdates.dictionary_pealim_id = updates.dictionaryPealimId;
+      if (updates.entryKind !== undefined) dbUpdates.entry_kind = updates.entryKind;
       if (updates.episodeTitle !== undefined) dbUpdates.episode_title = updates.episodeTitle;
       if (updates.episodeUrl !== undefined) dbUpdates.episode_url = updates.episodeUrl;
       if (updates.examplePhrases !== undefined) dbUpdates.example_phrases = updates.examplePhrases;

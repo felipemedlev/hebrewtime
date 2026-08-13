@@ -135,6 +135,8 @@ export type DictionaryEntryDetails = Pick<
   | "forms"
 >;
 
+export type VocabEntryKind = "word" | "phrase";
+
 export type VocabWord = {
   id: string;
   word: string;
@@ -144,6 +146,7 @@ export type VocabWord = {
   pronunciation?: string;
   dictionaryPealimId?: number | null;
   partOfSpeech?: string | null;
+  entryKind?: VocabEntryKind;
   episodeTitle: string;
   episodeUrl: string;
   savedAt: number;
@@ -200,6 +203,7 @@ export type FillInVocabInput = {
   word: string;
   translation: string;
   wordWithNekudot?: string;
+  entryKind?: VocabEntryKind;
 };
 
 export type FillInExercisePayload = {

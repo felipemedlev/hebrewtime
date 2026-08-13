@@ -220,7 +220,7 @@ export default function VocabularyView({
             <>
               <div className="vocab-empty-icon"><Bookmark size={22} strokeWidth={1.5} /></div>
               <p className="vocab-empty-title">{t("noVocabYet")}</p>
-              <p className="vocab-empty-sub">{t("clickToSaveFirst")}</p>
+              <p className="vocab-empty-sub">{t("vocabEmptyHint")}</p>
             </>
           )}
         </div>
@@ -242,6 +242,7 @@ export default function VocabularyView({
             {filteredAndSortedWords.map((vw, i) => {
               const isEditing = editingId === vw.id;
               const isExpanded = expandedId === vw.id;
+              const isPhrase = vw.entryKind === "phrase";
               return (
                 <div key={vw.id} className="vocab-table-row-group">
                 <div
@@ -303,7 +304,7 @@ export default function VocabularyView({
 
                   {/* Verb form */}
                   <div className="vtd-verb" role="cell">
-                    {isEditing ? (
+                    {!isPhrase && (isEditing ? (
                       <input
                         dir="rtl"
                         value={editValues.verbFormWithNekudot}
@@ -317,7 +318,8 @@ export default function VocabularyView({
                       <span className="font-serif vocab-verb-word" dir="rtl">{vw.verbFormWithNekudot}</span>
                     ) : (
                       <span className="vocab-dash">—</span>
-                    )}
+                    ))}
+                    {isPhrase && !isEditing && <span className="vocab-dash">—</span>}
                   </div>
 
                   {/* Hebrew word — rightmost data column */}
@@ -332,9 +334,14 @@ export default function VocabularyView({
                         style={{ fontSize: "20px", color: "var(--accent)", textAlign: "right" }}
                       />
                     ) : (
-                      <span className="font-serif vocab-hebrew-word" dir="rtl">
-                        {vw.wordWithNekudot || vw.word}
-                      </span>
+                      <>
+                        {isPhrase && (
+                          <span className="vocab-entry-phrase-badge">{t("vocabEntryPhraseBadge")}</span>
+                        )}
+                        <span className="font-serif vocab-hebrew-word" dir="rtl">
+                          {vw.wordWithNekudot || vw.word}
+                        </span>
+                      </>
                     )}
                   </div>
 
@@ -351,7 +358,7 @@ export default function VocabularyView({
                       </>
                     ) : (
                       <>
-                        {vw.dictionaryPealimId && (
+                        {vw.dictionaryPealimId && !isPhrase && (
                           <button
                             onClick={() => setDetailsPealimId(vw.dictionaryPealimId!)}
                             title={t("viewConjugations")}
@@ -402,6 +409,7 @@ export default function VocabularyView({
             {filteredAndSortedWords.map((vw) => {
               const isEditing = editingId === vw.id;
               const isExpanded = expandedId === vw.id;
+              const isPhrase = vw.entryKind === "phrase";
               return (
                 <div key={vw.id} className={`vocab-card-item${isEditing ? " editing" : ""}`}>
                   {/* Card top: Hebrew (right-aligned) + actions */}
@@ -418,7 +426,7 @@ export default function VocabularyView({
                         </>
                       ) : (
                         <>
-                          {vw.dictionaryPealimId && (
+                          {vw.dictionaryPealimId && !isPhrase && (
                             <button
                               onClick={() => setDetailsPealimId(vw.dictionaryPealimId!)}
                               title={t("viewConjugations")}
@@ -454,11 +462,16 @@ export default function VocabularyView({
                           style={{ fontSize: "22px", color: "var(--accent)", textAlign: "right", marginBottom: "6px" }}
                         />
                       ) : (
-                        <span className="font-serif vocab-card-hebrew" dir="rtl">
-                          {vw.wordWithNekudot || vw.word}
-                        </span>
+                        <>
+                          {isPhrase && (
+                            <span className="vocab-entry-phrase-badge">{t("vocabEntryPhraseBadge")}</span>
+                          )}
+                          <span className="font-serif vocab-card-hebrew" dir="rtl">
+                            {vw.wordWithNekudot || vw.word}
+                          </span>
+                        </>
                       )}
-                      {(vw.verbFormWithNekudot || isEditing) && (
+                      {!isPhrase && (vw.verbFormWithNekudot || isEditing) && (
                         isEditing ? (
                           <input
                             dir="rtl"
@@ -550,8 +563,8 @@ export default function VocabularyView({
           type="button"
           className="vocab-add-fab"
           onClick={() => setIsAddModalOpen(true)}
-          aria-label={t("addWord")}
-          title={t("addWord")}
+          aria-label={t("addVocabEntry")}
+          title={t("addVocabEntry")}
         >
           <Plus size={22} strokeWidth={2.5} />
         </button>

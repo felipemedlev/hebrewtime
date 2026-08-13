@@ -17,8 +17,9 @@ Run migrations in [`supabase/migrations/`](../supabase/migrations/) **in numeric
 | 09 | `09_free_tier_limits.sql` | Relaxes premium RLS to auth only; adds daily usage counters |
 | 10 | `10_review_practice_attempts.sql` | Fill in and matching practice stats |
 | 11 | `11_flashcard_direction.sql` | `direction` column for forward/reverse FSRS schedules |
+| 12 | `12_vocabulary_entry_kind.sql` | `vocabulary.entry_kind` (`word` or `phrase`) |
 
-**Fresh install:** run 01 through 11 in order.
+**Fresh install:** run 01 through 12 in order.
 
 **Existing project:** skip migrations you have already applied. Migration 09 is important if your project still has premium only RLS on vocabulary/flashcards.
 
@@ -30,7 +31,7 @@ Create a Supabase Storage bucket named `episode-audio` (or set `SUPABASE_AUDIO_B
 
 ### `vocabulary`
 
-Per user saved words. Key columns: `word`, `word_with_nekudot`, `translation`, `pronunciation`, `dictionary_pealim_id`, `example_phrases` (JSONB).
+Per user saved words and phrases. Key columns: `word`, `word_with_nekudot`, `translation`, `pronunciation`, `dictionary_pealim_id`, `entry_kind` (`word` default, or `phrase` for user typed expressions), `example_phrases` (JSONB).
 
 ### `flashcard_progress`
 

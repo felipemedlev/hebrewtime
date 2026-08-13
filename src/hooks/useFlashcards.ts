@@ -12,6 +12,7 @@ import type {
   FlashcardDirection,
 } from "@/lib/types";
 import { computeNextProgress, cardRetrievability } from "@/lib/fsrs";
+import { buildSessionQueue } from "@/lib/flashcardSession";
 
 function isSameLocalDay(isoDate: string, now: Date): boolean {
   const d = new Date(isoDate);
@@ -51,15 +52,14 @@ function buildFlashcardSets(
   );
   const activeCards = flashcards.filter((card) => !card.progress?.is_learned);
 
-  const nowStr = new Date().toISOString();
+  const now = new Date();
+  const nowStr = now.toISOString();
   const dueCards = activeCards.filter((card) => {
     if (!card.progress) return true;
     return card.progress.next_review_at <= nowStr;
   });
 
-  const sessionQueue = dueCards.slice(0, 20);
-
-  const now = new Date();
+  const sessionQueue = buildSessionQueue(dueCards, now);
   const total = flashcards.length;
   const learned = learnedCards.length;
   const active = activeCards.length;

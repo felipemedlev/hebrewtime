@@ -57,7 +57,7 @@ Browser → Next.js (Server Components + API routes)
 | Hook | Role |
 |------|------|
 | `useVocabulary.ts` | Vocabulary sync to Supabase |
-| `useFlashcards.ts` | FSRS review scheduling |
+| `useFlashcards.ts` | FSRS review scheduling; session queue picks newest due cards first and deprioritizes cards reviewed in the last 30 minutes |
 | `useEntitlements.ts` | Auth/premium/admin status |
 | `useFinishedEpisodes.ts` | Per level finished state (localStorage + Supabase) |
 | `useOnboarding.ts` | First login overlay visibility |
@@ -97,6 +97,10 @@ See [`dictionary_entries.md`](dictionary_entries.md) for schema details.
 - **Nouns** → singular indefinite (e.g. הַנּוֹשֵׂא → `נושא`)
 - **Verbs** → infinitive (e.g. מְדַמְיֵן → `לדמיין`)
 - Translations omit articles and infinitive markers
+
+## Phrase saves
+
+Users can add **phrases** manually from the vocabulary view (+ button → Phrase tab). They type Hebrew and translation themselves. No Pealim lookup and no OpenAI translation. Stored with `entry_kind = 'phrase'`; `dictionary_pealim_id` stays null.
 
 ## Server actions (`src/app/actions.ts`)
 

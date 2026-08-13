@@ -53,6 +53,22 @@ export default function MediaPlayer({
   const hideBar = isMobile && isSecondaryView;
 
   useEffect(() => {
+    if (hideBar) {
+      document.documentElement.style.setProperty("--media-player-height", "0px");
+      return;
+    }
+
+    const height = isExpanded ? (isMobile ? "120px" : "108px") : "48px";
+    document.documentElement.style.setProperty("--media-player-height", height);
+  }, [hideBar, isExpanded, isMobile]);
+
+  useEffect(() => {
+    return () => {
+      document.documentElement.style.removeProperty("--media-player-height");
+    };
+  }, []);
+
+  useEffect(() => {
     if (isSecondaryView) {
       setIsExpanded(false);
     }

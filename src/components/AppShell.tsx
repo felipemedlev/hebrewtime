@@ -328,6 +328,7 @@ export default function AppShell({
         word: word.word,
         translation: word.translation,
         wordWithNekudot: word.wordWithNekudot,
+        entryKind: word.entryKind ?? "word",
       }));
 
       const res = await generateFillInExercises(accessToken, items, lang);

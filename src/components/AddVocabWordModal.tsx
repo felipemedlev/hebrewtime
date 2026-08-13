@@ -20,6 +20,8 @@ type LookupResult = {
   dictionaryPealimId: number | null;
 };
 
+type AddMode = "word" | "phrase";
+
 type AddVocabWordModalProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -62,7 +64,11 @@ export default function AddVocabWordModal({
   const { lang } = useLanguage();
   const listboxId = useId();
 
+  const [mode, setMode] = useState<AddMode>("word");
   const [query, setQuery] = useState("");
+  const [phraseHebrew, setPhraseHebrew] = useState("");
+  const [phraseTranslation, setPhraseTranslation] = useState("");
+  const [phrasePronunciation, setPhrasePronunciation] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSuggesting, setIsSuggesting] = useState(false);
@@ -75,6 +81,7 @@ export default function AddVocabWordModal({
   const requestIdRef = useRef(0);
   const blurCloseTimerRef = useRef<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const phraseHebrewRef = useRef<HTMLTextAreaElement>(null);
   const showSuggestionsRef = useRef(false);
   const skipSuggestRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -98,7 +105,11 @@ export default function AddVocabWordModal({
   useEffect(() => {
     if (!isOpen) {
       abortRef.current?.abort();
+      setMode("word");
       setQuery("");
+      setPhraseHebrew("");
+      setPhraseTranslation("");
+      setPhrasePronunciation("");
       setIsSearching(false);
       setIsSaving(false);
       setIsSuggesting(false);
@@ -114,6 +125,8 @@ export default function AddVocabWordModal({
 
   useEffect(() => {
     if (!isOpen) return;
+
+    if (mode !== "word") return;
 
     if (skipSuggestRef.current) {
       skipSuggestRef.current = false;
@@ -175,7 +188,35 @@ export default function AddVocabWordModal({
     return () => {
       window.clearTimeout(timer);
     };
-  }, [query, isOpen]);
+  }, [query, isOpen, mode]);
+
+  const switchToPhraseMode = (hebrewSeed = "") => {
+    abortRef.current?.abort();
+    requestIdRef.current += 1;
+    setMode("phrase");
+    setQuery("");
+    setResult(null);
+    setError(null);
+    setSuggestions([]);
+    setShowSuggestions(false);
+    setActiveIndex(-1);
+    setIsSuggesting(false);
+    setIsSearching(false);
+    if (hebrewSeed) {
+      setPhraseHebrew(hebrewSeed);
+    }
+    window.setTimeout(() => phraseHebrewRef.current?.focus(), 0);
+  };
+
+  const handleQueryChange = (value: string) => {
+    if (mode === "word" && /\s/.test(value.trim())) {
+      switchToPhraseMode(value);
+      return;
+    }
+    setQuery(value);
+    setResult(null);
+    setError(null);
+  };
 
   useEffect(() => {
     return () => {
@@ -345,6 +386,7 @@ export default function AddVocabWordModal({
         pronunciation: result.pronunciation || undefined,
         dictionaryPealimId: result.dictionaryPealimId,
         partOfSpeech: result.partOfSpeech || undefined,
+        entryKind: "word",
         episodeTitle: "",
         episodeUrl: "",
       });
@@ -356,6 +398,35 @@ export default function AddVocabWordModal({
       setIsSaving(false);
     }
   };
+
+  const handleSavePhrase = async (event?: React.FormEvent) => {
+    event?.preventDefault();
+
+    const hebrewInput = phraseHebrew.trim();
+    const translationInput = phraseTranslation.trim();
+    if (!hebrewInput || !translationInput) return;
+
+    setIsSaving(true);
+    try {
+      const saveRes = await onWordSaved({
+        word: stripNiqqud(hebrewInput),
+        wordWithNekudot: hebrewInput,
+        translation: translationInput,
+        pronunciation: phrasePronunciation.trim() || undefined,
+        entryKind: "phrase",
+        episodeTitle: "",
+        episodeUrl: "",
+      });
+
+      if (saveRes.type !== "auth_required") {
+        onClose();
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const phraseReady = phraseHebrew.trim().length > 0 && phraseTranslation.trim().length > 0;
 
   const handleInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Escape" && showSuggestions) {
@@ -436,6 +507,31 @@ export default function AddVocabWordModal({
         </div>
 
         <div className="modal-body add-vocab-modal-body">
+          <div className="add-vocab-mode-toggle" role="tablist" aria-label={t("addWordModalTitle")}>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === "word"}
+              className={`add-vocab-mode-btn${mode === "word" ? " is-active" : ""}`}
+              onClick={() => {
+                setMode("word");
+                window.setTimeout(() => inputRef.current?.focus(), 0);
+              }}
+            >
+              {t("addVocabModeWord")}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === "phrase"}
+              className={`add-vocab-mode-btn${mode === "phrase" ? " is-active" : ""}`}
+              onClick={() => switchToPhraseMode()}
+            >
+              {t("addVocabModePhrase")}
+            </button>
+          </div>
+
+          {mode === "word" ? (
           <form className="add-vocab-search-form" onSubmit={handleLookup}>
             <div className="add-vocab-search-field">
               <div className="add-vocab-search-row">
@@ -444,11 +540,7 @@ export default function AddVocabWordModal({
                   type="text"
                   className="add-vocab-search-input"
                   value={query}
-                  onChange={(e) => {
-                    setQuery(e.target.value);
-                    setResult(null);
-                    setError(null);
-                  }}
+                  onChange={(e) => handleQueryChange(e.target.value)}
                   onKeyDown={handleInputKeyDown}
                   onBlur={handleInputBlur}
                   onFocus={handleInputFocus}
@@ -536,17 +628,63 @@ export default function AddVocabWordModal({
             </div>
             <p className="add-vocab-search-hint">{t("addWordSearchHint")}</p>
           </form>
+          ) : (
+          <form className="add-vocab-phrase-form" onSubmit={handleSavePhrase}>
+            <label className="add-vocab-field-label" htmlFor="add-vocab-phrase-hebrew">
+              {t("phraseHebrewLabel")}
+            </label>
+            <textarea
+              ref={phraseHebrewRef}
+              id="add-vocab-phrase-hebrew"
+              className="add-vocab-phrase-input font-serif"
+              dir="rtl"
+              rows={3}
+              value={phraseHebrew}
+              onChange={(e) => setPhraseHebrew(e.target.value)}
+              placeholder={t("phraseHebrewPlaceholder")}
+              autoFocus
+            />
 
-          {isSearching && (
+            <label className="add-vocab-field-label" htmlFor="add-vocab-phrase-translation">
+              {t("phraseTranslationLabel")}
+            </label>
+            <input
+              id="add-vocab-phrase-translation"
+              type="text"
+              className="add-vocab-search-input"
+              value={phraseTranslation}
+              onChange={(e) => setPhraseTranslation(e.target.value)}
+              placeholder={t("phraseTranslationPlaceholder")}
+              dir="auto"
+            />
+
+            <label className="add-vocab-field-label" htmlFor="add-vocab-phrase-pronunciation">
+              {t("pronunciation")}
+            </label>
+            <input
+              id="add-vocab-phrase-pronunciation"
+              type="text"
+              className="add-vocab-search-input"
+              value={phrasePronunciation}
+              onChange={(e) => setPhrasePronunciation(e.target.value)}
+              placeholder={t("phrasePronunciationPlaceholder")}
+              dir="auto"
+            />
+
+            <p className="add-vocab-search-hint">{t("phraseSaveHint")}</p>
+          </form>
+          )}
+
+          {mode === "word" && isSearching && (
             <div className="translating-state" style={{ marginTop: "var(--space-4)" }}>
               <Loader2 className="spinner" size={20} />
               <span>{t("searchingDictionary")}</span>
             </div>
           )}
 
-          {error && !isSearching && <p className="add-vocab-error">{error}</p>}
+          {mode === "word" && error && !isSearching && <p className="add-vocab-error">{error}</p>}
 
-          {result && !isSearching && (
+          {mode === "word" && result && !isSearching && (
             <div className="add-vocab-result">
               <div className="add-vocab-result-word-area">
                 <p className="add-vocab-result-hebrew font-serif" dir="rtl">
@@ -574,13 +712,27 @@ export default function AddVocabWordModal({
           )}
         </div>
 
-        {result && !isSearching && (
+        {mode === "word" && result && !isSearching && (
           <div className="modal-footer translation-modal-footer">
             <button
               type="button"
               className="translation-modal-save-btn"
               disabled={isSaving || !result.translation}
               onClick={handleSave}
+            >
+              {isSaving ? <Loader2 className="spinner" size={14} /> : null}
+              {t("addToVocabulary")}
+            </button>
+          </div>
+        )}
+
+        {mode === "phrase" && (
+          <div className="modal-footer translation-modal-footer">
+            <button
+              type="button"
+              className="translation-modal-save-btn"
+              disabled={isSaving || !phraseReady}
+              onClick={() => void handleSavePhrase()}
             >
               {isSaving ? <Loader2 className="spinner" size={14} /> : null}
               {t("addToVocabulary")}
