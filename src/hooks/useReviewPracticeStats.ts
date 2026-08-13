@@ -251,8 +251,14 @@ export function useReviewPracticeStats() {
     [user, loadAttempts]
   );
 
+  const attemptTimestamps = useMemo(
+    () => attempts.map((a) => a.created_at),
+    [attempts]
+  );
+
   return {
     stats,
+    attemptTimestamps,
     isLoaded,
     recordAttempt,
     refreshAttempts: loadAttempts,

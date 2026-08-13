@@ -40,6 +40,7 @@ type ReviewViewProps = {
   ) => Promise<void>;
   stats: FlashcardStats;
   practiceStats: ReviewPracticeStats;
+  attemptTimestamps?: string[];
   startSignal?: number;
   generateExamples: (word: VocabWord) => Promise<{ ok: boolean; message?: string }>;
   regenerateExample: (word: VocabWord, index: number) => Promise<{ ok: boolean; message?: string }>;
@@ -69,6 +70,7 @@ export default function ReviewView({
   unlearnWord,
   stats,
   practiceStats,
+  attemptTimestamps = [],
   startSignal = 0,
   generateExamples,
   regenerateExample,
@@ -188,6 +190,7 @@ export default function ReviewView({
         flashcardStats={stats}
         reverseStats={reverseStats}
         practiceStats={practiceStats}
+        attemptTimestamps={attemptTimestamps}
         vocabWords={vocabWords}
         onBack={() => setReviewMode("hub")}
       />
@@ -199,6 +202,7 @@ export default function ReviewView({
       flashcardStats={stats}
       reverseStats={reverseStats}
       practiceStats={practiceStats}
+      attemptTimestamps={attemptTimestamps}
       vocabCount={vocabWords.length}
       onSelectMode={setReviewMode}
     />

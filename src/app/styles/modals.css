@@ -210,13 +210,13 @@
   gap: var(--space-1);
   padding: 3px;
   margin-bottom: var(--space-4);
-  background: var(--overlay-3);
+  background: var(--surface-hover);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
 }
 
 .add-vocab-mode-btn {
-  border: none;
+  border: 1px solid transparent;
   border-radius: calc(var(--radius-md) - 2px);
   padding: 8px var(--space-3);
   font-size: var(--text-base-sm);
@@ -224,12 +224,13 @@
   color: var(--text-muted);
   background: transparent;
   cursor: pointer;
-  transition: background var(--dur-fast), color var(--dur-fast);
+  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
 }
 
 .add-vocab-mode-btn.is-active {
   background: var(--surface);
-  color: var(--text-main);
+  color: var(--accent);
+  border-color: var(--border);
   box-shadow: var(--shadow-sm);
 }
 

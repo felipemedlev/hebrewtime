@@ -109,7 +109,7 @@ export default function AppShell({
     unlearnWord,
     stats,
   } = useFlashcards(vocabWords);
-  const { stats: practiceStats, recordAttempt } = useReviewPracticeStats();
+  const { stats: practiceStats, recordAttempt, attemptTimestamps } = useReviewPracticeStats();
   const { shouldShow: shouldShowOnboarding, dismiss: dismissOnboarding } = useOnboarding();
   const { finishedEpisodes, isFinished, toggleFinished } = useFinishedEpisodes();
   useUsageTracking();
@@ -711,6 +711,7 @@ export default function AppShell({
             unlearnWord={unlearnWord}
             stats={stats}
             practiceStats={practiceStats}
+            attemptTimestamps={attemptTimestamps}
             startSignal={reviewStartSignal}
             generateExamples={generateExamples}
             regenerateExample={regenerateExample}

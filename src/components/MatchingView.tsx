@@ -9,6 +9,7 @@ import type {
   ReviewModality,
 } from "@/lib/types";
 import { useT } from "@/lib/i18n/LanguageProvider";
+import SessionRecapScreen from "@/components/SessionRecapScreen";
 
 const ROUND_SIZE = 6;
 
@@ -277,32 +278,22 @@ export default function MatchingView({
           <ArrowLeft size={16} />
           {t("backToHub")}
         </button>
-        <div className="flashcard-start-screen">
-          <div className="flashcard-illustration-circle fc-session-done">
-            <Sparkles size={28} />
-          </div>
-          <h2>{t("matchingComplete")}</h2>
-          <p>
-            {t("matchingScore", {
-              correct: String(finalCorrect),
-              total: String(total),
-              percent: String(finalPercent),
-            })}
-          </p>
-          {bestStreak > 1 && (
-            <p style={{ fontSize: "14px", color: "var(--text-muted)" }}>
-              {t("matchingStreak", { count: String(bestStreak) })}
-            </p>
-          )}
-          <div className="fill-in-complete-actions">
-            <button type="button" className="flashcard-start-btn" onClick={startRound}>
-              {t("tryAgainMatching")}
-            </button>
-            <button type="button" className="review-stats-link inline" onClick={onBack}>
-              {t("backToHub")}
-            </button>
-          </div>
-        </div>
+        <SessionRecapScreen
+          title={t("matchingComplete")}
+          percent={finalPercent}
+          correct={finalCorrect}
+          total={total}
+          bestStreak={bestStreak}
+          shareTextContent={t("shareSessionText", {
+            percent: String(finalPercent),
+            mode: t("modalityMatching"),
+            correct: String(finalCorrect),
+            total: String(total),
+          })}
+          onTryAgain={startRound}
+          onBack={onBack}
+          tryAgainLabel={t("tryAgainMatching")}
+        />
       </div>
     );
   }

@@ -239,7 +239,7 @@
 
 .vocab-table-header {
   display: grid;
-  grid-template-columns: 140px 140px 1fr 120px 140px 96px;
+  grid-template-columns: 140px 140px 1fr 120px 140px 128px;
   padding: var(--radius-lg) var(--space-4);
   background: var(--surface-hover);
   border-bottom: 1px solid var(--border);
@@ -258,7 +258,7 @@
 
 .vocab-table-row {
   display: grid;
-  grid-template-columns: 140px 140px 1fr 120px 140px 96px;
+  grid-template-columns: 140px 140px 1fr 120px 140px 128px;
   align-items: center;
   padding: var(--radius-2xl) var(--space-4);
   border-bottom: 1px solid var(--border);
@@ -311,7 +311,8 @@
   align-items: center;
   justify-content: flex-end;
   gap: 2px;
-  padding-left: var(--space-5);
+  flex-shrink: 0;
+  padding-left: var(--space-2);
 }
 .vocab-dash {
   color: var(--text-muted);
@@ -360,8 +361,17 @@
 .vocab-action-btn.examples     { color: var(--text-muted); }
 .vocab-action-btn.examples:hover,
 .vocab-action-btn.examples.active { background: var(--accent-surface); color: var(--accent); }
-.vocab-action-btn.details        { color: var(--accent); }
-.vocab-action-btn.details:hover  { background: var(--accent-surface); color: var(--accent); }
+.vocab-action-btn.details {
+  color: var(--text-muted);
+  background: var(--surface-hover);
+  border: 1px solid var(--border);
+}
+.vocab-action-btn.details:hover,
+.vocab-action-btn.details:focus-visible {
+  background: var(--accent-surface);
+  color: var(--accent);
+  border-color: var(--accent-border-light);
+}
 
 .vocab-edit-input {
   width: 100%;

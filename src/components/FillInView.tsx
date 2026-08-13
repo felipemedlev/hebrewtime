@@ -10,6 +10,7 @@ import type {
 } from "@/lib/types";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { gradeFillInAnswer } from "@/lib/fillInGrading";
+import SessionRecapScreen from "@/components/SessionRecapScreen";
 
 const SESSION_SIZE = 10;
 
@@ -219,32 +220,22 @@ export default function FillInView({
           <ArrowLeft size={16} />
           {t("backToHub")}
         </button>
-        <div className="flashcard-start-screen">
-          <div className="flashcard-illustration-circle fc-session-done">
-            <Sparkles size={28} />
-          </div>
-          <h2>{t("fillInComplete")}</h2>
-          <p>
-            {t("fillInScore", {
-              correct: String(finalCorrect),
-              total: String(total),
-              percent: String(finalPercent),
-            })}
-          </p>
-          {bestStreak > 1 && (
-            <p style={{ fontSize: "14px", color: "var(--text-muted)" }}>
-              {t("fillInStreak", { count: String(bestStreak) })}
-            </p>
-          )}
-          <div className="fill-in-complete-actions">
-            <button type="button" className="flashcard-start-btn" onClick={startSession}>
-              {t("tryAgainFillIn")}
-            </button>
-            <button type="button" className="review-stats-link inline" onClick={onBack}>
-              {t("backToHub")}
-            </button>
-          </div>
-        </div>
+        <SessionRecapScreen
+          title={t("fillInComplete")}
+          percent={finalPercent}
+          correct={finalCorrect}
+          total={total}
+          bestStreak={bestStreak}
+          shareTextContent={t("shareSessionText", {
+            percent: String(finalPercent),
+            mode: t("modalityFillIn"),
+            correct: String(finalCorrect),
+            total: String(total),
+          })}
+          onTryAgain={startSession}
+          onBack={onBack}
+          tryAgainLabel={t("tryAgainFillIn")}
+        />
       </div>
     );
   }

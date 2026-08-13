@@ -7,8 +7,8 @@
 }
 
 .dictionary-details-overlay .modal-content {
-  max-width: 640px;
-  width: min(95vw, 640px);
+  max-width: 1040px;
+  width: min(96vw, 1040px);
   max-height: min(90dvh, 90vh);
   display: flex;
   flex-direction: column;
@@ -126,7 +126,8 @@
 }
 
 .dictionary-details-table {
-  width: 100%;
+  width: max-content;
+  min-width: 100%;
   border-collapse: collapse;
   font-size: var(--text-base-sm);
 }

@@ -45,6 +45,9 @@ Browser → Next.js (Server Components + API routes)
 | `LanguageSelector.tsx` | UI language picker |
 | `VocabularyView.tsx` | Saved words table/cards, inline edit, FAB to add words |
 | `ReviewView.tsx` | Review hub: flashcards, fill in, matching, reverse cards, stats |
+| `ReviewStatsView.tsx` | Practice stats dashboard with hero ring, modality cards, weak words, share |
+| `StatRing.tsx` | SVG progress ring for stats hero and session recap |
+| `SessionRecapScreen.tsx` | Fill-in / matching session complete screen with score ring and share |
 | `FlashcardsView.tsx` | FSRS forward card sessions |
 | `TranslationModal.tsx` | Compact word translation popup |
 | `DictionaryDetailsModal.tsx` | Pealim conjugation tables |
@@ -62,6 +65,7 @@ Browser → Next.js (Server Components + API routes)
 | `useFinishedEpisodes.ts` | Per level finished state (localStorage + Supabase) |
 | `useOnboarding.ts` | First login overlay visibility |
 | `useUsageTracking.ts` | Active site time for admin stats |
+| `useReviewPracticeStats.ts` | Fill-in and matching attempt stats; feeds `reviewStatsSummary` |
 | `useModalAccessibility.ts` | Focus trap, Escape, body scroll lock |
 
 ## Internationalization
@@ -89,6 +93,10 @@ Order in `src/lib/dictionaryLookup.ts`:
 Dictionary hits return Pealim lemma, Nekudot, transliteration, and meaning. Non English UI languages get gloss translation via a small OpenAI call.
 
 Saved words store `dictionary_pealim_id` when available, enabling conjugation modals later.
+
+### Practice stats summary
+
+[`src/lib/reviewStatsSummary.ts`](../src/lib/reviewStatsSummary.ts) derives dashboard headline metrics client side from `FlashcardStats`, `ReviewPracticeStats`, and practice attempt timestamps (combined 7-day accuracy, practiced today, practice day streak). No extra database queries.
 
 See [`dictionary_entries.md`](dictionary_entries.md) for schema details.
 

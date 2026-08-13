@@ -12,6 +12,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import type { FlashcardStats, ReviewPracticeStats } from "@/lib/types";
+import { buildReviewStatsSummary } from "@/lib/reviewStatsSummary";
 import { useT } from "@/lib/i18n/LanguageProvider";
 
 export type ReviewMode =
@@ -26,6 +27,7 @@ type ReviewHubProps = {
   flashcardStats: FlashcardStats;
   reverseStats: FlashcardStats;
   practiceStats: ReviewPracticeStats;
+  attemptTimestamps?: string[];
   vocabCount: number;
   onSelectMode: (mode: ReviewMode) => void;
 };
@@ -34,10 +36,32 @@ export default function ReviewHub({
   flashcardStats,
   reverseStats,
   practiceStats,
+  attemptTimestamps = [],
   vocabCount,
   onSelectMode,
 }: ReviewHubProps) {
   const t = useT();
+
+  const summary = buildReviewStatsSummary(
+    flashcardStats,
+    reverseStats,
+    practiceStats,
+    attemptTimestamps
+  );
+
+  const reviewedToday =
+    flashcardStats.reviewedToday + reverseStats.reviewedToday;
+
+  const statsCardMeta =
+    summary.accuracy7d !== null
+      ? t("statsHubSummary", {
+          reviewed: String(reviewedToday),
+          accuracy: String(summary.accuracy7d),
+        })
+      : t("statsHubSummaryMastery", {
+          reviewed: String(reviewedToday),
+          mastery: String(flashcardStats.progressPercent),
+        });
 
   const modalities = [
     {
@@ -99,7 +123,11 @@ export default function ReviewHub({
           <span className="stat-label">{t("savedWords")}</span>
           <span className="stat-value">{vocabCount}</span>
         </div>
-        <div className="flashcard-stat-tile">
+        <button
+          type="button"
+          className="flashcard-stat-tile flashcard-stat-tile-btn"
+          onClick={() => onSelectMode("stats")}
+        >
           <TrendingUp size={14} className="flashcard-stat-icon-recall" />
           <span className="stat-label">{t("fillInAccuracy")}</span>
           <span className="stat-value">
@@ -107,7 +135,7 @@ export default function ReviewHub({
               ? `${practiceStats.fillInAccuracy7d}%`
               : "—"}
           </span>
-        </div>
+        </button>
       </div>
 
       <div className="review-hub-header">
@@ -143,11 +171,18 @@ export default function ReviewHub({
 
       <button
         type="button"
-        className="review-stats-link"
+        className="review-modality-card review-stats-card"
         onClick={() => onSelectMode("stats")}
       >
-        <BarChart3 size={16} />
-        {t("viewPracticeStats")}
+        <div className="review-modality-top">
+          <div className="review-modality-icon review-stats-card-icon">
+            <BarChart3 size={20} />
+          </div>
+          <ChevronRight size={16} className="review-modality-arrow" />
+        </div>
+        <h3>{t("practiceStats")}</h3>
+        <p>{t("viewPracticeStatsDesc")}</p>
+        <span className="review-modality-meta">{statsCardMeta}</span>
       </button>
     </div>
   );
