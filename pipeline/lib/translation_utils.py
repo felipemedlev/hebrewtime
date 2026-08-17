@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import time
 from typing import Callable
 
@@ -51,7 +52,45 @@ def translate_paragraphs(
     on_progress: Callable[[int, int], None] | None = None,
     delay_sec: float = 0.15,
 ) -> list[str]:
-    translated: list[str] = []
+    if not hebrew_paragraphs:
+        return []
+
+    lang_name = LANG_NAMES.get(target_lang, target_lang)
+    payload = {
+        "model": TRANSLATION_MODEL,
+        "messages": [
+            {
+                "role": "system",
+                "content": (
+                    f"You are a professional Hebrew-to-{lang_name} translator. "
+                    f"Translate each Modern Hebrew paragraph naturally into {lang_name}. "
+                    "Return JSON {\"paragraphs\": [\"...\"]} with the SAME number of strings, same order. "
+                    "Preserve meaning, not word order."
+                ),
+            },
+            {
+                "role": "user",
+                "content": json.dumps({"paragraphs": hebrew_paragraphs}, ensure_ascii=False),
+            },
+        ],
+        "response_format": {"type": "json_object"},
+    }
+    try:
+        response = client.chat.completions.create(**payload)
+        data = json.loads(response.choices[0].message.content.strip())
+        translated = data.get("paragraphs") or data.get("translations") or []
+        if isinstance(translated, list) and len(translated) == len(hebrew_paragraphs):
+            if on_progress:
+                on_progress(len(hebrew_paragraphs), len(hebrew_paragraphs))
+            return [str(item) for item in translated]
+        print(
+            f"    Batch {target_lang} translation length mismatch "
+            f"({len(translated)} vs {len(hebrew_paragraphs)}); falling back."
+        )
+    except Exception as exc:
+        print(f"    Batch {target_lang} translation failed ({exc}); falling back.")
+
+    translated = []
     total = len(hebrew_paragraphs)
     for i, para in enumerate(hebrew_paragraphs):
         if on_progress:

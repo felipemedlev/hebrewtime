@@ -223,9 +223,16 @@ def build_previous_episode_context(bank: dict, episode_number: int, narrator_nam
     if not previous:
         return "No previous generated episodes yet."
 
-    recent = previous[-3:]
+    titles = [
+        f"Episode {ep['episode_number']}: {ep.get('title_en') or ep.get('script', {}).get('title', '')}"
+        for ep in previous
+    ]
+    recent = previous[-2:]
     lines = [
-        f"Use these already-generated episodes as continuity context. Keep {narrator_name}'s voice, avoid repeating the same anecdotes, and reuse useful vocabulary naturally."
+        f"This is one continuous podcast season hosted by {narrator_name}.",
+        "Keep the same voice. Do not retell old stories. Do not reuse old jokes, closings, or sentence openings.",
+        "Episode 2+ should start with one short spoken callback to the previous episode, then move to today's topic.",
+        "Already covered: " + "; ".join(titles),
     ]
     for ep in recent:
         script = ep["script"]
@@ -237,10 +244,10 @@ def build_previous_episode_context(bank: dict, episode_number: int, narrator_nam
         lines.append(
             f"- Episode {ep['episode_number']}: {script.get('title', ep.get('title_en', ''))}\n"
             f"  Topic: {ep.get('topic', '')}\n"
-            f"  Opening scene: {first_scene[:260]}\n"
-            f"  Closing note: {closing[:220]}\n"
-            f"  Useful phrases: {useful}\n"
-            f"  Vocab to reinforce later: {vocab}"
+            f"  Opening: {first_scene[:260]}\n"
+            f"  Closing: {closing[:220]}\n"
+            f"  Useful phrases already used: {useful}\n"
+            f"  Vocab already introduced: {vocab}"
         )
     return "\n".join(lines)
 
@@ -321,6 +328,7 @@ def generate_script(
     episode_cfg: dict,
     previous_context: str = "No previous generated episodes yet.",
     script_model: str | None = None,
+    next_episode_hint: str = "",
 ) -> dict:
     narrator = curriculum["narrator"]
     gen = curriculum.get("generation", {})
@@ -344,7 +352,7 @@ def generate_script(
         fallback_desc = "intermediate Hebrew for learners who know basic daily vocabulary and are ready for richer connectors, opinions, short explanations, and more natural spoken phrasing"
         fallback_lang = "Modern spoken Hebrew with natural connectors, simple subordinate clauses, useful past/future forms, and occasional common idioms explained through context"
         fallback_vocab = "Introduce a focused set of intermediate words and phrases, making sure the overall story remains understandable through context."
-        sentence_guidance = "Intermediate vocabulary; natural sentence length with logical connectors"
+        sentence_guidance = "Easy spoken intermediate Hebrew: short sentences, everyday words, a few connectors"
     else:
         fallback_desc = "beginner-friendly Hebrew with high-frequency vocabulary and simple grammar"
         fallback_lang = "Modern spoken Hebrew, slow and clear, beginner-friendly grammar"
@@ -367,13 +375,13 @@ def generate_script(
 
     style_rules_block = "\n".join(f"- {rule}" for rule in style_rules)
 
-    system_prompt = f"""You are a Hebrew language content writer creating {level_name} podcast scripts.
+    system_prompt = f"""You are writing a spoken Hebrew podcast script for {level_name} learners.
 
 Narrator persona: {narrator['persona']}
 Narrator name: {narrator['name']} ({narrator.get('name_hebrew', '')})
 Learning level: {level_description}
 
-Write a ~{target_minutes}-minute spoken Hebrew monologue for episode {episode_cfg['episode_number']}.
+Write a ~{target_minutes}-minute spoken Hebrew podcast episode {episode_cfg['episode_number']}.
 Topic: {episode_cfg['topic']}
 Title (English): {episode_cfg.get('title_en', episode_cfg['topic'])}
 Narrative hook: {narrative_hook}
@@ -381,31 +389,39 @@ Narrative hook: {narrative_hook}
 Previous episode context:
 {previous_context}
 
+Next episode (for the closing look-ahead only):
+{next_episode_hint or "This is the last episode. Close the season without promising a new scene."}
+
 Length requirements (critical):
 - Total Hebrew word count: {word_min}–{word_max} words across all paragraphs
-- Aim for ~{target_paragraphs} short paragraphs (2–4 sentences each)
-- When read aloud slowly for learners, this should fill about {target_minutes} minutes
+- Aim for ~{target_paragraphs} short paragraphs (2–4 short sentences each)
+- When read aloud for learners, this should fill about {target_minutes} minutes
+
+Voice (critical):
+- This is a microphone, not a book. {narrator_name} talks to the listener in first person.
+- Entertaining, curious, and continuous. Share interesting things about Israel through a real scene.
+- Easy spoken Hebrew: short sentences, common words, natural fillers. Not formal, not literary, not a guidebook.
+- Do NOT repeat the same word, phrase, or sentence opening close together. Vary verbs and images.
+- Do NOT pad with gentle repetition. Each paragraph must add a new beat.
 
 Requirements:
 - {narrator_instruction}
 - {language_guidance}
 - {sentence_guidance}
-- Include and naturally reuse these review words: {', '.join(review) if review else 'none'}
-- Introduce these new words naturally: {', '.join(new_vocab) if new_vocab else 'review only'}
-- Keep these high-frequency words active throughout the episode: {', '.join(core_vocab)}
-- Naturally include these useful conversational chunks when relevant: {', '.join(useful_chunks)}
-- Episode-specific useful phrases to include and reinforce: {', '.join(useful_phrases) if useful_phrases else 'none'}
+- Include these review words once if they fit: {', '.join(review) if review else 'none'}
+- Introduce these new words naturally, usually once or twice: {', '.join(new_vocab) if new_vocab else 'review only'}
+- Spoken words you MAY use when they fit, not all of them, and not in every paragraph: {', '.join(core_vocab)}
+- Conversational chunks you MAY use when they fit: {', '.join(useful_chunks)}
+- Include these useful phrases once, in real dialogue or thought: {', '.join(useful_phrases) if useful_phrases else 'none'}
 - Each paragraph: 2-4 sentences max, separated for TTS
-- Expand with personal anecdotes, sensory detail, and gentle repetition — do NOT be brief
-- Make the episode interesting: include a tiny real-life problem, choice, surprise, or emotion.
-- Use concrete everyday details (time of day, place, people, sounds, smells, small actions).
-- Vary sentence openings so the script does not sound like a textbook pattern drill.
-- Do not explain grammar directly unless {narrator_name} says one short, natural learner-friendly note.
-- Maintain strong continuity with previous episodes: {narrator_name} must sound like the exact same person, continuing their personal journey. Refer back to earlier life events, jokes, or vocabulary naturally.
-- CRITICAL: Never repeat the same stories, situations, or anecdotes that were already told in previous episodes. Treat this as a serial podcast where each episode has a unique, fresh daily slice-of-life scene.
-- Fun and engaging podcast narration: The monologue should feel like a warm, interesting, and personal chat with a friend over coffee, filled with small, relatable, and fun life observations. It should NOT feel like a dry textbook exercise, grammar drill, or a list of sentences.
-- {vocabulary_guidance}
+- Include a tiny real-life problem, joke, or surprise, plus one specific Israel detail (food, habit, place, holiday).
+- Use concrete details: time, place, people, sounds, smells, small actions.
+- Vary paragraph openings. Never start two paragraphs in a row with אני.
+- Do not explain grammar. Do not talk about learning Hebrew unless one natural aside.
+- Continuity: same person, same season. One short callback, then a new scene. If there is a next episode, end with one sentence looking toward it. Do not start that episode now.
+- Never repeat stories, jokes, or closing images from earlier episodes.
 - No stage directions, no markdown, no bullet lists in Hebrew text
+- {vocabulary_guidance}
 
 Style rules:
 {style_rules_block}
@@ -419,15 +435,34 @@ Return JSON with exactly:
 english_paragraphs must align 1:1 with hebrew_paragraphs (same count)."""
 
     user_prompt = (
-        f"Write episode {episode_cfg['episode_number']} about: {episode_cfg['topic']}. "
-        f"Use the narrative hook: {narrative_hook}. "
+        f"Write episode {episode_cfg['episode_number']} as a lively spoken podcast about: {episode_cfg['topic']}. "
+        f"Follow this hook: {narrative_hook}. "
         f"Target {word_min}-{word_max} Hebrew words. "
-        f"The result should feel like a fun, friendly, and engaging podcast episode hosted by {narrator_name}. "
-        "Ensure it is lively, entertaining, and connects naturally to the narrator's personality and previous life context. "
-        "Do not repeat any stories or anecdotes from earlier episodes."
+        f"{narrator_name} is talking into a microphone about interesting everyday Israel. "
+        "Keep the Hebrew simpler than a newspaper and more fun than a textbook. "
+        "Do not repeat phrases. Do not write like a book chapter. "
+        "Do not repeat any stories from earlier episodes."
     )
 
-    for attempt in range(2):
+    banned_snippets = (
+        "אם אתם לומדים עברית",
+        "לא שיעור",
+        "לא מדריך",
+        "אני חוזרת לשגרה",
+        "זה הכול מהערב",
+        "הנה, זה הסיפור",
+        "מצד אחד",
+        "בואו נחשוב",
+        "מה שאני אוהבת זה",
+        "יש בזה משהו",
+        "זה מזכיר לי",
+        "בסופו של דבר",
+        "לא תמיד קל",
+        "כמו שאומרים בעברית",
+        "ברוכים הבאים",
+    )
+
+    for attempt in range(3):
         response = create_script_completion(
             client,
             model=model,
@@ -445,19 +480,39 @@ english_paragraphs must align 1:1 with hebrew_paragraphs (same count)."""
             english = english[:min_len]
 
         word_count = count_hebrew_words(hebrew)
-        if word_count >= word_min or attempt == 1:
-            if word_count < word_min:
+        joined = "\n".join(hebrew)
+        banned_hits = [snip for snip in banned_snippets if snip in joined]
+        too_short = word_count < word_min
+        too_long = word_count > word_max + 80
+
+        if not too_short and not too_long and not banned_hits:
+            break
+
+        if attempt == 2:
+            if too_short:
                 print(
                     f"  Warning: script has {word_count} words (target {word_min}+). "
                     "Audio may be shorter than 10 minutes."
                 )
+            if banned_hits:
+                print(f"  Warning: leftover stock phrases: {', '.join(banned_hits)}")
             break
 
-        print(f"  Script too short ({word_count} words). Regenerating with stricter length...")
+        reasons = []
+        if too_short:
+            reasons.append(f"only {word_count} words; write {word_min}-{word_max}")
+        if too_long:
+            reasons.append(f"{word_count} words is too long; keep {word_min}-{word_max}")
+        if banned_hits:
+            reasons.append("remove these stock phrases: " + ", ".join(banned_hits))
+        print(f"  Regenerating ({'; '.join(reasons)})...")
+        draft = "\n\n".join(hebrew)
         user_prompt = (
-            f"Rewrite episode {episode_cfg['episode_number']} about: {episode_cfg['topic']}. "
-            f"The previous draft was only {word_count} words. You MUST write {word_min}-{word_max} Hebrew words. "
-            "Keep the same natural story feeling, include the useful phrases, and add more everyday scenes and examples."
+            f"Keep this episode's voice and story, but fix: {' '.join(reasons)}. "
+            f"Topic: {episode_cfg['topic']}. Hook: {narrative_hook}. "
+            "If it is short, ADD 3-5 new spoken paragraphs with new beats. Do not rewrite from zero. "
+            "Keep it spoken, entertaining, and continuous.\n\n"
+            f"Current Hebrew draft:\n{draft}"
         )
 
     return {
@@ -765,7 +820,19 @@ def process_episode(
     if bank_script and (not force or audio_only):
         script = bank_script
         if openai_client is not None:
+            had_all_translations = script.get("translations") and all(
+                lang in script["translations"] for lang in ("ru", "uk", "pt", "es", "fr")
+            )
             script = enrich_script_translations(openai_client, script)
+            if not had_all_translations:
+                upsert_script_in_bank(
+                    script_bank,
+                    level=level,
+                    episode_cfg=episode_cfg,
+                    script=script,
+                )
+                save_script_bank(script_bank_path, script_bank)
+                print(f"Stored enriched translations in {script_bank_path}")
         checkpoint["script"] = script
         save_checkpoint(level, num, checkpoint)
         print(f"Using stored script from {script_bank_path}")
@@ -793,12 +860,27 @@ def process_episode(
         print(f"Generating script with {model_name}...")
         narrator_name = curriculum.get("narrator", {}).get("name", "Narrator")
         previous_context = build_previous_episode_context(script_bank, num, narrator_name=narrator_name)
+        next_cfg = next(
+            (
+                ep
+                for ep in curriculum.get("episodes", [])
+                if int(ep.get("episode_number", 0)) == num + 1
+            ),
+            None,
+        )
+        next_episode_hint = ""
+        if next_cfg:
+            next_episode_hint = (
+                f"Episode {next_cfg['episode_number']}: {next_cfg.get('title_en', '')}. "
+                f"Topic: {next_cfg.get('topic', '')}."
+            )
         script = generate_script(
             openai_client,
             curriculum,
             episode_cfg,
             previous_context,
             script_model=script_model,
+            next_episode_hint=next_episode_hint,
         )
         script = enrich_script_translations(openai_client, script)
         checkpoint["script"] = script
@@ -913,6 +995,8 @@ def main() -> None:
 
     if not args.audio_only and not OPENAI_API_KEY:
         raise SystemExit("Missing OPENAI_API_KEY")
+    if args.audio_only and not OPENAI_API_KEY:
+        print("Warning: OPENAI_API_KEY not set; ru/uk/pt/es/fr translations will not be enriched.")
 
     curriculum_path = resolve_curriculum_path(args.level, args.curriculum)
     if not curriculum_path.exists():
@@ -932,7 +1016,7 @@ def main() -> None:
     if not args.scripts_only:
         ensure_level(args.level, curriculum.get("display"))
 
-    openai_client = None if args.audio_only else OpenAI(api_key=OPENAI_API_KEY)
+    openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
     script_bank_path = Path(args.script_bank) if args.script_bank else default_script_bank_path(args.level)
     if not script_bank_path.is_absolute():
         script_bank_path = (_PIPELINE_DIR / script_bank_path).resolve()
