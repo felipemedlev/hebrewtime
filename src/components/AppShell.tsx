@@ -737,6 +737,17 @@ export default function AppShell({
           <SpeakView
             isAuthenticated={entitlements.isAuthenticated}
             isPremium={entitlements.isPremium}
+            episodeTitle={episode?.title ?? null}
+            episodeHebrewText={episode?.hebrew_text?.slice(0, 600) ?? null}
+            onSavePhrase={async (hebrew, translation) => {
+              await addWord({
+                word: hebrew,
+                translation,
+                episodeTitle: t("speakTitle"),
+                episodeUrl: "",
+                entryKind: "phrase",
+              });
+            }}
             onRequireAuth={() => {
               setAuthInitialMode("login");
               setIsAuthModalOpen(true);

@@ -15,6 +15,7 @@ import {
   Volume2,
   Clock,
   LogIn,
+  Pause,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useT } from "@/lib/i18n/LanguageProvider";
@@ -23,13 +24,20 @@ import { useSpeakProfile } from "@/hooks/useSpeakProfile";
 import { useSpeakSession } from "@/hooks/useSpeakSession";
 import { clampSpeechSpeed } from "@/lib/speak/profileUtils";
 import type {
+  SpeakEpisodeContext,
+  SpeakLearnerGender,
   SpeakLevel,
   SpeakRealtimeModel,
+  SpeakRecapPayload,
+  SpeakScene,
   SpeakSessionStatus,
   SpeakVoiceGender,
 } from "@/lib/speak/types";
 import {
   FREE_SPEAK_SESSION_LIMIT_SECONDS,
+  SPEAK_EPISODE_SNIPPET_MAX,
+  SPEAK_SCENE_DEFAULT,
+  SPEAK_SCENES,
   SPEAK_SPEED_BY_LEVEL,
   SPEAK_SPEED_MAX,
   SPEAK_SPEED_MIN,
@@ -38,12 +46,24 @@ import {
 type SpeakViewProps = {
   isAuthenticated: boolean;
   isPremium: boolean;
+  episodeTitle?: string | null;
+  episodeHebrewText?: string | null;
+  onSavePhrase?: (hebrew: string, translation: string) => Promise<void>;
   onRequireAuth: () => void;
   onRequireSubscription: () => void;
   onSessionActiveChange?: (active: boolean) => void;
 };
 
 const LEVELS: SpeakLevel[] = ["beginner", "intermediate", "advanced"];
+
+const SCENE_LABELS: Record<SpeakScene, MessageKey> = {
+  introductions: "speakSceneIntroductions",
+  cafe: "speakSceneCafe",
+  directions: "speakSceneDirections",
+  daily_routine: "speakSceneDailyRoutine",
+  phone_call: "speakScenePhoneCall",
+  about_your_day: "speakSceneAboutYourDay",
+};
 
 function formatCountdown(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -74,7 +94,12 @@ function statusLabel(status: SpeakSessionStatus, t: (key: MessageKey) => string)
   }
 }
 
-function statusHint(status: SpeakSessionStatus, t: (key: MessageKey) => string): string | null {
+function statusHint(
+  status: SpeakSessionStatus,
+  isThinking: boolean,
+  t: (key: MessageKey) => string
+): string | null {
+  if (isThinking) return t("speakCallThinkingHint");
   switch (status) {
     case "connecting":
       return t("speakCallConnectingHint");
@@ -90,6 +115,9 @@ function statusHint(status: SpeakSessionStatus, t: (key: MessageKey) => string):
 export default function SpeakView({
   isAuthenticated,
   isPremium,
+  episodeTitle,
+  episodeHebrewText,
+  onSavePhrase,
   onRequireAuth,
   onRequireSubscription,
   onSessionActiveChange,
@@ -98,15 +126,23 @@ export default function SpeakView({
   const [userId, setUserId] = useState<string | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [voiceGender, setVoiceGender] = useState<SpeakVoiceGender>("female");
+  const [learnerGender, setLearnerGender] = useState<SpeakLearnerGender | null>(null);
   const [level, setLevel] = useState<SpeakLevel>("beginner");
+  const [scene, setScene] = useState<SpeakScene>(SPEAK_SCENE_DEFAULT);
   const [realtimeModel, setRealtimeModel] =
     useState<SpeakRealtimeModel>("gpt-realtime-2.1");
   const [speechSpeed, setSpeechSpeed] = useState(SPEAK_SPEED_BY_LEVEL.beginner);
   const [speedTouched, setSpeedTouched] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const { profile, isLoading, savePreferences, saveLearnerFacts, saveConversationSummary } =
-    useSpeakProfile(userId);
+  const {
+    profile,
+    isLoading,
+    savePreferences,
+    saveLearnerFacts,
+    saveConversationSummary,
+    saveSessionNotes,
+  } = useSpeakProfile(userId);
 
   useEffect(() => {
     let mounted = true;
@@ -129,9 +165,11 @@ export default function SpeakView({
     if (!profile) return;
     setVoiceGender(profile.voiceGender);
     setLevel(profile.level);
+    setScene(profile.scene);
     setRealtimeModel(profile.realtimeModel);
     setSpeechSpeed(profile.speechSpeed);
     setSpeedTouched(profile.speechSpeed !== SPEAK_SPEED_BY_LEVEL[profile.level]);
+    setLearnerGender(profile.learnerFacts.gender ?? null);
   }, [profile]);
 
   const handleLevelChange = useCallback(
@@ -158,25 +196,71 @@ export default function SpeakView({
     [saveConversationSummary]
   );
 
+  const handleSessionRecap = useCallback(
+    async (payload: SpeakRecapPayload) => {
+      const targetPhrases = payload.phrases.map((item) => item.hebrew).filter(Boolean);
+      const lastCorrections = payload.recast ? [payload.recast] : [];
+      await saveSessionNotes({ targetPhrases, lastCorrections });
+
+      if (!onSavePhrase) return;
+      const items = [
+        ...payload.phrases,
+        ...(payload.newWord
+          ? [{ hebrew: payload.newWord.hebrew, english: payload.newWord.english }]
+          : []),
+      ];
+      for (const item of items) {
+        const hebrew = item.hebrew.trim();
+        const english = item.english.trim();
+        if (!hebrew || !english) continue;
+        try {
+          await onSavePhrase(hebrew, english);
+        } catch {
+          // ignore individual vocab save failures
+        }
+      }
+    },
+    [onSavePhrase, saveSessionNotes]
+  );
+
   const handleError = useCallback((message: string) => {
     setErrorMessage(message);
   }, []);
 
+  const episodeContext = useMemo<SpeakEpisodeContext | null>(() => {
+    if (!episodeTitle && !episodeHebrewText) return null;
+    return {
+      title: episodeTitle?.trim() || "",
+      hebrewText: (episodeHebrewText ?? "").slice(0, SPEAK_EPISODE_SNIPPET_MAX),
+    };
+  }, [episodeTitle, episodeHebrewText]);
+
   const {
     status,
     isActive,
+    isThinking,
     remainingSeconds,
     startSession,
     stopSession,
     sendDontUnderstand,
+    sendRepeatSlower,
+    sendSayShorter,
+    sendHint,
+    sendSkipTopic,
+    sendRepeatAfterMe,
+    toggleThinking,
   } = useSpeakSession({
     accessToken,
     voiceGender,
     level,
     realtimeModel,
     speechSpeed,
+    scene,
+    learnerGender,
+    episodeContext,
     onLearnerFacts: handleLearnerFacts,
     onConversationSummary: handleConversationSummary,
+    onSessionRecap: handleSessionRecap,
     onLimitReached: onRequireSubscription,
     onAuthRequired: onRequireAuth,
     onError: handleError,
@@ -190,6 +274,13 @@ export default function SpeakView({
     const facts = profile?.learnerFacts ?? {};
     const items: { key: string; label: string; value: string }[] = [];
     if (facts.name) items.push({ key: "name", label: t("speakFactName"), value: facts.name });
+    if (facts.gender) {
+      items.push({
+        key: "gender",
+        label: t("speakFactGender"),
+        value: facts.gender === "female" ? t("speakLearnerFemale") : t("speakLearnerMale"),
+      });
+    }
     if (facts.city) items.push({ key: "city", label: t("speakFactCity"), value: facts.city });
     if (facts.country) {
       items.push({ key: "country", label: t("speakFactCountry"), value: facts.country });
@@ -213,7 +304,8 @@ export default function SpeakView({
 
   const showCall = isActive || status === "connecting";
   const isStarting = status === "connecting";
-  const hint = statusHint(status, t);
+  const helpDisabled = status === "connecting" || isThinking;
+  const hint = statusHint(status, isThinking, t);
   const timerPct =
     remainingSeconds == null
       ? null
@@ -227,7 +319,10 @@ export default function SpeakView({
     if (isStarting || isActive) return;
 
     setErrorMessage(null);
-    void savePreferences({ voiceGender, level, realtimeModel, speechSpeed });
+    void savePreferences({ voiceGender, level, realtimeModel, speechSpeed, scene });
+    if (learnerGender) {
+      void saveLearnerFacts({ gender: learnerGender });
+    }
     await startSession();
   };
 
@@ -295,6 +390,28 @@ export default function SpeakView({
             </div>
 
             <div className="speak-row">
+              <span className="speak-row-label">{t("speakLearnerGenderLabel")}</span>
+              <div className="speak-toggle" role="group" aria-label={t("speakLearnerGenderLabel")}>
+                <button
+                  type="button"
+                  className={learnerGender === "female" ? "is-active" : ""}
+                  aria-pressed={learnerGender === "female"}
+                  onClick={() => setLearnerGender("female")}
+                >
+                  {t("speakLearnerFemale")}
+                </button>
+                <button
+                  type="button"
+                  className={learnerGender === "male" ? "is-active" : ""}
+                  aria-pressed={learnerGender === "male"}
+                  onClick={() => setLearnerGender("male")}
+                >
+                  {t("speakLearnerMale")}
+                </button>
+              </div>
+            </div>
+
+            <div className="speak-row">
               <span className="speak-row-label">{t("speakLevelLabel")}</span>
               <div className="speak-toggle" role="group" aria-label={t("speakLevelLabel")}>
                 {LEVELS.map((value) => (
@@ -312,6 +429,23 @@ export default function SpeakView({
                           ? "speakLevelIntermediate"
                           : "speakLevelAdvanced"
                     )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="speak-row speak-row-wrap">
+              <span className="speak-row-label">{t("speakSceneLabel")}</span>
+              <div className="speak-pills" role="group" aria-label={t("speakSceneLabel")}>
+                {SPEAK_SCENES.map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={scene === value ? "is-active" : ""}
+                    aria-pressed={scene === value}
+                    onClick={() => setScene(value)}
+                  >
+                    {t(SCENE_LABELS[value])}
                   </button>
                 ))}
               </div>
@@ -393,9 +527,11 @@ export default function SpeakView({
         </section>
       ) : (
         <section className="speak-call" aria-live="polite">
-          <div className={`speak-orb status-${status}`}>
+          <div className={`speak-orb status-${isThinking ? "thinking" : status}`}>
             {status === "connecting" ? (
               <Loader2 className="speak-spin" size={28} />
+            ) : isThinking ? (
+              <Pause size={28} />
             ) : status === "speaking" ? (
               <Volume2 size={28} />
             ) : (
@@ -403,7 +539,9 @@ export default function SpeakView({
             )}
           </div>
 
-          <h2 className="speak-call-status">{statusLabel(status, t)}</h2>
+          <h2 className="speak-call-status">
+            {isThinking ? t("speakThinking") : statusLabel(status, t)}
+          </h2>
           {hint && <p className="speak-call-hint">{hint}</p>}
 
           {remainingSeconds != null && timerPct != null && (
@@ -429,15 +567,67 @@ export default function SpeakView({
               <PhoneOff size={18} />
               {t("speakEndCall")}
             </button>
-            <button
-              type="button"
-              className="speak-secondary-btn"
-              onClick={sendDontUnderstand}
-              disabled={status === "connecting"}
-            >
-              <MessageCircleQuestion size={16} />
-              {t("speakDontUnderstand")}
-            </button>
+            <div className="speak-help-row">
+              <button
+                type="button"
+                className="speak-chip-btn"
+                onClick={sendDontUnderstand}
+                disabled={helpDisabled}
+              >
+                <MessageCircleQuestion size={14} />
+                {t("speakDontUnderstand")}
+              </button>
+              <button
+                type="button"
+                className="speak-chip-btn"
+                onClick={sendRepeatSlower}
+                disabled={helpDisabled}
+              >
+                {t("speakRepeatSlower")}
+              </button>
+              <button
+                type="button"
+                className="speak-chip-btn"
+                onClick={sendSayShorter}
+                disabled={helpDisabled}
+              >
+                {t("speakSayShorter")}
+              </button>
+              <button
+                type="button"
+                className="speak-chip-btn"
+                onClick={sendHint}
+                disabled={helpDisabled}
+              >
+                {t("speakGiveHint")}
+              </button>
+              <button
+                type="button"
+                className="speak-chip-btn"
+                onClick={sendSkipTopic}
+                disabled={helpDisabled}
+              >
+                {t("speakSkipTopic")}
+              </button>
+              <button
+                type="button"
+                className="speak-chip-btn"
+                onClick={sendRepeatAfterMe}
+                disabled={helpDisabled}
+              >
+                {t("speakRepeatAfterMe")}
+              </button>
+              <button
+                type="button"
+                className={`speak-chip-btn${isThinking ? " is-active" : ""}`}
+                onClick={toggleThinking}
+                disabled={status === "connecting"}
+                aria-pressed={isThinking}
+              >
+                <Pause size={14} />
+                {t("speakThinking")}
+              </button>
+            </div>
           </div>
         </section>
       )}

@@ -19,8 +19,9 @@ Run migrations in [`supabase/migrations/`](../supabase/migrations/) **in numeric
 | 11 | `11_flashcard_direction.sql` | `direction` column for forward/reverse FSRS schedules |
 | 12 | `12_vocabulary_entry_kind.sql` | `vocabulary.entry_kind` (`word` or `phrase`) |
 | 13 | `13_speak_profiles.sql` | `speak_profiles` + `user_activity_daily.speak_sessions_count` |
+| 14 | `14_speak_scenes_notes.sql` | `speak_profiles.scene` + `session_notes` |
 
-**Fresh install:** run 01 through 13 in order.
+**Fresh install:** run 01 through 14 in order.
 
 **Existing project:** skip migrations you have already applied. Migration 09 is important if your project still has premium only RLS on vocabulary/flashcards.
 
@@ -71,9 +72,11 @@ Per-user Hebrew speaking teacher memory (not a chat log). One row per user.
 | `voice_gender` | `male` or `female` (maps to Realtime voices `cedar` / `marin`) |
 | `level` | `beginner`, `intermediate`, or `advanced` (vocabulary guidance) |
 | `realtime_model` | `gpt-realtime-2.1` or `gpt-realtime-2.1-mini` |
+| `scene` | conversation scene (`introductions`, `cafe`, `directions`, `daily_routine`, `phone_call`, `about_your_day`) |
 | `speech_speed` | 0.25–1.5 (default 0.6 beginner; user-chosen before each session) |
-| `learner_facts` | JSONB: `name`, `city`, `country`, `occupation`, `interests` |
+| `learner_facts` | JSONB: `name`, `gender` (`male`/`female`), `city`, `country`, `occupation`, `interests` |
 | `conversation_summary` | ≤500 char English summary of prior topics |
+| `session_notes` | JSONB: `last_corrections`, `target_phrases` (max 5 short strings each) |
 
 RLS: authenticated users CRUD own row only. Daily speak caps enforced in `createSpeakSession` via `increment_speak_sessions_count()` (service role only).
 

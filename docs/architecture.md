@@ -129,19 +129,21 @@ Rate limits and input bounds: `src/lib/actionGuards.ts`.
 
 Fourth sidebar tab (`viewMode: "speak"`). Learners talk to a patient Hebrew teacher over **OpenAI Realtime** (`gpt-realtime-2.1` or cheaper `gpt-realtime-2.1-mini`) using **WebRTC** in the browser via `@openai/agents/realtime`.
 
-**Setup (before Start):** teacher voice (female `marin` / male `cedar`), Hebrew level (beginner / intermediate / advanced), model quality vs cost, speaking speed (0.25–1.5). Level controls vocabulary only; speed is independent.
+**Setup (before Start):** teacher voice (female `marin` / male `cedar`), learner form of address (`אתה` / `את`), Hebrew level, conversation scene, model quality vs cost, speaking speed (0.25–1.5; defaults 0.6 / 0.8 / 1.0 by level until the learner moves the slider).
 
 **Session flow:**
 
 1. Client calls `createSpeakSession` (auth + free-tier daily check).
-2. Server builds teacher instructions from `src/lib/speak/teacherPrompt.ts` + stored `speak_profiles` facts/summary.
+2. Server builds teacher instructions from `src/lib/speak/teacherPrompt.ts` + stored `speak_profiles` facts/summary/scene/session notes + due vocabulary and current episode words.
 3. Server mints ephemeral key via `POST /v1/realtime/client_secrets` (API key never sent to browser).
-4. Client connects `RealtimeSession`; audio only (no transcription/captions for low latency).
-5. Agent tools (`save_learner_facts`, `update_conversation_summary`) write to `speak_profiles` via RLS.
+4. Client connects `RealtimeSession`; audio only (no transcription/captions). Greeting is triggered with `response.create` (no extra user turn). Mic permission and the Realtime SDK preload in parallel with minting the key.
+5. Agent tools (`save_learner_facts`, `update_conversation_summary`, `save_session_recap`) write to `speak_profiles` via RLS without blocking the next audio turn; recap phrases can be saved to vocabulary.
 
-**Teacher behavior:** leads conversation, light spoken-error correction (one recast per turn), simpler Hebrew then brief English if learner is lost. No full transcripts stored—only JSONB facts + ≤500 char English summary.
+**Teacher behavior:** leads a chosen scene, light spoken-error correction (one recast per turn, then a yes/no reuse prompt), simpler Hebrew then brief English if learner is lost. Turn detection is `server_vad` (faster than semantic VAD): ~550ms silence beginner (no barge-in), ~380ms intermediate, ~280ms advanced. No full transcripts stored—only JSONB facts + ≤500 char English summary + short session notes.
 
-**Free tier:** 1 session/day, hard stop at ~3 minutes. Premium/admin: unlimited. Episode player pauses while a speak session is active.
+**In-call help:** I don't understand, slower, shorter, starter sentence, skip topic, repeat after me, and an "I'm thinking" mic pause.
+
+**Free tier:** 1 session/day, hard stop at ~3 minutes with a ~20 second recap/goodbye window. Premium/admin: unlimited. Episode player pauses while a speak session is active.
 
 **Security:** `Permissions-Policy: microphone=(self)`; CSP `connect-src` includes `api.openai.com` and `*.openai.com`. `OpenAI-Safety-Identifier` header uses SHA-256 of `user_id`.
 

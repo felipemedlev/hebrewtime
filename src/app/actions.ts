@@ -28,17 +28,36 @@ import {
 import { buildTeacherInstructions } from "@/lib/speak/teacherPrompt";
 import {
   clampSpeechSpeed,
-  getVadEagerness,
+  getSpeakTurnDetection,
   getVoiceId,
+  isSpeakLearnerGender,
   isSpeakLevel,
   isSpeakRealtimeModel,
+  isSpeakScene,
   isSpeakVoiceGender,
   sanitizeConversationSummary,
   sanitizeLearnerFacts,
+  sanitizeSessionNotes,
+  sessionNotesToRow,
+  toClientSecretTurnDetection,
   type SpeakProfileRow,
 } from "@/lib/speak/profileUtils";
-import type { CreateSpeakSessionResult } from "@/lib/speak/types";
-import { FREE_SPEAK_SESSION_LIMIT_SECONDS } from "@/lib/speak/types";
+import {
+  extractHebrewTokens,
+  formatPracticeContextBlock,
+  pickSpeakTargetWords,
+  type SpeakProgressRow,
+  type SpeakVocabRow,
+} from "@/lib/speak/practiceContext";
+import type {
+  CreateSpeakSessionResult,
+  SpeakEpisodeContext,
+} from "@/lib/speak/types";
+import {
+  FREE_SPEAK_SESSION_LIMIT_SECONDS,
+  SPEAK_EPISODE_SNIPPET_MAX,
+  SPEAK_SCENE_DEFAULT,
+} from "@/lib/speak/types";
 
 
 type Entitlements = {
@@ -1134,82 +1153,154 @@ function hashUserIdForOpenAI(userId: string): string {
   return createHash("sha256").update(userId).digest("hex");
 }
 
+async function loadSpeakPracticeBlock(
+  userId: string,
+  episodeContext: SpeakEpisodeContext | null | undefined
+): Promise<string> {
+  if (!supabaseAdmin) return "";
+
+  const [{ data: vocabRows }, { data: progressRows }] = await Promise.all([
+    supabaseAdmin
+      .from("vocabulary")
+      .select("id, word, translation, saved_at")
+      .eq("user_id", userId)
+      .order("saved_at", { ascending: false })
+      .limit(40),
+    supabaseAdmin
+      .from("flashcard_progress")
+      .select("vocab_id, next_review_at, is_learned")
+      .eq("user_id", userId)
+      .eq("direction", "forward"),
+  ]);
+
+  const targetWords = pickSpeakTargetWords(
+    (vocabRows ?? []) as SpeakVocabRow[],
+    (progressRows ?? []) as SpeakProgressRow[],
+    new Date().toISOString()
+  );
+
+  const episodeTitle = episodeContext?.title
+    ? clampString(episodeContext.title, 200)
+    : null;
+  const snippet = episodeContext?.hebrewText
+    ? clampString(episodeContext.hebrewText, SPEAK_EPISODE_SNIPPET_MAX)
+    : "";
+  const episodeWords = snippet ? extractHebrewTokens(snippet, 5) : [];
+  const wrappedTitle = episodeTitle
+    ? wrapUserContent("episode_title", episodeTitle)
+    : null;
+
+  return formatPracticeContextBlock(targetWords, wrappedTitle, episodeWords);
+}
+
 export async function createSpeakSession(
   accessToken: string | undefined,
   voiceGender: string,
   level: string,
   realtimeModel: string,
-  speechSpeed: number
+  speechSpeed: number,
+  scene: string,
+  episodeContext?: SpeakEpisodeContext | null,
+  learnerGender?: string | null
 ): Promise<CreateSpeakSessionResult> {
-  const ent = await getUserEntitlements(accessToken);
-  if (!ent.isAuthenticated) {
-    return { type: "auth_required" };
-  }
-
-  const user = await getUserFromToken(accessToken!);
-  if (!user?.id || !checkRateLimit(user.id, "createSpeakSession")) {
-    return { type: "error", message: "Too many requests. Please wait a moment." };
-  }
-
   if (
     !isSpeakVoiceGender(voiceGender) ||
     !isSpeakLevel(level) ||
-    !isSpeakRealtimeModel(realtimeModel)
+    !isSpeakRealtimeModel(realtimeModel) ||
+    !isSpeakScene(scene)
   ) {
     return { type: "error", message: "Invalid speak session settings." };
   }
 
+  if (!accessToken) {
+    return { type: "auth_required" };
+  }
+
+  const user = await getUserFromToken(accessToken);
+  if (!user?.id) {
+    return { type: "auth_required" };
+  }
+
+  if (!checkRateLimit(user.id, "createSpeakSession")) {
+    return { type: "error", message: "Too many requests. Please wait a moment." };
+  }
+
+  const email = user.email?.toLowerCase() ?? "";
+  const isAdmin = Boolean(email) && adminEmails.includes(email);
+  const isPremium = isAdmin || (email ? await isPremiumEmail(email) : false);
+
   const safeSpeed = clampSpeechSpeed(speechSpeed);
   const voice = getVoiceId(voiceGender);
-  const vadEagerness = getVadEagerness(level);
+  const turnDetection = getSpeakTurnDetection(level);
+  const safeScene = isSpeakScene(scene) ? scene : SPEAK_SCENE_DEFAULT;
+  const genderPatch =
+    learnerGender && isSpeakLearnerGender(learnerGender) ? { gender: learnerGender } : {};
 
   if (!supabaseAdmin) {
     return { type: "error", message: "Server configuration error." };
   }
 
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    return { type: "error", message: "OpenAI is not configured." };
+  }
+
   const dateStr = new Date().toISOString().split("T")[0];
 
-  if (!ent.isPremium) {
-    const { data: activityData, error: activityError } = await supabaseAdmin
-      .from("user_activity_daily")
-      .select("speak_sessions_count")
-      .eq("user_id", user.id)
-      .eq("activity_date", dateStr)
-      .maybeSingle();
+  const profileQuery = supabaseAdmin
+    .from("speak_profiles")
+    .select(
+      "user_id, voice_gender, level, realtime_model, speech_speed, scene, learner_facts, conversation_summary, session_notes, updated_at"
+    )
+    .eq("user_id", user.id)
+    .maybeSingle();
 
-    if (activityError) {
-      console.error("Failed to check daily speak sessions:", activityError);
+  const activityQuery = isPremium
+    ? Promise.resolve({ data: null, error: null })
+    : supabaseAdmin
+        .from("user_activity_daily")
+        .select("speak_sessions_count")
+        .eq("user_id", user.id)
+        .eq("activity_date", dateStr)
+        .maybeSingle();
+
+  const [profileResult, activityResult, practiceBlock] = await Promise.all([
+    profileQuery,
+    activityQuery,
+    loadSpeakPracticeBlock(user.id, episodeContext),
+  ]);
+
+  if (profileResult.error) {
+    console.error("Failed to load speak profile:", profileResult.error);
+  }
+
+  if (!isPremium) {
+    if (activityResult.error) {
+      console.error("Failed to check daily speak sessions:", activityResult.error);
     }
-
-    const sessionsToday = activityData?.speak_sessions_count ?? 0;
+    const sessionsToday =
+      (activityResult.data as { speak_sessions_count?: number } | null)?.speak_sessions_count ?? 0;
     if (sessionsToday >= 1) {
       return { type: "limit_reached" };
     }
   }
 
-  const { data: profileRow, error: profileError } = await supabaseAdmin
-    .from("speak_profiles")
-    .select(
-      "user_id, voice_gender, level, realtime_model, speech_speed, learner_facts, conversation_summary, updated_at"
-    )
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (profileError) {
-    console.error("Failed to load speak profile:", profileError);
-  }
-
-  const learnerFacts = sanitizeLearnerFacts(profileRow?.learner_facts);
+  const learnerFacts = sanitizeLearnerFacts({
+    ...(profileResult.data?.learner_facts ?? {}),
+    ...genderPatch,
+  });
   const conversationSummary = sanitizeConversationSummary(
-    profileRow?.conversation_summary ?? ""
+    profileResult.data?.conversation_summary ?? ""
   );
-
-  const instructions = buildTeacherInstructions(level, learnerFacts, conversationSummary);
-
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    return { type: "error", message: "OpenAI is not configured." };
-  }
+  const sessionNotes = sanitizeSessionNotes(profileResult.data?.session_notes);
+  const instructions = buildTeacherInstructions(
+    level,
+    learnerFacts,
+    conversationSummary,
+    safeScene,
+    sessionNotes,
+    practiceBlock
+  );
 
   const sessionPayload = {
     session: {
@@ -1220,12 +1311,8 @@ export async function createSpeakSession(
       output_modalities: ["audio"],
       audio: {
         input: {
-          turn_detection: {
-            type: "semantic_vad",
-            eagerness: vadEagerness,
-            create_response: true,
-            interrupt_response: true,
-          },
+          noise_reduction: { type: "near_field" },
+          turn_detection: toClientSecretTurnDetection(turnDetection),
         },
         output: {
           voice,
@@ -1265,33 +1352,41 @@ export async function createSpeakSession(
       return { type: "error", message: "Invalid voice session response." };
     }
 
-    if (!ent.isPremium) {
-      const { error: incError } = await supabaseAdmin.rpc("increment_speak_sessions_count", {
-        p_user_id: user.id,
-        p_date: dateStr,
-      });
-      if (incError) {
-        console.error("Failed to increment speak sessions count:", incError);
-      }
-    }
-
     const upsertPayload: SpeakProfileRow = {
       user_id: user.id,
       voice_gender: voiceGender,
       level,
       realtime_model: realtimeModel,
       speech_speed: safeSpeed,
+      scene: safeScene,
       learner_facts: learnerFacts,
       conversation_summary: conversationSummary,
+      session_notes: sessionNotesToRow(sessionNotes),
     };
 
-    const { error: upsertError } = await supabaseAdmin.from("speak_profiles").upsert(
-      upsertPayload,
-      { onConflict: "user_id" }
-    );
-
-    if (upsertError) {
-      console.error("Failed to upsert speak profile preferences:", upsertError);
+    if (!isPremium) {
+      const [{ error: upsertError }, { error: incError }] = await Promise.all([
+        supabaseAdmin.from("speak_profiles").upsert(upsertPayload, { onConflict: "user_id" }),
+        supabaseAdmin.rpc("increment_speak_sessions_count", {
+          p_user_id: user.id,
+          p_date: dateStr,
+        }),
+      ]);
+      if (upsertError) {
+        console.error("Failed to upsert speak profile preferences:", upsertError);
+      }
+      if (incError) {
+        console.error("Failed to increment speak sessions count:", incError);
+      }
+    } else {
+      void supabaseAdmin
+        .from("speak_profiles")
+        .upsert(upsertPayload, { onConflict: "user_id" })
+        .then(({ error: upsertError }) => {
+          if (upsertError) {
+            console.error("Failed to upsert speak profile preferences:", upsertError);
+          }
+        });
     }
 
     return {
@@ -1302,9 +1397,9 @@ export async function createSpeakSession(
       model: realtimeModel,
       voice,
       speechSpeed: safeSpeed,
-      vadEagerness,
-      isPremium: ent.isPremium,
-      sessionLimitSeconds: ent.isPremium ? null : FREE_SPEAK_SESSION_LIMIT_SECONDS,
+      turnDetection,
+      isPremium,
+      sessionLimitSeconds: isPremium ? null : FREE_SPEAK_SESSION_LIMIT_SECONDS,
     };
   } catch (err) {
     console.error("createSpeakSession error:", err);
