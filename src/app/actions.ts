@@ -25,6 +25,10 @@ import {
   isValidEmail,
   wrapUserContent,
 } from "@/lib/actionGuards";
+import {
+  pickConversationSparks,
+  rememberRecentTopic,
+} from "@/lib/speak/conversationSparks";
 import { buildTeacherInstructions } from "@/lib/speak/teacherPrompt";
 import {
   clampSpeechSpeed,
@@ -33,7 +37,6 @@ import {
   isSpeakLearnerGender,
   isSpeakLevel,
   isSpeakRealtimeModel,
-  isSpeakScene,
   isSpeakVoiceGender,
   sanitizeConversationSummary,
   sanitizeLearnerFacts,
@@ -56,7 +59,6 @@ import type {
 import {
   FREE_SPEAK_SESSION_LIMIT_SECONDS,
   SPEAK_EPISODE_SNIPPET_MAX,
-  SPEAK_SCENE_DEFAULT,
 } from "@/lib/speak/types";
 
 
@@ -1199,15 +1201,13 @@ export async function createSpeakSession(
   level: string,
   realtimeModel: string,
   speechSpeed: number,
-  scene: string,
   episodeContext?: SpeakEpisodeContext | null,
   learnerGender?: string | null
 ): Promise<CreateSpeakSessionResult> {
   if (
     !isSpeakVoiceGender(voiceGender) ||
     !isSpeakLevel(level) ||
-    !isSpeakRealtimeModel(realtimeModel) ||
-    !isSpeakScene(scene)
+    !isSpeakRealtimeModel(realtimeModel)
   ) {
     return { type: "error", message: "Invalid speak session settings." };
   }
@@ -1232,7 +1232,6 @@ export async function createSpeakSession(
   const safeSpeed = clampSpeechSpeed(speechSpeed);
   const voice = getVoiceId(voiceGender);
   const turnDetection = getSpeakTurnDetection(level);
-  const safeScene = isSpeakScene(scene) ? scene : SPEAK_SCENE_DEFAULT;
   const genderPatch =
     learnerGender && isSpeakLearnerGender(learnerGender) ? { gender: learnerGender } : {};
 
@@ -1250,7 +1249,7 @@ export async function createSpeakSession(
   const profileQuery = supabaseAdmin
     .from("speak_profiles")
     .select(
-      "user_id, voice_gender, level, realtime_model, speech_speed, scene, learner_facts, conversation_summary, session_notes, updated_at"
+      "user_id, voice_gender, level, realtime_model, speech_speed, learner_facts, conversation_summary, session_notes, updated_at"
     )
     .eq("user_id", user.id)
     .maybeSingle();
@@ -1293,13 +1292,22 @@ export async function createSpeakSession(
     profileResult.data?.conversation_summary ?? ""
   );
   const sessionNotes = sanitizeSessionNotes(profileResult.data?.session_notes);
+  const sparks = pickConversationSparks(
+    level,
+    sessionNotes.recentTopics,
+    learnerFacts.interests
+  );
+  const sessionNotesWithTopic = {
+    ...sessionNotes,
+    recentTopics: rememberRecentTopic(sessionNotes.recentTopics, sparks.primary.id),
+  };
   const instructions = buildTeacherInstructions(
     level,
     learnerFacts,
     conversationSummary,
-    safeScene,
-    sessionNotes,
-    practiceBlock
+    sessionNotesWithTopic,
+    practiceBlock,
+    sparks
   );
 
   const sessionPayload = {
@@ -1358,10 +1366,9 @@ export async function createSpeakSession(
       level,
       realtime_model: realtimeModel,
       speech_speed: safeSpeed,
-      scene: safeScene,
       learner_facts: learnerFacts,
       conversation_summary: conversationSummary,
-      session_notes: sessionNotesToRow(sessionNotes),
+      session_notes: sessionNotesToRow(sessionNotesWithTopic),
     };
 
     if (!isPremium) {

@@ -29,15 +29,12 @@ import type {
   SpeakLevel,
   SpeakRealtimeModel,
   SpeakRecapPayload,
-  SpeakScene,
   SpeakSessionStatus,
   SpeakVoiceGender,
 } from "@/lib/speak/types";
 import {
   FREE_SPEAK_SESSION_LIMIT_SECONDS,
   SPEAK_EPISODE_SNIPPET_MAX,
-  SPEAK_SCENE_DEFAULT,
-  SPEAK_SCENES,
   SPEAK_SPEED_BY_LEVEL,
   SPEAK_SPEED_MAX,
   SPEAK_SPEED_MIN,
@@ -55,15 +52,6 @@ type SpeakViewProps = {
 };
 
 const LEVELS: SpeakLevel[] = ["beginner", "intermediate", "advanced"];
-
-const SCENE_LABELS: Record<SpeakScene, MessageKey> = {
-  introductions: "speakSceneIntroductions",
-  cafe: "speakSceneCafe",
-  directions: "speakSceneDirections",
-  daily_routine: "speakSceneDailyRoutine",
-  phone_call: "speakScenePhoneCall",
-  about_your_day: "speakSceneAboutYourDay",
-};
 
 function formatCountdown(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -128,7 +116,6 @@ export default function SpeakView({
   const [voiceGender, setVoiceGender] = useState<SpeakVoiceGender>("female");
   const [learnerGender, setLearnerGender] = useState<SpeakLearnerGender | null>(null);
   const [level, setLevel] = useState<SpeakLevel>("beginner");
-  const [scene, setScene] = useState<SpeakScene>(SPEAK_SCENE_DEFAULT);
   const [realtimeModel, setRealtimeModel] =
     useState<SpeakRealtimeModel>("gpt-realtime-2.1");
   const [speechSpeed, setSpeechSpeed] = useState(SPEAK_SPEED_BY_LEVEL.beginner);
@@ -165,7 +152,6 @@ export default function SpeakView({
     if (!profile) return;
     setVoiceGender(profile.voiceGender);
     setLevel(profile.level);
-    setScene(profile.scene);
     setRealtimeModel(profile.realtimeModel);
     setSpeechSpeed(profile.speechSpeed);
     setSpeedTouched(profile.speechSpeed !== SPEAK_SPEED_BY_LEVEL[profile.level]);
@@ -255,7 +241,6 @@ export default function SpeakView({
     level,
     realtimeModel,
     speechSpeed,
-    scene,
     learnerGender,
     episodeContext,
     onLearnerFacts: handleLearnerFacts,
@@ -319,7 +304,7 @@ export default function SpeakView({
     if (isStarting || isActive) return;
 
     setErrorMessage(null);
-    void savePreferences({ voiceGender, level, realtimeModel, speechSpeed, scene });
+    void savePreferences({ voiceGender, level, realtimeModel, speechSpeed });
     if (learnerGender) {
       void saveLearnerFacts({ gender: learnerGender });
     }
@@ -429,23 +414,6 @@ export default function SpeakView({
                           ? "speakLevelIntermediate"
                           : "speakLevelAdvanced"
                     )}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="speak-row speak-row-wrap">
-              <span className="speak-row-label">{t("speakSceneLabel")}</span>
-              <div className="speak-pills" role="group" aria-label={t("speakSceneLabel")}>
-                {SPEAK_SCENES.map((value) => (
-                  <button
-                    key={value}
-                    type="button"
-                    className={scene === value ? "is-active" : ""}
-                    aria-pressed={scene === value}
-                    onClick={() => setScene(value)}
-                  >
-                    {t(SCENE_LABELS[value])}
                   </button>
                 ))}
               </div>

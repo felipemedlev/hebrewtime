@@ -129,17 +129,17 @@ Rate limits and input bounds: `src/lib/actionGuards.ts`.
 
 Fourth sidebar tab (`viewMode: "speak"`). Learners talk to a patient Hebrew teacher over **OpenAI Realtime** (`gpt-realtime-2.1` or cheaper `gpt-realtime-2.1-mini`) using **WebRTC** in the browser via `@openai/agents/realtime`.
 
-**Setup (before Start):** teacher voice (female `marin` / male `cedar`), learner form of address (`אתה` / `את`), Hebrew level, conversation scene, model quality vs cost, speaking speed (0.25–1.5; defaults 0.6 / 0.8 / 1.0 by level until the learner moves the slider).
+**Setup (before Start):** teacher voice (female `marin` / male `cedar`), learner form of address (`אתה` / `את`), Hebrew level, model quality vs cost, speaking speed (0.25–1.5; defaults 0.6 / 0.8 / 1.0 by level until the learner moves the slider).
 
 **Session flow:**
 
 1. Client calls `createSpeakSession` (auth + free-tier daily check).
-2. Server builds teacher instructions from `src/lib/speak/teacherPrompt.ts` + stored `speak_profiles` facts/summary/scene/session notes + due vocabulary and current episode words.
+2. Server picks a fresh conversation spark (not a roleplay), builds teacher instructions from `src/lib/speak/teacherPrompt.ts` + stored `speak_profiles` facts/summary/session notes + due vocabulary and current episode words.
 3. Server mints ephemeral key via `POST /v1/realtime/client_secrets` (API key never sent to browser).
 4. Client connects `RealtimeSession`; audio only (no transcription/captions). Greeting is triggered with `response.create` (no extra user turn). Mic permission and the Realtime SDK preload in parallel with minting the key.
 5. Agent tools (`save_learner_facts`, `update_conversation_summary`, `save_session_recap`) write to `speak_profiles` via RLS without blocking the next audio turn; recap phrases can be saved to vocabulary.
 
-**Teacher behavior:** leads a chosen scene, light spoken-error correction (one recast per turn, then a yes/no reuse prompt), simpler Hebrew then brief English if learner is lost. Turn detection is `server_vad` (faster than semantic VAD): ~800ms silence beginner (no barge-in), ~380ms intermediate, ~280ms advanced. No full transcripts stored—only JSONB facts + ≤500 char English summary + short session notes.
+**Teacher behavior:** free conversation (no café/directions/phone scenes). One short callback to known facts, then a new spark with a modeled sentence and one question. Follows the learner. Light spoken-error correction (one recast per turn, then a yes/no reuse prompt), simpler Hebrew then brief English if learner is lost. Turn detection is `server_vad` (faster than semantic VAD): ~800ms silence beginner (no barge-in), ~380ms intermediate, ~280ms advanced. No full transcripts stored—only JSONB facts + ≤500 char English summary + short session notes (including recent spark ids so calls do not repeat).
 
 **In-call help:** I don't understand, slower, shorter, starter sentence, skip topic, repeat after me, and an "I'm thinking" mic pause.
 

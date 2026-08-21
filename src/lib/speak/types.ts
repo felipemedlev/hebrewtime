@@ -6,14 +6,6 @@ export type SpeakRealtimeModel = "gpt-realtime-2.1" | "gpt-realtime-2.1-mini";
 
 export type SpeakLearnerGender = "male" | "female";
 
-export type SpeakScene =
-  | "introductions"
-  | "cafe"
-  | "directions"
-  | "daily_routine"
-  | "phone_call"
-  | "about_your_day";
-
 export type SpeakLearnerFacts = {
   name?: string;
   gender?: SpeakLearnerGender;
@@ -26,6 +18,7 @@ export type SpeakLearnerFacts = {
 export type SpeakSessionNotes = {
   lastCorrections: string[];
   targetPhrases: string[];
+  recentTopics: string[];
 };
 
 export type SpeakTargetWord = {
@@ -50,7 +43,6 @@ export type SpeakProfile = {
   level: SpeakLevel;
   realtimeModel: SpeakRealtimeModel;
   speechSpeed: number;
-  scene: SpeakScene;
   learnerFacts: SpeakLearnerFacts;
   conversationSummary: string;
   sessionNotes: SpeakSessionNotes;
@@ -104,21 +96,11 @@ export const SPEAK_SPEED_BY_LEVEL: Record<SpeakLevel, number> = {
   advanced: 1.0,
 };
 
-export const SPEAK_SCENES: SpeakScene[] = [
-  "introductions",
-  "cafe",
-  "directions",
-  "daily_routine",
-  "phone_call",
-  "about_your_day",
-];
-
-export const SPEAK_SCENE_DEFAULT: SpeakScene = "introductions";
-
 export const FREE_SPEAK_SESSION_LIMIT_SECONDS = 180;
 export const SPEAK_RECAP_WINDOW_SECONDS = 20;
 export const SPEAK_END_WAIT_MS = 2500;
 export const SPEAK_NOTES_MAX_ITEMS = 5;
+export const SPEAK_RECENT_TOPICS_MAX = 8;
 export const SPEAK_TARGET_WORDS_MAX = 8;
 export const SPEAK_EPISODE_SNIPPET_MAX = 600;
 

@@ -19,7 +19,6 @@ import type {
   SpeakLevel,
   SpeakRealtimeModel,
   SpeakRecapPayload,
-  SpeakScene,
   SpeakSessionStatus,
   SpeakVoiceGender,
   SpeakLearnerFacts,
@@ -33,7 +32,6 @@ type UseSpeakSessionArgs = {
   level: SpeakLevel;
   realtimeModel: SpeakRealtimeModel;
   speechSpeed: number;
-  scene: SpeakScene;
   learnerGender: SpeakLearnerGender | null;
   episodeContext: SpeakEpisodeContext | null;
   onLearnerFacts: (facts: SpeakLearnerFacts) => Promise<void>;
@@ -128,7 +126,6 @@ export function useSpeakSession({
   level,
   realtimeModel,
   speechSpeed,
-  scene,
   learnerGender,
   episodeContext,
   onLearnerFacts,
@@ -265,7 +262,6 @@ export function useSpeakSession({
         level,
         realtimeModel,
         speechSpeed,
-        scene,
         episodeContext,
         learnerGender
       ),
@@ -516,7 +512,6 @@ export function useSpeakSession({
     level,
     realtimeModel,
     speechSpeed,
-    scene,
     learnerGender,
     episodeContext,
     onLearnerFacts,

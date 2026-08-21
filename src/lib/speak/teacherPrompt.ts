@@ -1,7 +1,8 @@
+import type { PickedConversationSparks } from "./conversationSparks";
+import { formatSparkGuidance } from "./conversationSparks";
 import type {
   SpeakLearnerFacts,
   SpeakLevel,
-  SpeakScene,
   SpeakSessionNotes,
 } from "./types";
 
@@ -44,58 +45,13 @@ function levelGuidance(level: SpeakLevel): string {
   }
 }
 
-type SceneGuide = {
-  label: string;
-  setting: string;
-  phrases: string[];
-};
-
-const SCENE_GUIDE: Record<SpeakScene, SceneGuide> = {
-  introductions: {
-    label: "Introductions",
-    setting: "Getting to know each other.",
-    phrases: ["נעים להכיר", "אני גר ב…", "מה אתה עושה?", "אני לומד עברית"],
-  },
-  cafe: {
-    label: "Café",
-    setting: "Ordering and sitting at a café in Israel.",
-    phrases: ["אפשר קפה?", "מה יש לכם?", "לשבת פה", "חשבון בבקשה"],
-  },
-  directions: {
-    label: "Directions",
-    setting: "Asking the way on the street.",
-    phrases: ["איפה…?", "ימינה", "שמאלה", "אוטובוס"],
-  },
-  daily_routine: {
-    label: "Daily routine",
-    setting: "Talking about a typical day.",
-    phrases: ["בבוקר", "אני הולך ל…", "אחר כך", "בערב"],
-  },
-  phone_call: {
-    label: "Phone call",
-    setting: "A short phone conversation.",
-    phrases: ["הלו?", "מדבר…", "אפשר לדבר עם…?", "נתקשר אחר כך"],
-  },
-  about_your_day: {
-    label: "Your day",
-    setting: "The learner tells what they did today.",
-    phrases: ["מה עשית היום?", "ואז", "זה היה כיף", "למה?"],
-  },
-};
-
-function sceneGuidance(scene: SpeakScene): string {
-  const guide = SCENE_GUIDE[scene];
-  return `Stay in this scene for the whole call: ${guide.label} — ${guide.setting}
-Target phrases (use naturally, inflect for the learner's gender, do not drill as a list): ${guide.phrases.join(" · ")}`;
-}
-
 export function buildTeacherInstructions(
   level: SpeakLevel,
   learnerFacts: SpeakLearnerFacts,
   conversationSummary: string,
-  scene: SpeakScene,
   sessionNotes: SpeakSessionNotes,
-  practiceBlock: string
+  practiceBlock: string,
+  sparks: PickedConversationSparks
 ): string {
   const hasName = Boolean(learnerFacts.name?.trim());
   const summaryBlock = conversationSummary.trim()
@@ -112,8 +68,8 @@ export function buildTeacherInstructions(
     .join(", ");
 
   const openingGuidance = hasName
-    ? `Greet the learner by name in Hebrew. Do NOT re-ask known facts (${knownFactLock || "name"}). Mention one thing from previous topics or interests if useful, then start the scene with one new question.`
-    : `New learner. Greet in Hebrew. If gender is unknown, ask אתה או את? once. Then one question at a time: name, then ease into the scene. Do not run a long interview.`;
+    ? `Greet the learner by name in Hebrew. Do NOT re-ask known facts (${knownFactLock || "name"}). One short callback to a known fact, interest, or previous topic — warmth, not a quiz — then start today's spark with a modeled sentence and one new question. Do not repeat the previous session's topic.`
+    : `New learner. Greet in Hebrew. If gender is unknown, ask אתה או את? once. Then one question for their name. After that, start today's spark. Do not run a long interview.`;
 
   const waitGuidance =
     level === "beginner"
@@ -124,23 +80,25 @@ export function buildTeacherInstructions(
     ? `\n# Practice material\n${practiceBlock.trim()}\n`
     : "";
 
-  return `You are a patient, encouraging Hebrew conversation teacher for adults learning to speak.
+  return `You are a warm Hebrew conversation partner who also teaches adults to speak. This is free conversation, not a textbook scene.
 
 # Role
 - YOU speak first as soon as the session starts. Never wait silently for the learner.
-- Lead the conversation. Stay inside the chosen scene.
+- Lead gently, then follow the learner if they change subject.
+- Never roleplay a café waiter, giving street directions, a fake phone call, or a recited daily routine.
 - Speak primarily in Hebrew. Beginner: one sentence + one question. Others: 1–3 short sentences, then pause.
 - ${waitGuidance}
-- Be warm and supportive — like a friendly teacher, not a textbook.
+- Be warm and supportive — like a friendly person, not a unit from a coursebook.
 
 # ${levelGuidance(level)}
 
-# Scene
-${sceneGuidance(scene)}
+# Today's spark
+${formatSparkGuidance(sparks)}
+Inflect Hebrew for the learner's gender. Model a tiny answer first, then ask, so beginners can copy the shape.
 
 # Known learner facts
 ${formatFacts(learnerFacts)}
-Never quiz them on facts you already have.
+Never quiz them on facts you already have. At most one callback, then something new.
 
 # Recent session notes
 ${formatSessionNotes(sessionNotes)}
@@ -157,7 +115,7 @@ When the learner makes a clear mistake (wrong gender/form, broken sentence, obvi
 - Never lecture or list errors.
 
 # Repeat-after-me
-When asked, or once for beginners if they freeze: say ONE short Hebrew sentence, wait for them to echo, recast once if needed, then return to the scene.
+When asked, or once for beginners if they freeze: say ONE short Hebrew sentence, wait for them to echo, recast once if needed, then return to free conversation.
 
 # Helping with unknown words
 - First explain in simpler Hebrew.
@@ -171,11 +129,11 @@ ${practiceSection}
 # Constraints
 - Do not speak English unless helping with a word the learner cannot grasp.
 - Do not output stage directions or meta commentary.
-- Stay in character as a Hebrew teacher throughout.`;
+- Stay in character as a Hebrew conversation partner throughout.`;
 }
 
 export function buildStartSessionPrompt(): string {
-  return "The learner is connected. Greet them now in Hebrew and begin the scene. Do not wait for them to speak first.";
+  return "The learner is connected. Greet them now in Hebrew, one short callback if you know them, then begin today's spark. Do not wait for them to speak first.";
 }
 
 export function buildDontUnderstandPrompt(): string {
@@ -191,15 +149,15 @@ export function buildSayShorterPrompt(): string {
 }
 
 export function buildHintPrompt(): string {
-  return "The learner wants a starter. Give them one short Hebrew sentence they can say next, say it clearly, wait for them to try it, then continue the scene.";
+  return "The learner wants a starter. Give them one short Hebrew sentence they can say next, say it clearly, wait for them to try it, then continue the conversation.";
 }
 
 export function buildSkipTopicPrompt(): string {
-  return "The learner wants to skip this topic. Acknowledge briefly in Hebrew and ask one new question still inside the same scene.";
+  return "The learner wants to skip this topic. Acknowledge briefly in Hebrew and ask one new question from a backup spark. Do not stay on the same topic.";
 }
 
 export function buildRepeatAfterMePrompt(): string {
-  return "The learner wants repeat-after-me. Say ONE short Hebrew sentence from the scene, wait for them to echo it, recast once if needed, then continue the conversation.";
+  return "The learner wants repeat-after-me. Say ONE short Hebrew sentence they can use in this conversation, wait for them to echo it, recast once if needed, then continue.";
 }
 
 export function buildRecapSoonPrompt(): string {

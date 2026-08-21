@@ -4,7 +4,6 @@ import type {
   SpeakLearnerGender,
   SpeakLevel,
   SpeakRealtimeModel,
-  SpeakScene,
   SpeakSessionNotes,
   SpeakTurnDetection,
   SpeakVoiceGender,
@@ -14,8 +13,7 @@ import {
   SPEAK_LEARNER_FACT_KEYS,
   SPEAK_NOTE_MAX_LENGTH,
   SPEAK_NOTES_MAX_ITEMS,
-  SPEAK_SCENE_DEFAULT,
-  SPEAK_SCENES,
+  SPEAK_RECENT_TOPICS_MAX,
   SPEAK_SPEED_BY_LEVEL,
   SPEAK_SPEED_DEFAULT,
   SPEAK_SPEED_MAX,
@@ -38,10 +36,6 @@ export function isSpeakLevel(value: string): value is SpeakLevel {
 
 export function isSpeakRealtimeModel(value: string): value is SpeakRealtimeModel {
   return value === "gpt-realtime-2.1" || value === "gpt-realtime-2.1-mini";
-}
-
-export function isSpeakScene(value: string): value is SpeakScene {
-  return (SPEAK_SCENES as readonly string[]).includes(value);
 }
 
 export function clampSpeechSpeed(value: number): number {
@@ -144,7 +138,7 @@ export function sanitizeConversationSummary(summary: string): string {
   return summary.trim().slice(0, SPEAK_SUMMARY_MAX_LENGTH);
 }
 
-function sanitizeNoteList(input: unknown): string[] {
+function sanitizeNoteList(input: unknown, max = SPEAK_NOTES_MAX_ITEMS): string[] {
   if (!Array.isArray(input)) return [];
   const out: string[] = [];
   const seen = new Set<string>();
@@ -154,13 +148,13 @@ function sanitizeNoteList(input: unknown): string[] {
     if (!value || seen.has(value)) continue;
     seen.add(value);
     out.push(value);
-    if (out.length >= SPEAK_NOTES_MAX_ITEMS) break;
+    if (out.length >= max) break;
   }
   return out;
 }
 
 export function emptySpeakSessionNotes(): SpeakSessionNotes {
-  return { lastCorrections: [], targetPhrases: [] };
+  return { lastCorrections: [], targetPhrases: [], recentTopics: [] };
 }
 
 export function sanitizeSessionNotes(input: unknown): SpeakSessionNotes {
@@ -169,6 +163,10 @@ export function sanitizeSessionNotes(input: unknown): SpeakSessionNotes {
   return {
     lastCorrections: sanitizeNoteList(raw.last_corrections ?? raw.lastCorrections),
     targetPhrases: sanitizeNoteList(raw.target_phrases ?? raw.targetPhrases),
+    recentTopics: sanitizeNoteList(
+      raw.recent_topics ?? raw.recentTopics,
+      SPEAK_RECENT_TOPICS_MAX
+    ),
   };
 }
 
@@ -176,6 +174,7 @@ export function sessionNotesToRow(notes: SpeakSessionNotes) {
   return {
     last_corrections: notes.lastCorrections.slice(0, SPEAK_NOTES_MAX_ITEMS),
     target_phrases: notes.targetPhrases.slice(0, SPEAK_NOTES_MAX_ITEMS),
+    recent_topics: notes.recentTopics.slice(0, SPEAK_RECENT_TOPICS_MAX),
   };
 }
 
@@ -186,6 +185,7 @@ export function mergeSessionNotes(
   return sanitizeSessionNotes({
     last_corrections: [...(patch.lastCorrections ?? []), ...existing.lastCorrections],
     target_phrases: [...(patch.targetPhrases ?? []), ...existing.targetPhrases],
+    recent_topics: patch.recentTopics ?? existing.recentTopics,
   });
 }
 
@@ -199,7 +199,6 @@ export type SpeakProfileRow = {
   level: SpeakLevel;
   realtime_model: SpeakRealtimeModel;
   speech_speed: number;
-  scene?: SpeakScene | string | null;
   learner_facts: SpeakLearnerFacts;
   conversation_summary: string;
   session_notes?: unknown;
@@ -213,7 +212,6 @@ export function mapSpeakProfileRow(row: SpeakProfileRow) {
     level: row.level,
     realtimeModel: row.realtime_model,
     speechSpeed: clampSpeechSpeed(Number(row.speech_speed)),
-    scene: isSpeakScene(String(row.scene ?? "")) ? (row.scene as SpeakScene) : SPEAK_SCENE_DEFAULT,
     learnerFacts: sanitizeLearnerFacts(row.learner_facts),
     conversationSummary: sanitizeConversationSummary(row.conversation_summary ?? ""),
     sessionNotes: sanitizeSessionNotes(row.session_notes),

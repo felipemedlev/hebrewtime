@@ -90,7 +90,7 @@ export function formatPracticeContextBlock(
       lines.push(`Hebrew from the episode: ${episodeWords.join(", ")}`);
     }
     lines.push(
-      "You may mention the episode once if it fits the scene. Do not lecture about it."
+      "You may mention the episode once if it fits the talk. Do not lecture about it."
     );
   }
   return lines.join("\n");

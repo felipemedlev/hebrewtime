@@ -9,17 +9,16 @@ import {
   mergeLearnerFacts,
   mergeSessionNotes,
   sanitizeConversationSummary,
+  sanitizeSessionNotes,
   sessionNotesToRow,
   type SpeakProfileRow,
 } from "@/lib/speak/profileUtils";
 import {
-  SPEAK_SCENE_DEFAULT,
   SPEAK_SPEED_BY_LEVEL,
   type SpeakLearnerFacts,
   type SpeakLevel,
   type SpeakProfile,
   type SpeakRealtimeModel,
-  type SpeakScene,
   type SpeakSessionNotes,
   type SpeakVoiceGender,
 } from "@/lib/speak/types";
@@ -29,14 +28,13 @@ const DEFAULT_PROFILE: Omit<SpeakProfile, "userId"> = {
   level: "beginner",
   realtimeModel: "gpt-realtime-2.1",
   speechSpeed: SPEAK_SPEED_BY_LEVEL.beginner,
-  scene: SPEAK_SCENE_DEFAULT,
   learnerFacts: {},
   conversationSummary: "",
   sessionNotes: emptySpeakSessionNotes(),
 };
 
 const PROFILE_COLUMNS =
-  "user_id, voice_gender, level, realtime_model, speech_speed, scene, learner_facts, conversation_summary, session_notes, updated_at";
+  "user_id, voice_gender, level, realtime_model, speech_speed, learner_facts, conversation_summary, session_notes, updated_at";
 
 export function useSpeakProfile(userId: string | null) {
   const [profile, setProfile] = useState<SpeakProfile | null>(null);
@@ -83,7 +81,6 @@ export function useSpeakProfile(userId: string | null) {
       level: SpeakLevel;
       realtimeModel: SpeakRealtimeModel;
       speechSpeed: number;
-      scene: SpeakScene;
     }) => {
       if (!userId) return;
 
@@ -93,10 +90,6 @@ export function useSpeakProfile(userId: string | null) {
         level: prefs.level,
         realtime_model: prefs.realtimeModel,
         speech_speed: clampSpeechSpeed(prefs.speechSpeed),
-        scene: prefs.scene,
-        learner_facts: profile?.learnerFacts ?? {},
-        conversation_summary: profile?.conversationSummary ?? "",
-        session_notes: sessionNotesToRow(profile?.sessionNotes ?? emptySpeakSessionNotes()),
       };
 
       const { error } = await supabase.from("speak_profiles").upsert(payload, {
@@ -116,7 +109,6 @@ export function useSpeakProfile(userId: string | null) {
               level: prefs.level,
               realtimeModel: prefs.realtimeModel,
               speechSpeed: clampSpeechSpeed(prefs.speechSpeed),
-              scene: prefs.scene,
             }
           : {
               userId,
@@ -140,10 +132,7 @@ export function useSpeakProfile(userId: string | null) {
         level: profile?.level ?? DEFAULT_PROFILE.level,
         realtime_model: profile?.realtimeModel ?? DEFAULT_PROFILE.realtimeModel,
         speech_speed: profile?.speechSpeed ?? DEFAULT_PROFILE.speechSpeed,
-        scene: profile?.scene ?? DEFAULT_PROFILE.scene,
         learner_facts: merged,
-        conversation_summary: profile?.conversationSummary ?? "",
-        session_notes: sessionNotesToRow(profile?.sessionNotes ?? emptySpeakSessionNotes()),
       };
 
       const { error } = await supabase.from("speak_profiles").upsert(payload, {
@@ -175,10 +164,7 @@ export function useSpeakProfile(userId: string | null) {
         level: profile?.level ?? DEFAULT_PROFILE.level,
         realtime_model: profile?.realtimeModel ?? DEFAULT_PROFILE.realtimeModel,
         speech_speed: profile?.speechSpeed ?? DEFAULT_PROFILE.speechSpeed,
-        scene: profile?.scene ?? DEFAULT_PROFILE.scene,
-        learner_facts: profile?.learnerFacts ?? {},
         conversation_summary: safeSummary,
-        session_notes: sessionNotesToRow(profile?.sessionNotes ?? emptySpeakSessionNotes()),
       };
 
       const { error } = await supabase.from("speak_profiles").upsert(payload, {
@@ -203,16 +189,27 @@ export function useSpeakProfile(userId: string | null) {
     async (patch: Partial<SpeakSessionNotes>) => {
       if (!userId) return;
 
-      const merged = mergeSessionNotes(profile?.sessionNotes ?? emptySpeakSessionNotes(), patch);
+      const { data: existingRow } = await supabase
+        .from("speak_profiles")
+        .select("session_notes")
+        .eq("user_id", userId)
+        .maybeSingle();
+      const dbNotes = sanitizeSessionNotes(existingRow?.session_notes);
+      const local = profile?.sessionNotes ?? emptySpeakSessionNotes();
+      const merged = mergeSessionNotes(
+        {
+          lastCorrections: local.lastCorrections,
+          targetPhrases: local.targetPhrases,
+          recentTopics: dbNotes.recentTopics,
+        },
+        patch
+      );
       const payload = {
         user_id: userId,
         voice_gender: profile?.voiceGender ?? DEFAULT_PROFILE.voiceGender,
         level: profile?.level ?? DEFAULT_PROFILE.level,
         realtime_model: profile?.realtimeModel ?? DEFAULT_PROFILE.realtimeModel,
         speech_speed: profile?.speechSpeed ?? DEFAULT_PROFILE.speechSpeed,
-        scene: profile?.scene ?? DEFAULT_PROFILE.scene,
-        learner_facts: profile?.learnerFacts ?? {},
-        conversation_summary: profile?.conversationSummary ?? "",
         session_notes: sessionNotesToRow(merged),
       };
 
