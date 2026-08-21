@@ -6,12 +6,14 @@ import {
   buildDontUnderstandPrompt,
   buildEndSessionSummaryPrompt,
   buildHintPrompt,
+  buildLongerTurnPrompt,
   buildRecapSoonPrompt,
   buildRepeatAfterMePrompt,
   buildRepeatSlowerPrompt,
   buildSayShorterPrompt,
   buildSkipTopicPrompt,
   buildStartSessionPrompt,
+  buildTalkMorePrompt,
 } from "@/lib/speak/teacherPrompt";
 import type {
   SpeakEpisodeContext,
@@ -23,7 +25,11 @@ import type {
   SpeakVoiceGender,
   SpeakLearnerFacts,
 } from "@/lib/speak/types";
-import { SPEAK_END_WAIT_MS, SPEAK_RECAP_WINDOW_SECONDS } from "@/lib/speak/types";
+import {
+  SPEAK_END_WAIT_MS,
+  SPEAK_LONGER_TURN_AFTER_MS,
+  SPEAK_RECAP_WINDOW_SECONDS,
+} from "@/lib/speak/types";
 import { toRealtimeTurnDetection } from "@/lib/speak/profileUtils";
 
 type UseSpeakSessionArgs = {
@@ -146,6 +152,8 @@ export function useSpeakSession({
   const startingRef = useRef(false);
   const startGenRef = useRef(0);
   const recapSentRef = useRef(false);
+  const longerTurnSentRef = useRef(false);
+  const longerTurnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const thinkingRef = useRef(false);
   const responseBusyRef = useRef(false);
   const allowBargeInRef = useRef(true);
@@ -160,6 +168,10 @@ export function useSpeakSession({
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
+    }
+    if (longerTurnTimerRef.current) {
+      clearTimeout(longerTurnTimerRef.current);
+      longerTurnTimerRef.current = null;
     }
   }, []);
 
@@ -209,6 +221,7 @@ export function useSpeakSession({
       setIsThinking(false);
       thinkingRef.current = false;
       recapSentRef.current = false;
+      longerTurnSentRef.current = false;
       responseBusyRef.current = false;
       pendingMessageRef.current = null;
 
@@ -247,6 +260,7 @@ export function useSpeakSession({
     startingRef.current = true;
     const gen = ++startGenRef.current;
     recapSentRef.current = false;
+    longerTurnSentRef.current = false;
     thinkingRef.current = false;
     responseBusyRef.current = false;
     pendingMessageRef.current = null;
@@ -479,6 +493,28 @@ export function useSpeakSession({
       setStatus((current) => (current === "connecting" ? "listening" : current));
       startingRef.current = false;
 
+      const talkWindowSeconds =
+        result.sessionLimitSeconds != null
+          ? Math.max(0, result.sessionLimitSeconds - SPEAK_RECAP_WINDOW_SECONDS)
+          : null;
+      const longerTurnDelayMs =
+        talkWindowSeconds != null
+          ? Math.max(45_000, Math.floor(talkWindowSeconds * 500))
+          : SPEAK_LONGER_TURN_AFTER_MS;
+      longerTurnTimerRef.current = setTimeout(() => {
+        longerTurnTimerRef.current = null;
+        if (
+          !isCurrent() ||
+          endingRef.current ||
+          recapSentRef.current ||
+          longerTurnSentRef.current
+        ) {
+          return;
+        }
+        longerTurnSentRef.current = true;
+        sendTurnMessage(buildLongerTurnPrompt());
+      }, longerTurnDelayMs);
+
       if (result.sessionLimitSeconds != null) {
         setRemainingSeconds(result.sessionLimitSeconds);
         timerRef.current = setInterval(() => {
@@ -549,6 +585,15 @@ export function useSpeakSession({
     sendTurnMessage(buildRepeatAfterMePrompt());
   }, [sendTurnMessage]);
 
+  const sendTalkMore = useCallback(() => {
+    longerTurnSentRef.current = true;
+    if (longerTurnTimerRef.current) {
+      clearTimeout(longerTurnTimerRef.current);
+      longerTurnTimerRef.current = null;
+    }
+    sendTurnMessage(buildTalkMorePrompt());
+  }, [sendTurnMessage]);
+
   const toggleThinking = useCallback(() => {
     const session = sessionRef.current;
     if (!session) return;
@@ -589,6 +634,7 @@ export function useSpeakSession({
     sendHint,
     sendSkipTopic,
     sendRepeatAfterMe,
+    sendTalkMore,
     toggleThinking,
   };
 }

@@ -234,6 +234,7 @@ export default function SpeakView({
     sendHint,
     sendSkipTopic,
     sendRepeatAfterMe,
+    sendTalkMore,
     toggleThinking,
   } = useSpeakSession({
     accessToken,
@@ -576,6 +577,14 @@ export default function SpeakView({
                 disabled={helpDisabled}
               >
                 {t("speakSkipTopic")}
+              </button>
+              <button
+                type="button"
+                className="speak-chip-btn"
+                onClick={sendTalkMore}
+                disabled={helpDisabled}
+              >
+                {t("speakTalkMore")}
               </button>
               <button
                 type="button"

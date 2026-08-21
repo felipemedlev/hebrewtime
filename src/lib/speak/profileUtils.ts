@@ -51,8 +51,8 @@ export function getDefaultSpeechSpeed(level: SpeakLevel): number {
 export function getSpeakTurnDetection(level: SpeakLevel): SpeakTurnDetection {
   const eagernessByLevel: Record<SpeakLevel, SpeakVadEagerness> = {
     beginner: "low",
-    intermediate: "medium",
-    advanced: "high",
+    intermediate: "low",
+    advanced: "medium",
   };
   return {
     type: "semantic_vad",

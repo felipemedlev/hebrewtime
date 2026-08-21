@@ -1301,13 +1301,15 @@ export async function createSpeakSession(
     ...sessionNotes,
     recentTopics: rememberRecentTopic(sessionNotes.recentTopics, sparks.primary.id),
   };
+  const sessionLimitSeconds = isPremium ? null : FREE_SPEAK_SESSION_LIMIT_SECONDS;
   const instructions = buildTeacherInstructions(
     level,
     learnerFacts,
     conversationSummary,
     sessionNotesWithTopic,
     practiceBlock,
-    sparks
+    sparks,
+    sessionLimitSeconds
   );
 
   const sessionPayload = {
@@ -1406,7 +1408,7 @@ export async function createSpeakSession(
       speechSpeed: safeSpeed,
       turnDetection,
       isPremium,
-      sessionLimitSeconds: isPremium ? null : FREE_SPEAK_SESSION_LIMIT_SECONDS,
+      sessionLimitSeconds,
     };
   } catch (err) {
     console.error("createSpeakSession error:", err);

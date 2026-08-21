@@ -99,6 +99,7 @@ export const SPEAK_SPEED_BY_LEVEL: Record<SpeakLevel, number> = {
 export const FREE_SPEAK_SESSION_LIMIT_SECONDS = 180;
 export const SPEAK_RECAP_WINDOW_SECONDS = 20;
 export const SPEAK_END_WAIT_MS = 2500;
+export const SPEAK_LONGER_TURN_AFTER_MS = 90_000;
 export const SPEAK_NOTES_MAX_ITEMS = 5;
 export const SPEAK_RECENT_TOPICS_MAX = 8;
 export const SPEAK_TARGET_WORDS_MAX = 8;
