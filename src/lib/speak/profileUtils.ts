@@ -1,0 +1,100 @@
+import type {
+  SpeakLearnerFacts,
+  SpeakLearnerFactKey,
+  SpeakLevel,
+  SpeakRealtimeModel,
+  SpeakVoiceGender,
+} from "./types";
+import {
+  SPEAK_FACT_MAX_LENGTH,
+  SPEAK_LEARNER_FACT_KEYS,
+  SPEAK_SPEED_DEFAULT,
+  SPEAK_SPEED_MAX,
+  SPEAK_SPEED_MIN,
+  SPEAK_SUMMARY_MAX_LENGTH,
+  SPEAK_VOICE_BY_GENDER,
+} from "./types";
+
+export function isSpeakVoiceGender(value: string): value is SpeakVoiceGender {
+  return value === "male" || value === "female";
+}
+
+export function isSpeakLevel(value: string): value is SpeakLevel {
+  return value === "beginner" || value === "intermediate" || value === "advanced";
+}
+
+export function isSpeakRealtimeModel(value: string): value is SpeakRealtimeModel {
+  return value === "gpt-realtime-2.1" || value === "gpt-realtime-2.1-mini";
+}
+
+export function clampSpeechSpeed(value: number): number {
+  if (!Number.isFinite(value)) return SPEAK_SPEED_DEFAULT;
+  return Math.min(SPEAK_SPEED_MAX, Math.max(SPEAK_SPEED_MIN, Math.round(value * 100) / 100));
+}
+
+export function getVadEagerness(level: SpeakLevel): "low" | "medium" {
+  return level === "beginner" ? "low" : "medium";
+}
+
+export function getVoiceId(gender: SpeakVoiceGender): string {
+  return SPEAK_VOICE_BY_GENDER[gender];
+}
+
+export function sanitizeLearnerFacts(input: unknown): SpeakLearnerFacts {
+  if (!input || typeof input !== "object") return {};
+  const raw = input as Record<string, unknown>;
+  const facts: SpeakLearnerFacts = {};
+  for (const key of SPEAK_LEARNER_FACT_KEYS) {
+    const value = raw[key];
+    if (typeof value === "string" && value.trim()) {
+      facts[key] = value.trim().slice(0, SPEAK_FACT_MAX_LENGTH);
+    }
+  }
+  return facts;
+}
+
+export function mergeLearnerFacts(
+  existing: SpeakLearnerFacts,
+  patch: SpeakLearnerFacts
+): SpeakLearnerFacts {
+  const merged = { ...existing };
+  for (const key of SPEAK_LEARNER_FACT_KEYS) {
+    const value = patch[key];
+    if (typeof value === "string" && value.trim()) {
+      merged[key] = value.trim().slice(0, SPEAK_FACT_MAX_LENGTH);
+    }
+  }
+  return merged;
+}
+
+export function sanitizeConversationSummary(summary: string): string {
+  return summary.trim().slice(0, SPEAK_SUMMARY_MAX_LENGTH);
+}
+
+export function isSpeakLearnerFactKey(key: string): key is SpeakLearnerFactKey {
+  return (SPEAK_LEARNER_FACT_KEYS as readonly string[]).includes(key);
+}
+
+export type SpeakProfileRow = {
+  user_id: string;
+  voice_gender: SpeakVoiceGender;
+  level: SpeakLevel;
+  realtime_model: SpeakRealtimeModel;
+  speech_speed: number;
+  learner_facts: SpeakLearnerFacts;
+  conversation_summary: string;
+  updated_at?: string;
+};
+
+export function mapSpeakProfileRow(row: SpeakProfileRow) {
+  return {
+    userId: row.user_id,
+    voiceGender: row.voice_gender,
+    level: row.level,
+    realtimeModel: row.realtime_model,
+    speechSpeed: clampSpeechSpeed(Number(row.speech_speed)),
+    learnerFacts: sanitizeLearnerFacts(row.learner_facts),
+    conversationSummary: sanitizeConversationSummary(row.conversation_summary ?? ""),
+    updatedAt: row.updated_at,
+  };
+}

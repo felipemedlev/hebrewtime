@@ -1,6 +1,6 @@
 # HebrewTime
 
-HebrewTime is a multilingual web reader for the Hebrew Time podcast and AI generated learning tracks. Learners read Hebrew with side by side translations in **English**, **Russian**, **Ukrainian**, **Portuguese**, **Spanish**, or **French**, click words for Pealim backed dictionary lookup, save vocabulary, and review with FSRS flashcards.
+HebrewTime is a multilingual web reader for the Hebrew Time podcast and AI generated learning tracks. Learners read Hebrew with side by side translations in **English**, **Russian**, **Ukrainian**, **Portuguese**, **Spanish**, or **French**, click words for Pealim backed dictionary lookup, save vocabulary, review with FSRS flashcards, and **practice speaking Hebrew** with an AI teacher (OpenAI Realtime voice).
 
 ## Learning tracks
 
@@ -13,7 +13,7 @@ HebrewTime is a multilingual web reader for the Hebrew Time podcast and AI gener
 
 ## Tech stack
 
-- **App**: Next.js 16, React 19, vanilla CSS, Supabase (auth + Postgres + Storage)
+- **App**: Next.js 16, React 19, vanilla CSS, Supabase (auth + Postgres + Storage), OpenAI Realtime (`@openai/agents`)
 - **Content pipeline**: Python (`pipeline/`) for scraping, AI script generation, Gemini TTS, and Supabase upload
 - **Dictionary**: Pealim data in `dictionary_entries` (see [`docs/dictionary_entries.md`](docs/dictionary_entries.md))
 
@@ -98,8 +98,8 @@ hebrewtime/
 ## Premium access (summary)
 
 - **Logged out**: read episodes, translate up to daily free limit (client side quota)
-- **Authenticated free**: vocabulary, flashcards, example phrases with per day caps
-- **Premium**: unlimited translations, vocabulary, flashcards, and example phrases
+- **Authenticated free**: vocabulary, flashcards, example phrases, and **1 speak session/day (~3 min)** with per-day caps
+- **Premium**: unlimited translations, vocabulary, flashcards, example phrases, and **unlimited Hebrew speaking practice**
 - **Admin** (`ADMIN_EMAILS`): `/admin` dashboard + premium management
 
 Details: [`docs/architecture.md`](docs/architecture.md#premium-and-free-tier).

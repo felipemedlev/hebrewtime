@@ -348,6 +348,8 @@
   gap: var(--radius-sm);
   font-size: var(--text-base);
   color: var(--text-muted);
+  min-width: 0;
+  line-height: var(--leading-snug);
 }
 
 .sidebar-stat-value {

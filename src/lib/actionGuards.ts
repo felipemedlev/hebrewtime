@@ -3,6 +3,7 @@ const RATE_LIMITS = {
   translateWordAnonDaily: { maxRequests: 30, windowMs: 86_400_000 },
   generateExamplePhrases: { maxRequests: 20, windowMs: 60_000 },
   generateFillInExercises: { maxRequests: 20, windowMs: 60_000 },
+  createSpeakSession: { maxRequests: 10, windowMs: 60_000 },
   searchDictionarySuggestions: { maxRequests: 60, windowMs: 60_000 },
   resolveDictionarySuggestion: { maxRequests: 30, windowMs: 60_000 },
 } as const;

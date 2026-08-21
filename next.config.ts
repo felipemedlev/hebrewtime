@@ -19,7 +19,7 @@ const securityHeaders = [
   },
   {
     key: "Permissions-Policy",
-    value: "camera=(), microphone=(), geolocation=(), payment=()",
+    value: "camera=(), microphone=(self), geolocation=(), payment=()",
   },
   {
     key: "Content-Security-Policy-Report-Only",
@@ -30,7 +30,7 @@ const securityHeaders = [
       "font-src 'self' https://fonts.gstatic.com data:",
       "img-src 'self' data: blob: https:",
       "media-src 'self' blob: https:",
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://va.vercel-scripts.com",
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.openai.com https://*.openai.com https://va.vercel-scripts.com",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
@@ -39,7 +39,12 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ["127.195.200.208", "localhost"],
+  allowedDevOrigins: [
+    "localhost",
+    "127.0.0.1",
+    "127.195.200.208",
+    "127.242.117.50",
+  ],
   outputFileTracingIncludes: {
     "/": ["pipeline/data/episodes.json"],
   },

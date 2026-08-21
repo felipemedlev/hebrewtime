@@ -13,6 +13,7 @@ import Sidebar from "./Sidebar";
 import EpisodeViewer from "./EpisodeViewer";
 import VocabularyView from "./VocabularyView";
 import ReviewView from "./ReviewView";
+import SpeakView from "./SpeakView";
 import MediaPlayer from "./MediaPlayer";
 import AuthModal from "./AuthModal";
 import { useVocabulary } from "@/hooks/useVocabulary";
@@ -30,6 +31,7 @@ import type { FillInExercise } from "@/lib/types";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import LanguageSelector from "./LanguageSelector";
 import type { MessageKey } from "@/lib/i18n/messages";
+import type { ViewMode } from "@/lib/viewMode";
 
 type AppShellProps = {
   levels: Level[];
@@ -43,7 +45,8 @@ type SubscriptionPromptSource =
   | "translation_limit"
   | "example_limit"
   | "flashcards"
-  | "fill_in_limit";
+  | "fill_in_limit"
+  | "speak_limit";
 
 const FREE_TIER_FEATURE_KEYS = [
   "freeFeature1",
@@ -72,7 +75,7 @@ export default function AppShell({
   const [currentEpNum, setCurrentEpNum] = useState<number | null>(
     initialEpisode?.episode ?? null
   );
-  const [viewMode, setViewMode] = useState<"episodes" | "vocabulary" | "flashcards">("episodes");
+  const [viewMode, setViewMode] = useState<ViewMode>("episodes");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -88,7 +91,9 @@ export default function AppShell({
     episodes: 0,
     vocabulary: 0,
     flashcards: 0,
+    speak: 0,
   });
+  const [speakSessionActive, setSpeakSessionActive] = useState(false);
   const [lastEpisodesByLevel, setLastEpisodesByLevel] = useState<Record<string, number>>({});
   const [isEpisodeLoading, setIsEpisodeLoading] = useState(false);
   const [episodeLoadError, setEpisodeLoadError] = useState<string | null>(null);
@@ -218,6 +223,13 @@ export default function AppShell({
       setSubscriptionPrompt({
         title: t("fillInLimitTitle"),
         description: t("fillInLimitDesc"),
+      });
+      return;
+    }
+    if (source === "speak_limit") {
+      setSubscriptionPrompt({
+        title: t("speakLimitTitle"),
+        description: t("speakLimitDesc"),
       });
       return;
     }
@@ -364,7 +376,7 @@ export default function AppShell({
   );
 
   const handleChangeViewMode = useCallback(
-    (mode: "episodes" | "vocabulary" | "flashcards") => {
+    (mode: ViewMode) => {
       if (mainRef.current) {
         const currentScroll = mainRef.current.scrollTop;
         setScrollPositions((prev: Record<string, number>) => ({
@@ -508,7 +520,7 @@ export default function AppShell({
         className={`main-content ${
           !episode?.audio_url
             ? "player-pad-none"
-            : viewMode === "vocabulary" || viewMode === "flashcards"
+            : viewMode === "vocabulary" || viewMode === "flashcards" || viewMode === "speak"
               ? isMobile
                 ? "player-pad-none"
                 : "player-pad-mini"
@@ -695,7 +707,6 @@ export default function AppShell({
           />
         ) : null}
 
-        {/* Keep mounted while reviewing so in-progress session state survives tab switches */}
         <div hidden={viewMode !== "flashcards"}>
           <ReviewView
             vocabWords={vocabWords}
@@ -719,6 +730,19 @@ export default function AppShell({
             recordAttempt={recordAttempt}
             isPremium={entitlements.isPremium}
             onRequireSubscription={() => showSubscriptionPrompt("flashcards")}
+          />
+        </div>
+
+        <div hidden={viewMode !== "speak"}>
+          <SpeakView
+            isAuthenticated={entitlements.isAuthenticated}
+            isPremium={entitlements.isPremium}
+            onRequireAuth={() => {
+              setAuthInitialMode("login");
+              setIsAuthModalOpen(true);
+            }}
+            onRequireSubscription={() => showSubscriptionPrompt("speak_limit")}
+            onSessionActiveChange={setSpeakSessionActive}
           />
         </div>
 
@@ -826,6 +850,7 @@ export default function AppShell({
         isSidebarOpen={isSidebarOpen}
         viewMode={viewMode}
         isMobile={isMobile}
+        pauseForSpeak={speakSessionActive}
       />
 
       <AuthModal

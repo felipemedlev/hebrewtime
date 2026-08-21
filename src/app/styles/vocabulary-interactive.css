@@ -1,18 +1,26 @@
 /* Vocabulary & Interactive Words */
 .sidebar-tabs {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 2px;
   background: var(--overlay-4);
   border-radius: var(--radius-md);
   padding: var(--space-1);
   margin-top: var(--space-1);
 }
 .tab-btn {
-  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
   background: transparent;
   border: none;
-  padding: var(--radius-sm);
-  font-size: var(--text-base);
+  padding: var(--space-1) 2px;
+  font-size: var(--text-sm);
   font-weight: var(--font-weight-medium);
+  line-height: 1.2;
   color: var(--text-muted);
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -21,12 +29,6 @@
 .tab-btn:hover {
   color: var(--text-main);
 }
-.tab-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-1);
-}
 .tab-btn.active {
   background: var(--surface);
   color: var(--text-main);
@@ -34,6 +36,16 @@
 }
 .tab-btn.locked {
   color: var(--gray-575);
+}
+.tab-btn svg {
+  flex-shrink: 0;
+}
+.tab-btn-label {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .tab-lock-icon {
   flex-shrink: 0;

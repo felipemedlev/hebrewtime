@@ -285,7 +285,8 @@ input:focus-visible,
 .save-btn,
 .subscription-prompt-cta,
 .flashcard-start-btn,
-.flashcard-reveal-btn {
+.flashcard-reveal-btn,
+.speak-start-btn {
   background: var(--text-main);
   color: var(--color-white);
   border: none;
@@ -298,6 +299,7 @@ input:focus-visible,
 .subscription-prompt-cta:hover,
 .flashcard-start-btn:hover,
 .flashcard-reveal-btn:hover,
+.speak-start-btn:hover:not(:disabled),
 .onboarding-hero-cta:hover,
 .onboarding-footer-cta:hover {
   background: #000000;
@@ -308,7 +310,8 @@ input:focus-visible,
 .save-btn:active:not(:disabled),
 .subscription-prompt-cta:active,
 .flashcard-start-btn:active,
-.flashcard-reveal-btn:active {
+.flashcard-reveal-btn:active,
+.speak-start-btn:active:not(:disabled) {
   transform: translateY(0);
 }
 

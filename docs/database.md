@@ -18,8 +18,9 @@ Run migrations in [`supabase/migrations/`](../supabase/migrations/) **in numeric
 | 10 | `10_review_practice_attempts.sql` | Fill in and matching practice stats |
 | 11 | `11_flashcard_direction.sql` | `direction` column for forward/reverse FSRS schedules |
 | 12 | `12_vocabulary_entry_kind.sql` | `vocabulary.entry_kind` (`word` or `phrase`) |
+| 13 | `13_speak_profiles.sql` | `speak_profiles` + `user_activity_daily.speak_sessions_count` |
 
-**Fresh install:** run 01 through 12 in order.
+**Fresh install:** run 01 through 13 in order.
 
 **Existing project:** skip migrations you have already applied. Migration 09 is important if your project still has premium only RLS on vocabulary/flashcards.
 
@@ -59,7 +60,22 @@ Per user, per level episode completion. Primary key: `(user_id, level_slug, epis
 
 ### `user_activity_daily`
 
-Daily rollups: active time, translation count, AI example count, fill in count.
+Daily rollups: active time, translation count, AI example count, fill in count, speak session count.
+
+### `speak_profiles`
+
+Per-user Hebrew speaking teacher memory (not a chat log). One row per user.
+
+| Column | Purpose |
+|--------|---------|
+| `voice_gender` | `male` or `female` (maps to Realtime voices `cedar` / `marin`) |
+| `level` | `beginner`, `intermediate`, or `advanced` (vocabulary guidance) |
+| `realtime_model` | `gpt-realtime-2.1` or `gpt-realtime-2.1-mini` |
+| `speech_speed` | 0.25–1.5 (user-chosen before each session) |
+| `learner_facts` | JSONB: `name`, `city`, `country`, `occupation`, `interests` |
+| `conversation_summary` | ≤500 char English summary of prior topics |
+
+RLS: authenticated users CRUD own row only. Daily speak caps enforced in `createSpeakSession` via `increment_speak_sessions_count()` (service role only).
 
 ## RLS summary
 
@@ -67,6 +83,7 @@ After all migrations:
 
 - **vocabulary / flashcard_progress**: authenticated users can CRUD their own rows (migration 09 relaxed premium only policies)
 - **finished_episodes**: users manage their own rows
+- **speak_profiles**: users manage their own rows
 - **premium_users**: users can read only their own email row
 - **dictionary_entries**: authenticated SELECT (server actions also use service role for anonymous translation)
 - **episodes / levels**: public read for published content (via service role in app)

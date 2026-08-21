@@ -5,6 +5,7 @@ import { ChevronDown, ChevronUp, Radio, Play, Pause, Volume2, VolumeX } from "lu
 
 import { resolveEpisodeAudioSrc } from "@/lib/episodeAudio";
 import { useT } from "@/lib/i18n/LanguageProvider";
+import type { ViewMode } from "@/lib/viewMode";
 
 type MediaPlayerProps = {
   audioUrl: string | null;
@@ -12,8 +13,9 @@ type MediaPlayerProps = {
   episodeNum: number | null;
   episodeLevel?: string | null;
   isSidebarOpen?: boolean;
-  viewMode?: "episodes" | "vocabulary" | "flashcards";
+  viewMode?: ViewMode;
   isMobile?: boolean;
+  pauseForSpeak?: boolean;
 };
 
 function formatTime(seconds: number): string {
@@ -33,6 +35,7 @@ export default function MediaPlayer({
   isSidebarOpen = false,
   viewMode = "episodes",
   isMobile = false,
+  pauseForSpeak = false,
 }: MediaPlayerProps) {
   const t = useT();
   const [isExpanded, setIsExpanded] = useState(true);
@@ -49,7 +52,8 @@ export default function MediaPlayer({
   const lastHighlightDispatchRef = useRef(0);
   const HIGHLIGHT_INTERVAL_MS = 250;
 
-  const isSecondaryView = viewMode === "vocabulary" || viewMode === "flashcards";
+  const isSecondaryView =
+    viewMode === "vocabulary" || viewMode === "flashcards" || viewMode === "speak";
   const hideBar = isMobile && isSecondaryView;
 
   useEffect(() => {
@@ -73,6 +77,13 @@ export default function MediaPlayer({
       setIsExpanded(false);
     }
   }, [isSecondaryView, viewMode]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !pauseForSpeak) return;
+    audio.pause();
+    setIsPlaying(false);
+  }, [pauseForSpeak]);
 
   // When episode changes, reset playback
   useEffect(() => {

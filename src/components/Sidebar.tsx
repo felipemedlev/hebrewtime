@@ -14,8 +14,10 @@ import {
   GraduationCap,
   Clock,
   Sparkles,
+  Mic,
 } from "lucide-react";
 import type { EpisodeListItem, LevelTrackMeta, FlashcardStats } from "@/lib/types";
+import type { ViewMode } from "@/lib/viewMode";
 import LearningTrackSelector from "./LearningTrackSelector";
 import { finishedKey } from "@/lib/levelTracks";
 import { useUser } from "@/hooks/useUser";
@@ -28,13 +30,13 @@ type SidebarProps = {
   episodes: EpisodeListItem[];
   currentLevel: string;
   currentEpNum: number | null;
-  viewMode: "episodes" | "vocabulary" | "flashcards";
+  viewMode: ViewMode;
   vocabCount: number;
   dueFlashcardsCount?: number;
   flashcardStats?: FlashcardStats;
   isSidebarOpen: boolean;
   onSelectEpisode: (level: string, num: number) => void;
-  onChangeViewMode: (mode: "episodes" | "vocabulary" | "flashcards") => void;
+  onChangeViewMode: (mode: ViewMode) => void;
   onClose: () => void;
   onStartReview?: () => void;
   onOpenAuthModal?: () => void;
@@ -171,8 +173,10 @@ export default function Sidebar({
               aria-selected={viewMode === "episodes"}
               id="sidebar-tab-episodes"
               aria-controls="sidebar-panel"
+              title={t("episodes")}
             >
-              {t("episodes")}
+              <BookOpen size={14} />
+              <span className="tab-btn-label">{t("episodes")}</span>
             </button>
             <button
               className={`tab-btn ${viewMode === "vocabulary" ? "active" : ""}`}
@@ -181,9 +185,10 @@ export default function Sidebar({
               aria-selected={viewMode === "vocabulary"}
               id="sidebar-tab-vocabulary"
               aria-controls="sidebar-panel"
+              title={t("vocab")}
             >
               <Bookmark size={14} />
-              {t("vocab")}
+              <span className="tab-btn-label">{t("vocab")}</span>
             </button>
             <button
               className={`tab-btn ${viewMode === "flashcards" ? "active" : ""}`}
@@ -192,9 +197,22 @@ export default function Sidebar({
               aria-selected={viewMode === "flashcards"}
               id="sidebar-tab-flashcards"
               aria-controls="sidebar-panel"
+              title={t("review")}
             >
               <Brain size={14} />
-              {t("review")}
+              <span className="tab-btn-label">{t("review")}</span>
+            </button>
+            <button
+              className={`tab-btn ${viewMode === "speak" ? "active" : ""}`}
+              onClick={() => onChangeViewMode("speak")}
+              role="tab"
+              aria-selected={viewMode === "speak"}
+              id="sidebar-tab-speak"
+              aria-controls="sidebar-panel"
+              title={t("speak")}
+            >
+              <Mic size={14} />
+              <span className="tab-btn-label">{t("speak")}</span>
             </button>
           </div>
 
@@ -287,6 +305,27 @@ export default function Sidebar({
                   {vocabCount > 0 ? t("clickToAddMore") : t("clickToSaveFirst")}
                 </p>
               )}
+            </div>
+          </div>
+        ) : viewMode === "speak" ? (
+          <div className="ep-list" id="sidebar-panel" role="tabpanel" aria-labelledby="sidebar-tab-speak">
+            <div className="sidebar-info">
+              <p className="sidebar-info-heading">{t("speakTitle")}</p>
+              <div className="sidebar-stats">
+                <div className="sidebar-stat">
+                  <span className="sidebar-stat-label">
+                    <Mic size={14} /> {t("speakAudioOnly")}
+                  </span>
+                </div>
+                {!isPremium && (
+                  <div className="sidebar-stat highlight">
+                    <span className="sidebar-stat-label">
+                      <Clock size={14} /> {t("speakFreeDailyBadge")}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <p className="sidebar-info-note">{t("speakSidebarHint")}</p>
             </div>
           </div>
         ) : (

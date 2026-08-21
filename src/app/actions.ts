@@ -1,4 +1,5 @@
 "use server";
+import { createHash } from "crypto";
 import { headers } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
 import type {
@@ -24,6 +25,20 @@ import {
   isValidEmail,
   wrapUserContent,
 } from "@/lib/actionGuards";
+import { buildTeacherInstructions } from "@/lib/speak/teacherPrompt";
+import {
+  clampSpeechSpeed,
+  getVadEagerness,
+  getVoiceId,
+  isSpeakLevel,
+  isSpeakRealtimeModel,
+  isSpeakVoiceGender,
+  sanitizeConversationSummary,
+  sanitizeLearnerFacts,
+  type SpeakProfileRow,
+} from "@/lib/speak/profileUtils";
+import type { CreateSpeakSessionResult } from "@/lib/speak/types";
+import { FREE_SPEAK_SESSION_LIMIT_SECONDS } from "@/lib/speak/types";
 
 
 type Entitlements = {
@@ -1112,5 +1127,187 @@ Return a JSON object with exactly one key "exercises" containing an array of obj
   } catch (err) {
     console.error("generateFillInExercises error:", err);
     return { exercises: [] as FillInExercisePayload[], type: "error" as const };
+  }
+}
+
+function hashUserIdForOpenAI(userId: string): string {
+  return createHash("sha256").update(userId).digest("hex");
+}
+
+export async function createSpeakSession(
+  accessToken: string | undefined,
+  voiceGender: string,
+  level: string,
+  realtimeModel: string,
+  speechSpeed: number
+): Promise<CreateSpeakSessionResult> {
+  const ent = await getUserEntitlements(accessToken);
+  if (!ent.isAuthenticated) {
+    return { type: "auth_required" };
+  }
+
+  const user = await getUserFromToken(accessToken!);
+  if (!user?.id || !checkRateLimit(user.id, "createSpeakSession")) {
+    return { type: "error", message: "Too many requests. Please wait a moment." };
+  }
+
+  if (
+    !isSpeakVoiceGender(voiceGender) ||
+    !isSpeakLevel(level) ||
+    !isSpeakRealtimeModel(realtimeModel)
+  ) {
+    return { type: "error", message: "Invalid speak session settings." };
+  }
+
+  const safeSpeed = clampSpeechSpeed(speechSpeed);
+  const voice = getVoiceId(voiceGender);
+  const vadEagerness = getVadEagerness(level);
+
+  if (!supabaseAdmin) {
+    return { type: "error", message: "Server configuration error." };
+  }
+
+  const dateStr = new Date().toISOString().split("T")[0];
+
+  if (!ent.isPremium) {
+    const { data: activityData, error: activityError } = await supabaseAdmin
+      .from("user_activity_daily")
+      .select("speak_sessions_count")
+      .eq("user_id", user.id)
+      .eq("activity_date", dateStr)
+      .maybeSingle();
+
+    if (activityError) {
+      console.error("Failed to check daily speak sessions:", activityError);
+    }
+
+    const sessionsToday = activityData?.speak_sessions_count ?? 0;
+    if (sessionsToday >= 1) {
+      return { type: "limit_reached" };
+    }
+  }
+
+  const { data: profileRow, error: profileError } = await supabaseAdmin
+    .from("speak_profiles")
+    .select(
+      "user_id, voice_gender, level, realtime_model, speech_speed, learner_facts, conversation_summary, updated_at"
+    )
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (profileError) {
+    console.error("Failed to load speak profile:", profileError);
+  }
+
+  const learnerFacts = sanitizeLearnerFacts(profileRow?.learner_facts);
+  const conversationSummary = sanitizeConversationSummary(
+    profileRow?.conversation_summary ?? ""
+  );
+
+  const instructions = buildTeacherInstructions(level, learnerFacts, conversationSummary);
+
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    return { type: "error", message: "OpenAI is not configured." };
+  }
+
+  const sessionPayload = {
+    session: {
+      type: "realtime",
+      model: realtimeModel,
+      instructions,
+      reasoning: { effort: "low" },
+      output_modalities: ["audio"],
+      audio: {
+        input: {
+          turn_detection: {
+            type: "semantic_vad",
+            eagerness: vadEagerness,
+            create_response: true,
+            interrupt_response: true,
+          },
+        },
+        output: {
+          voice,
+          speed: safeSpeed,
+        },
+      },
+    },
+  };
+
+  try {
+    const res = await fetch("https://api.openai.com/v1/realtime/client_secrets", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+        "OpenAI-Safety-Identifier": hashUserIdForOpenAI(user.id),
+      },
+      body: JSON.stringify(sessionPayload),
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      console.error("OpenAI Realtime client_secrets error:", await res.text());
+      return { type: "error", message: "Could not start voice session." };
+    }
+
+    const data = (await res.json()) as {
+      value?: string;
+      expires_at?: number;
+      client_secret?: { value?: string; expires_at?: number };
+    };
+
+    const clientSecret = data.value ?? data.client_secret?.value;
+    const expiresAt = data.expires_at ?? data.client_secret?.expires_at ?? 0;
+
+    if (!clientSecret) {
+      return { type: "error", message: "Invalid voice session response." };
+    }
+
+    if (!ent.isPremium) {
+      const { error: incError } = await supabaseAdmin.rpc("increment_speak_sessions_count", {
+        p_user_id: user.id,
+        p_date: dateStr,
+      });
+      if (incError) {
+        console.error("Failed to increment speak sessions count:", incError);
+      }
+    }
+
+    const upsertPayload: SpeakProfileRow = {
+      user_id: user.id,
+      voice_gender: voiceGender,
+      level,
+      realtime_model: realtimeModel,
+      speech_speed: safeSpeed,
+      learner_facts: learnerFacts,
+      conversation_summary: conversationSummary,
+    };
+
+    const { error: upsertError } = await supabaseAdmin.from("speak_profiles").upsert(
+      upsertPayload,
+      { onConflict: "user_id" }
+    );
+
+    if (upsertError) {
+      console.error("Failed to upsert speak profile preferences:", upsertError);
+    }
+
+    return {
+      type: "success",
+      clientSecret,
+      expiresAt,
+      instructions,
+      model: realtimeModel,
+      voice,
+      speechSpeed: safeSpeed,
+      vadEagerness,
+      isPremium: ent.isPremium,
+      sessionLimitSeconds: ent.isPremium ? null : FREE_SPEAK_SESSION_LIMIT_SECONDS,
+    };
+  } catch (err) {
+    console.error("createSpeakSession error:", err);
+    return { type: "error", message: "Could not start voice session." };
   }
 }

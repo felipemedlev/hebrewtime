@@ -11,7 +11,7 @@ Browser → Next.js (Server Components + API routes)
               ↓
          Supabase Storage (episode audio)
               ↓
-         OpenAI (dictionary miss, gloss translation, example phrases)
+         OpenAI (dictionary miss, gloss translation, example phrases, Realtime voice)
 ```
 
 ## Data layer
@@ -53,6 +53,7 @@ Browser → Next.js (Server Components + API routes)
 | `DictionaryDetailsModal.tsx` | Pealim conjugation tables |
 | `ExamplePhrasesPanel.tsx` | Shared example phrase UI |
 | `OnboardingOverlay.tsx` | First login landing page |
+| `SpeakView.tsx` | Hebrew speaking practice via OpenAI Realtime (WebRTC) |
 | `AdminDashboard.tsx` | `/admin` usage stats and premium management |
 
 ## Hooks
@@ -67,6 +68,8 @@ Browser → Next.js (Server Components + API routes)
 | `useUsageTracking.ts` | Active site time for admin stats |
 | `useReviewPracticeStats.ts` | Fill-in and matching attempt stats; feeds `reviewStatsSummary` |
 | `useModalAccessibility.ts` | Focus trap, Escape, body scroll lock |
+| `useSpeakProfile.ts` | Load/save `speak_profiles` (preferences, learner facts, summary) |
+| `useSpeakSession.ts` | OpenAI Realtime WebRTC session (`@openai/agents/realtime`) |
 
 ## Internationalization
 
@@ -117,9 +120,32 @@ Users can add **phrases** manually from the vocabulary view (+ button → Phrase
 | `translateWord` | Optional (rate limited) | Pealim first, OpenAI fallback |
 | `getDictionaryEntryDetails` | None | Lazy conjugation payload |
 | `generateExamplePhrases` | Required | Cached in `vocabulary.example_phrases` |
+| `createSpeakSession` | Required | Mints OpenAI Realtime client secret; free tier daily cap |
 | Admin/premium actions | Admin only | Grant/revoke premium, usage stats |
 
 Rate limits and input bounds: `src/lib/actionGuards.ts`.
+
+## Speak with AI (Realtime voice)
+
+Fourth sidebar tab (`viewMode: "speak"`). Learners talk to a patient Hebrew teacher over **OpenAI Realtime** (`gpt-realtime-2.1` or cheaper `gpt-realtime-2.1-mini`) using **WebRTC** in the browser via `@openai/agents/realtime`.
+
+**Setup (before Start):** teacher voice (female `marin` / male `cedar`), Hebrew level (beginner / intermediate / advanced), model quality vs cost, speaking speed (0.25–1.5). Level controls vocabulary only; speed is independent.
+
+**Session flow:**
+
+1. Client calls `createSpeakSession` (auth + free-tier daily check).
+2. Server builds teacher instructions from `src/lib/speak/teacherPrompt.ts` + stored `speak_profiles` facts/summary.
+3. Server mints ephemeral key via `POST /v1/realtime/client_secrets` (API key never sent to browser).
+4. Client connects `RealtimeSession`; audio only (no transcription/captions for low latency).
+5. Agent tools (`save_learner_facts`, `update_conversation_summary`) write to `speak_profiles` via RLS.
+
+**Teacher behavior:** leads conversation, light spoken-error correction (one recast per turn), simpler Hebrew then brief English if learner is lost. No full transcripts stored—only JSONB facts + ≤500 char English summary.
+
+**Free tier:** 1 session/day, hard stop at ~3 minutes. Premium/admin: unlimited. Episode player pauses while a speak session is active.
+
+**Security:** `Permissions-Policy: microphone=(self)`; CSP `connect-src` includes `api.openai.com` and `*.openai.com`. `OpenAI-Safety-Identifier` header uses SHA-256 of `user_id`.
+
+Key files: `src/lib/speak/`, `src/components/SpeakView.tsx`, `src/hooks/useSpeakProfile.ts`, `src/hooks/useSpeakSession.ts`, `src/app/styles/speak.css`.
 
 ## Audio synchronization
 
@@ -130,12 +156,12 @@ Frontend highlights current sentence/paragraph in `EpisodeViewer.tsx` based on `
 
 ## Premium and free tier
 
-| User type | Episodes | Translate | Vocabulary | Flashcards | Examples |
-|-----------|----------|-----------|------------|------------|----------|
-| Logged out | Yes | Daily limit (localStorage) | No (auth required) | No | No |
-| Free authenticated | Yes | Daily limit (server) | Yes (capped) | Yes (capped) | Yes (capped) |
-| Premium | Yes | Unlimited | Unlimited | Unlimited | Unlimited |
-| Admin | Yes | Unlimited | Unlimited | Unlimited | Unlimited |
+| User type | Episodes | Translate | Vocabulary | Flashcards | Examples | Speak |
+|-----------|----------|-----------|------------|------------|----------|-------|
+| Logged out | Yes | Daily limit (localStorage) | No (auth required) | No | No | No (login CTA) |
+| Free authenticated | Yes | Daily limit (server) | Yes (capped) | Yes (capped) | Yes (capped) | 1 session/day (~3 min) |
+| Premium | Yes | Unlimited | Unlimited | Unlimited | Unlimited | Unlimited |
+| Admin | Yes | Unlimited | Unlimited | Unlimited | Unlimited | Unlimited |
 
 Blocked actions show a sticky subscription upsell panel ($10/month messaging).
 
@@ -145,6 +171,7 @@ Blocked actions show a sticky subscription upsell panel ($10/month messaging).
 - Audio proxy `/api/audio` only accepts HTTPS Google Drive URLs
 - Supabase Storage audio streamed via service role, not end user auth
 - Dictionary reads use `supabaseAdmin` server side so anonymous translation works
+- Realtime speak sessions mint ephemeral keys server-side; microphone allowed only for same-origin (`microphone=(self)`)
 
 ## Onboarding
 
