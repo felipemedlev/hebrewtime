@@ -71,7 +71,7 @@ Per-user Hebrew speaking teacher memory (not a chat log). One row per user.
 | `voice_gender` | `male` or `female` (maps to Realtime voices `cedar` / `marin`) |
 | `level` | `beginner`, `intermediate`, or `advanced` (vocabulary guidance) |
 | `realtime_model` | `gpt-realtime-2.1` or `gpt-realtime-2.1-mini` |
-| `speech_speed` | 0.25–1.5 (user-chosen before each session) |
+| `speech_speed` | 0.25–1.5 (default 0.6 beginner; user-chosen before each session) |
 | `learner_facts` | JSONB: `name`, `city`, `country`, `occupation`, `interests` |
 | `conversation_summary` | ≤500 char English summary of prior topics |
 

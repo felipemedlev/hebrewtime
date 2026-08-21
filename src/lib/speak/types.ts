@@ -56,6 +56,12 @@ export const SPEAK_SPEED_MIN = 0.25;
 export const SPEAK_SPEED_MAX = 1.5;
 export const SPEAK_SPEED_DEFAULT = 1.0;
 
+export const SPEAK_SPEED_BY_LEVEL: Record<SpeakLevel, number> = {
+  beginner: 0.6,
+  intermediate: 0.8,
+  advanced: 1.0,
+};
+
 export const FREE_SPEAK_SESSION_LIMIT_SECONDS = 180;
 
 export const SPEAK_LEARNER_FACT_KEYS = [

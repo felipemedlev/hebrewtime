@@ -6,7 +6,6 @@ import {
   useMemo,
   useState,
   type CSSProperties,
-  type ReactNode,
 } from "react";
 import {
   Mic,
@@ -14,11 +13,7 @@ import {
   Loader2,
   MessageCircleQuestion,
   Volume2,
-  Sparkles,
-  Zap,
   Clock,
-  UserRound,
-  User,
   LogIn,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -35,7 +30,7 @@ import type {
 } from "@/lib/speak/types";
 import {
   FREE_SPEAK_SESSION_LIMIT_SECONDS,
-  SPEAK_SPEED_DEFAULT,
+  SPEAK_SPEED_BY_LEVEL,
   SPEAK_SPEED_MAX,
   SPEAK_SPEED_MIN,
 } from "@/lib/speak/types";
@@ -92,35 +87,6 @@ function statusHint(status: SpeakSessionStatus, t: (key: MessageKey) => string):
   }
 }
 
-function ChoiceCard({
-  active,
-  onClick,
-  icon,
-  title,
-  description,
-}: {
-  active: boolean;
-  onClick: () => void;
-  icon: ReactNode;
-  title: string;
-  description?: string;
-}) {
-  return (
-    <button
-      type="button"
-      className={`speak-choice-card${active ? " is-active" : ""}`}
-      aria-pressed={active}
-      onClick={onClick}
-    >
-      <span className="speak-choice-icon">{icon}</span>
-      <span className="speak-choice-copy">
-        <span className="speak-choice-title">{title}</span>
-        {description ? <span className="speak-choice-desc">{description}</span> : null}
-      </span>
-    </button>
-  );
-}
-
 export default function SpeakView({
   isAuthenticated,
   isPremium,
@@ -135,7 +101,8 @@ export default function SpeakView({
   const [level, setLevel] = useState<SpeakLevel>("beginner");
   const [realtimeModel, setRealtimeModel] =
     useState<SpeakRealtimeModel>("gpt-realtime-2.1");
-  const [speechSpeed, setSpeechSpeed] = useState(SPEAK_SPEED_DEFAULT);
+  const [speechSpeed, setSpeechSpeed] = useState(SPEAK_SPEED_BY_LEVEL.beginner);
+  const [speedTouched, setSpeedTouched] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const { profile, isLoading, savePreferences, saveLearnerFacts, saveConversationSummary } =
@@ -164,7 +131,18 @@ export default function SpeakView({
     setLevel(profile.level);
     setRealtimeModel(profile.realtimeModel);
     setSpeechSpeed(profile.speechSpeed);
+    setSpeedTouched(profile.speechSpeed !== SPEAK_SPEED_BY_LEVEL[profile.level]);
   }, [profile]);
+
+  const handleLevelChange = useCallback(
+    (next: SpeakLevel) => {
+      setLevel(next);
+      if (!speedTouched) {
+        setSpeechSpeed(SPEAK_SPEED_BY_LEVEL[next]);
+      }
+    },
+    [speedTouched]
+  );
 
   const handleLearnerFacts = useCallback(
     async (facts: Parameters<typeof saveLearnerFacts>[0]) => {
@@ -293,97 +271,103 @@ export default function SpeakView({
 
       {!showCall ? (
         <section className="speak-setup" aria-label={t("speakSetupTitle")}>
-          <h2>{t("speakSetupTitle")}</h2>
-
-          <div className="speak-field">
-            <span className="speak-label">{t("speakVoiceLabel")}</span>
-            <div className="speak-choice-grid" role="group" aria-label={t("speakVoiceLabel")}>
-              <ChoiceCard
-                active={voiceGender === "female"}
-                onClick={() => setVoiceGender("female")}
-                icon={<UserRound size={18} />}
-                title={t("speakVoiceFemale")}
-              />
-              <ChoiceCard
-                active={voiceGender === "male"}
-                onClick={() => setVoiceGender("male")}
-                icon={<User size={18} />}
-                title={t("speakVoiceMale")}
-              />
-            </div>
-          </div>
-
-          <div className="speak-field">
-            <span className="speak-label">{t("speakLevelLabel")}</span>
-            <div className="speak-segmented" role="group" aria-label={t("speakLevelLabel")}>
-              {LEVELS.map((value) => (
+          <div className="speak-rows">
+            <div className="speak-row">
+              <span className="speak-row-label">{t("speakVoiceLabel")}</span>
+              <div className="speak-toggle" role="group" aria-label={t("speakVoiceLabel")}>
                 <button
-                  key={value}
                   type="button"
-                  className={level === value ? "is-active" : ""}
-                  aria-pressed={level === value}
-                  onClick={() => setLevel(value)}
+                  className={voiceGender === "female" ? "is-active" : ""}
+                  aria-pressed={voiceGender === "female"}
+                  onClick={() => setVoiceGender("female")}
                 >
-                  {t(
-                    value === "beginner"
-                      ? "speakLevelBeginner"
-                      : value === "intermediate"
-                        ? "speakLevelIntermediate"
-                        : "speakLevelAdvanced"
-                  )}
+                  {t("speakVoiceFemale")}
                 </button>
-              ))}
+                <button
+                  type="button"
+                  className={voiceGender === "male" ? "is-active" : ""}
+                  aria-pressed={voiceGender === "male"}
+                  onClick={() => setVoiceGender("male")}
+                >
+                  {t("speakVoiceMale")}
+                </button>
+              </div>
             </div>
-          </div>
 
-          <div className="speak-field">
-            <span className="speak-label">{t("speakModelLabel")}</span>
-            <div className="speak-choice-grid" role="group" aria-label={t("speakModelLabel")}>
-              <ChoiceCard
-                active={realtimeModel === "gpt-realtime-2.1"}
-                onClick={() => setRealtimeModel("gpt-realtime-2.1")}
-                icon={<Sparkles size={18} />}
-                title={t("speakModelQuality")}
-                description={t("speakModelQualityDesc")}
-              />
-              <ChoiceCard
-                active={realtimeModel === "gpt-realtime-2.1-mini"}
-                onClick={() => setRealtimeModel("gpt-realtime-2.1-mini")}
-                icon={<Zap size={18} />}
-                title={t("speakModelCheaper")}
-                description={t("speakModelCheaperDesc")}
-              />
+            <div className="speak-row">
+              <span className="speak-row-label">{t("speakLevelLabel")}</span>
+              <div className="speak-toggle" role="group" aria-label={t("speakLevelLabel")}>
+                {LEVELS.map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={level === value ? "is-active" : ""}
+                    aria-pressed={level === value}
+                    onClick={() => handleLevelChange(value)}
+                  >
+                    {t(
+                      value === "beginner"
+                        ? "speakLevelBeginner"
+                        : value === "intermediate"
+                          ? "speakLevelIntermediate"
+                          : "speakLevelAdvanced"
+                    )}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
 
-          <div className="speak-field">
-            <div className="speak-speed-head">
-              <label className="speak-label" htmlFor="speak-speed">
-                {t("speakSpeedLabel")}
-              </label>
-              <span className="speak-speed-value">{formatSpeed(speechSpeed)}</span>
+            <div className="speak-row">
+              <span className="speak-row-label">{t("speakModelLabel")}</span>
+              <div className="speak-toggle" role="group" aria-label={t("speakModelLabel")}>
+                <button
+                  type="button"
+                  className={realtimeModel === "gpt-realtime-2.1" ? "is-active" : ""}
+                  aria-pressed={realtimeModel === "gpt-realtime-2.1"}
+                  title={t("speakModelQualityDesc")}
+                  onClick={() => setRealtimeModel("gpt-realtime-2.1")}
+                >
+                  {t("speakModelQuality")}
+                </button>
+                <button
+                  type="button"
+                  className={realtimeModel === "gpt-realtime-2.1-mini" ? "is-active" : ""}
+                  aria-pressed={realtimeModel === "gpt-realtime-2.1-mini"}
+                  title={t("speakModelCheaperDesc")}
+                  onClick={() => setRealtimeModel("gpt-realtime-2.1-mini")}
+                >
+                  {t("speakModelCheaper")}
+                </button>
+              </div>
             </div>
-            <input
-              id="speak-speed"
-              className="speak-speed-slider"
-              type="range"
-              min={SPEAK_SPEED_MIN}
-              max={SPEAK_SPEED_MAX}
-              step={0.05}
-              value={speechSpeed}
-              style={{ "--speed-pct": `${speedPercent(speechSpeed)}%` } as CSSProperties}
-              onChange={(e) => setSpeechSpeed(clampSpeechSpeed(Number(e.target.value)))}
-            />
-            <div className="speak-speed-ticks">
-              <span>{t("speakSpeedSlow")}</span>
-              <span>{t("speakSpeedNormal")}</span>
-              <span>{t("speakSpeedFast")}</span>
+
+            <div className="speak-row speak-row-speed">
+              <div className="speak-row-label-group">
+                <label className="speak-row-label" htmlFor="speak-speed">
+                  {t("speakSpeedLabel")}
+                </label>
+                <span className="speak-row-value">{formatSpeed(speechSpeed)}</span>
+              </div>
+              <input
+                id="speak-speed"
+                className="speak-speed-slider"
+                type="range"
+                min={SPEAK_SPEED_MIN}
+                max={SPEAK_SPEED_MAX}
+                step={0.05}
+                value={speechSpeed}
+                style={{ "--speed-pct": `${speedPercent(speechSpeed)}%` } as CSSProperties}
+                onChange={(e) => {
+                  setSpeedTouched(true);
+                  setSpeechSpeed(clampSpeechSpeed(Number(e.target.value)));
+                }}
+              />
             </div>
           </div>
 
           {knownFacts.length > 0 && (
             <div className="speak-known-facts">
-              <h3>{t("speakKnownFacts")}</h3>
+              <span className="speak-known-facts-label">{t("speakKnownFacts")}</span>
               <ul>
                 {knownFacts.map((item) => (
                   <li key={item.key}>
@@ -411,11 +395,11 @@ export default function SpeakView({
         <section className="speak-call" aria-live="polite">
           <div className={`speak-orb status-${status}`}>
             {status === "connecting" ? (
-              <Loader2 className="speak-spin" size={32} />
+              <Loader2 className="speak-spin" size={28} />
             ) : status === "speaking" ? (
-              <Volume2 size={32} />
+              <Volume2 size={28} />
             ) : (
-              <Mic size={32} />
+              <Mic size={28} />
             )}
           </div>
 

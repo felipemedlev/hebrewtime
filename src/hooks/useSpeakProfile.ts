@@ -9,19 +9,20 @@ import {
   sanitizeConversationSummary,
   type SpeakProfileRow,
 } from "@/lib/speak/profileUtils";
-import type {
-  SpeakLearnerFacts,
-  SpeakLevel,
-  SpeakProfile,
-  SpeakRealtimeModel,
-  SpeakVoiceGender,
+import {
+  SPEAK_SPEED_BY_LEVEL,
+  type SpeakLearnerFacts,
+  type SpeakLevel,
+  type SpeakProfile,
+  type SpeakRealtimeModel,
+  type SpeakVoiceGender,
 } from "@/lib/speak/types";
 
 const DEFAULT_PROFILE: Omit<SpeakProfile, "userId"> = {
   voiceGender: "female",
   level: "beginner",
   realtimeModel: "gpt-realtime-2.1",
-  speechSpeed: 1.0,
+  speechSpeed: SPEAK_SPEED_BY_LEVEL.beginner,
   learnerFacts: {},
   conversationSummary: "",
 };

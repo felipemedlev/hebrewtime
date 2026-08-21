@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS public.speak_profiles (
   level TEXT NOT NULL DEFAULT 'beginner' CHECK (level IN ('beginner', 'intermediate', 'advanced')),
   realtime_model TEXT NOT NULL DEFAULT 'gpt-realtime-2.1'
     CHECK (realtime_model IN ('gpt-realtime-2.1', 'gpt-realtime-2.1-mini')),
-  speech_speed NUMERIC(3, 2) NOT NULL DEFAULT 1.0
+  speech_speed NUMERIC(3, 2) NOT NULL DEFAULT 0.6
     CHECK (speech_speed >= 0.25 AND speech_speed <= 1.5),
   learner_facts JSONB NOT NULL DEFAULT '{}'::jsonb,
   conversation_summary TEXT NOT NULL DEFAULT '',

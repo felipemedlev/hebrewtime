@@ -8,6 +8,7 @@ import type {
 import {
   SPEAK_FACT_MAX_LENGTH,
   SPEAK_LEARNER_FACT_KEYS,
+  SPEAK_SPEED_BY_LEVEL,
   SPEAK_SPEED_DEFAULT,
   SPEAK_SPEED_MAX,
   SPEAK_SPEED_MIN,
@@ -30,6 +31,10 @@ export function isSpeakRealtimeModel(value: string): value is SpeakRealtimeModel
 export function clampSpeechSpeed(value: number): number {
   if (!Number.isFinite(value)) return SPEAK_SPEED_DEFAULT;
   return Math.min(SPEAK_SPEED_MAX, Math.max(SPEAK_SPEED_MIN, Math.round(value * 100) / 100));
+}
+
+export function getDefaultSpeechSpeed(level: SpeakLevel): number {
+  return SPEAK_SPEED_BY_LEVEL[level];
 }
 
 export function getVadEagerness(level: SpeakLevel): "low" | "medium" {
