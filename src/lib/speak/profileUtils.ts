@@ -6,6 +6,7 @@ import type {
   SpeakRealtimeModel,
   SpeakSessionNotes,
   SpeakTurnDetection,
+  SpeakVadEagerness,
   SpeakVoiceGender,
 } from "./types";
 import {
@@ -48,30 +49,15 @@ export function getDefaultSpeechSpeed(level: SpeakLevel): number {
 }
 
 export function getSpeakTurnDetection(level: SpeakLevel): SpeakTurnDetection {
-  if (level === "beginner") {
-    return {
-      type: "server_vad",
-      silenceDurationMs: 800,
-      prefixPaddingMs: 180,
-      threshold: 0.5,
-      interruptResponse: false,
-    };
-  }
-  if (level === "intermediate") {
-    return {
-      type: "server_vad",
-      silenceDurationMs: 380,
-      prefixPaddingMs: 160,
-      threshold: 0.5,
-      interruptResponse: true,
-    };
-  }
+  const eagernessByLevel: Record<SpeakLevel, SpeakVadEagerness> = {
+    beginner: "low",
+    intermediate: "medium",
+    advanced: "high",
+  };
   return {
-    type: "server_vad",
-    silenceDurationMs: 280,
-    prefixPaddingMs: 140,
-    threshold: 0.5,
-    interruptResponse: true,
+    type: "semantic_vad",
+    eagerness: eagernessByLevel[level],
+    interruptResponse: level !== "beginner",
   };
 }
 
@@ -80,9 +66,7 @@ export function toRealtimeTurnDetection(td: SpeakTurnDetection) {
     type: td.type,
     createResponse: true as const,
     interruptResponse: td.interruptResponse,
-    silenceDurationMs: td.silenceDurationMs,
-    prefixPaddingMs: td.prefixPaddingMs,
-    threshold: td.threshold,
+    eagerness: td.eagerness,
   };
 }
 
@@ -91,9 +75,7 @@ export function toClientSecretTurnDetection(td: SpeakTurnDetection) {
     type: td.type,
     create_response: true,
     interrupt_response: td.interruptResponse,
-    silence_duration_ms: td.silenceDurationMs,
-    prefix_padding_ms: td.prefixPaddingMs,
-    threshold: td.threshold,
+    eagerness: td.eagerness,
   };
 }
 

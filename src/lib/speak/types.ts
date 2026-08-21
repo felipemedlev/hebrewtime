@@ -56,11 +56,11 @@ export type SpeakSessionStatus =
   | "speaking"
   | "error";
 
+export type SpeakVadEagerness = "low" | "medium" | "high";
+
 export type SpeakTurnDetection = {
-  type: "server_vad";
-  silenceDurationMs: number;
-  prefixPaddingMs: number;
-  threshold: number;
+  type: "semantic_vad";
+  eagerness: SpeakVadEagerness;
   interruptResponse: boolean;
 };
 
