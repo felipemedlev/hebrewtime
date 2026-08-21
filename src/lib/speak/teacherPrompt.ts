@@ -37,7 +37,7 @@ function formatSessionNotes(notes: SpeakSessionNotes): string {
 function levelGuidance(level: SpeakLevel): string {
   switch (level) {
     case "beginner":
-      return `Hebrew level: beginner (A1). Very simple vocabulary, present tense. ONE short sentence + ONE question, then wait. Do not fill silence with a second question.`;
+      return `Hebrew level: beginner (A1). Very simple vocabulary, present tense. ONE short modeled sentence + ONE open question (מה / איך / ספר), then wait. Invite a short sentence, not a one-word choice. Do not fill silence with a second question.`;
     case "intermediate":
       return `Hebrew level: intermediate (B1). Everyday vocabulary. Short turns. Once this session, ask them to tell a ~20 second story (e.g. what they did yesterday), then recast lightly and continue.`;
     case "advanced":
@@ -68,7 +68,7 @@ export function buildTeacherInstructions(
     .join(", ");
 
   const openingGuidance = hasName
-    ? `Greet the learner by name in Hebrew. Do NOT re-ask known facts (${knownFactLock || "name"}). One short callback to a known fact, interest, or previous topic — warmth, not a quiz — then start today's spark with a modeled sentence and one new question. Do not repeat the previous session's topic.`
+    ? `Greet the learner by name in Hebrew. Do NOT re-ask known facts (${knownFactLock || "name"}). One short callback to a known fact, interest, or previous topic — warmth, not a quiz — then start today's spark with a modeled sentence and one OPEN question. Do not repeat the previous session's topic.`
     : `New learner. Greet in Hebrew. If gender is unknown, ask אתה או את? once. Then one question for their name. After that, start today's spark. Do not run a long interview.`;
 
   const waitGuidance =
@@ -86,7 +86,9 @@ export function buildTeacherInstructions(
 - YOU speak first as soon as the session starts. Never wait silently for the learner.
 - Lead gently, then follow the learner if they change subject.
 - Never roleplay a café waiter, giving street directions, a fake phone call, or a recited daily routine.
-- Speak primarily in Hebrew. Beginner: one sentence + one question. Others: 1–3 short sentences, then pause.
+- Speak primarily in Hebrew. Beginner: one sentence + one open question. Others: 1–3 short sentences, then pause.
+- Ask questions they can answer with a short sentence or two: מה, איך, מה עשית, ספר לי. Do NOT use this-or-that or yes/no as the main question (תה או קפה? / חם או קר? / ואתה?).
+- If they freeze or tap for help, THEN offer a starter sentence they can copy. A simple choice is only a last-resort help, never the default.
 - ${waitGuidance}
 - Be warm and supportive — like a friendly person, not a unit from a coursebook.
 
@@ -94,7 +96,7 @@ export function buildTeacherInstructions(
 
 # Today's spark
 ${formatSparkGuidance(sparks)}
-Inflect Hebrew for the learner's gender. Model a tiny answer first, then ask, so beginners can copy the shape.
+Inflect Hebrew for the learner's gender. Model a tiny answer first, then ask an open question, so they can copy the shape and still have something to say.
 
 # Known learner facts
 ${formatFacts(learnerFacts)}
@@ -133,7 +135,7 @@ ${practiceSection}
 }
 
 export function buildStartSessionPrompt(): string {
-  return "The learner is connected. Greet them now in Hebrew, one short callback if you know them, then begin today's spark. Do not wait for them to speak first.";
+  return "The learner is connected. Greet them now in Hebrew, one short callback if you know them, then begin today's spark with an open question (not a choice). Do not wait for them to speak first.";
 }
 
 export function buildDontUnderstandPrompt(): string {
@@ -149,11 +151,11 @@ export function buildSayShorterPrompt(): string {
 }
 
 export function buildHintPrompt(): string {
-  return "The learner wants a starter. Give them one short Hebrew sentence they can say next, say it clearly, wait for them to try it, then continue the conversation.";
+  return "The learner wants a starter. Give them one short Hebrew sentence they can say next about this topic, say it clearly, wait for them to try it or expand it, then continue with an open question.";
 }
 
 export function buildSkipTopicPrompt(): string {
-  return "The learner wants to skip this topic. Acknowledge briefly in Hebrew and ask one new question from a backup spark. Do not stay on the same topic.";
+  return "The learner wants to skip this topic. Acknowledge briefly in Hebrew and ask one new OPEN question from a backup spark. Do not stay on the same topic. Do not switch to a this-or-that.";
 }
 
 export function buildRepeatAfterMePrompt(): string {
