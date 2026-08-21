@@ -57,7 +57,7 @@ export function getSpeakTurnDetection(level: SpeakLevel): SpeakTurnDetection {
   if (level === "beginner") {
     return {
       type: "server_vad",
-      silenceDurationMs: 550,
+      silenceDurationMs: 800,
       prefixPaddingMs: 180,
       threshold: 0.5,
       interruptResponse: false,

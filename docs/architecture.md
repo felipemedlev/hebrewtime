@@ -139,7 +139,7 @@ Fourth sidebar tab (`viewMode: "speak"`). Learners talk to a patient Hebrew teac
 4. Client connects `RealtimeSession`; audio only (no transcription/captions). Greeting is triggered with `response.create` (no extra user turn). Mic permission and the Realtime SDK preload in parallel with minting the key.
 5. Agent tools (`save_learner_facts`, `update_conversation_summary`, `save_session_recap`) write to `speak_profiles` via RLS without blocking the next audio turn; recap phrases can be saved to vocabulary.
 
-**Teacher behavior:** leads a chosen scene, light spoken-error correction (one recast per turn, then a yes/no reuse prompt), simpler Hebrew then brief English if learner is lost. Turn detection is `server_vad` (faster than semantic VAD): ~550ms silence beginner (no barge-in), ~380ms intermediate, ~280ms advanced. No full transcripts stored—only JSONB facts + ≤500 char English summary + short session notes.
+**Teacher behavior:** leads a chosen scene, light spoken-error correction (one recast per turn, then a yes/no reuse prompt), simpler Hebrew then brief English if learner is lost. Turn detection is `server_vad` (faster than semantic VAD): ~800ms silence beginner (no barge-in), ~380ms intermediate, ~280ms advanced. No full transcripts stored—only JSONB facts + ≤500 char English summary + short session notes.
 
 **In-call help:** I don't understand, slower, shorter, starter sentence, skip topic, repeat after me, and an "I'm thinking" mic pause.
 
