@@ -66,7 +66,7 @@ Daily rollups: active time, translation count, AI example count, fill in count, 
 
 ### `speak_profiles`
 
-Per-user Hebrew speaking teacher memory (not a chat log). One row per user.
+Per-user Hebrew speaking teacher memory (not a chat log). One row per user. Feature spec: [`speak.md`](speak.md).
 
 | Column | Purpose |
 |--------|---------|
@@ -76,7 +76,7 @@ Per-user Hebrew speaking teacher memory (not a chat log). One row per user.
 | `speech_speed` | 0.25–1.5 (default 0.6 beginner; user-chosen before each session) |
 | `learner_facts` | JSONB: `name`, `gender` (`male`/`female`), `city`, `country`, `occupation`, `interests` |
 | `conversation_summary` | ≤500 char English summary of prior topics |
-| `session_notes` | JSONB: `last_corrections`, `target_phrases` (max 5 short strings each), `recent_topics` (spark ids, max 8, so calls stay different) |
+| `session_notes` | JSONB: `last_corrections`, `target_phrases` (max 5 short strings each). Legacy `recent_topics` keys are ignored. |
 
 RLS: authenticated users CRUD own row only. Daily speak caps enforced in `createSpeakSession` via `increment_speak_sessions_count()` (service role only).
 

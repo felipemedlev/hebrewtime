@@ -76,7 +76,7 @@ export function formatPracticeContextBlock(
   if (targetWords.length > 0) {
     lines.push("# Words to weave in");
     lines.push(
-      "Use 2–3 of these naturally if they fit. Recast once if the learner misses them. Do not quiz."
+      "Optional. Use at most one of these if it genuinely fits what they are already saying. Otherwise ignore them. Never redirect the conversation to force a word. Do not quiz."
     );
     for (const item of targetWords) {
       lines.push(`- ${item.word}${item.translation ? ` (${item.translation})` : ""}`);
@@ -90,7 +90,7 @@ export function formatPracticeContextBlock(
       lines.push(`Hebrew from the episode: ${episodeWords.join(", ")}`);
     }
     lines.push(
-      "You may mention the episode once if it fits the talk. Do not lecture about it."
+      "Optional. You may mention the episode once if it already fits the talk. Otherwise ignore it. Do not lecture or steer toward it."
     );
   }
   return lines.join("\n");

@@ -25,10 +25,6 @@ import {
   isValidEmail,
   wrapUserContent,
 } from "@/lib/actionGuards";
-import {
-  pickConversationSparks,
-  rememberRecentTopic,
-} from "@/lib/speak/conversationSparks";
 import { buildTeacherInstructions } from "@/lib/speak/teacherPrompt";
 import {
   clampSpeechSpeed,
@@ -1292,23 +1288,13 @@ export async function createSpeakSession(
     profileResult.data?.conversation_summary ?? ""
   );
   const sessionNotes = sanitizeSessionNotes(profileResult.data?.session_notes);
-  const sparks = pickConversationSparks(
-    level,
-    sessionNotes.recentTopics,
-    learnerFacts.interests
-  );
-  const sessionNotesWithTopic = {
-    ...sessionNotes,
-    recentTopics: rememberRecentTopic(sessionNotes.recentTopics, sparks.primary.id),
-  };
   const sessionLimitSeconds = isPremium ? null : FREE_SPEAK_SESSION_LIMIT_SECONDS;
   const instructions = buildTeacherInstructions(
     level,
     learnerFacts,
     conversationSummary,
-    sessionNotesWithTopic,
+    sessionNotes,
     practiceBlock,
-    sparks,
     sessionLimitSeconds
   );
 
@@ -1370,7 +1356,7 @@ export async function createSpeakSession(
       speech_speed: safeSpeed,
       learner_facts: learnerFacts,
       conversation_summary: conversationSummary,
-      session_notes: sessionNotesToRow(sessionNotesWithTopic),
+      session_notes: sessionNotesToRow(sessionNotes),
     };
 
     if (!isPremium) {

@@ -127,25 +127,9 @@ Rate limits and input bounds: `src/lib/actionGuards.ts`.
 
 ## Speak with AI (Realtime voice)
 
-Fourth sidebar tab (`viewMode: "speak"`). Learners talk to a patient Hebrew teacher over **OpenAI Realtime** (`gpt-realtime-2.1` or cheaper `gpt-realtime-2.1-mini`) using **WebRTC** in the browser via `@openai/agents/realtime`.
+Fourth sidebar tab (`viewMode: "speak"`). Learners talk to a patient Hebrew teacher over **OpenAI Realtime** (`gpt-realtime-2.1` or cheaper `gpt-realtime-2.1-mini`) using **WebRTC** via `@openai/agents/realtime`. Free conversation: the teacher greets, picks a fresh everyday opening from learner context, then follows the learner — not a café/directions roleplay and not a spark script.
 
-**Setup (before Start):** teacher voice (female `marin` / male `cedar`), learner form of address (`אתה` / `את`), Hebrew level, model quality vs cost, speaking speed (0.25–1.5; defaults 0.6 / 0.8 / 1.0 by level until the learner moves the slider).
-
-**Session flow:**
-
-1. Client calls `createSpeakSession` (auth + free-tier daily check).
-2. Server picks a fresh conversation spark (not a roleplay), builds teacher instructions from `src/lib/speak/teacherPrompt.ts` + stored `speak_profiles` facts/summary/session notes + due vocabulary and current episode words.
-3. Server mints ephemeral key via `POST /v1/realtime/client_secrets` (API key never sent to browser).
-4. Client connects `RealtimeSession`; audio only (no transcription/captions). Greeting is triggered with `response.create` (no extra user turn). Mic permission and the Realtime SDK preload in parallel with minting the key.
-5. Agent tools (`save_learner_facts`, `update_conversation_summary`, `save_session_recap`) write to `speak_profiles` via RLS without blocking the next audio turn; recap phrases can be saved to vocabulary.
-
-**Teacher behavior:** free conversation (no café/directions/phone scenes). One short callback to known facts, then a new spark with a modeled sentence and an open question (מה / איך / ספר), not a this-or-that. Each spark includes follow-ups and a longer-turn invitation so the teacher stays on the topic for several exchanges (react → recast → deepen) instead of firing a new short question. Follows the learner. Once per call, invites a longer reply (and the learner can tap “Let me talk more”). Light spoken-error correction (one recast per turn), simpler Hebrew then brief English if learner is lost. Turn detection is `semantic_vad` (model decides when the learner finished speaking): eagerness `low` beginner and intermediate (no barge-in for beginners), `medium` advanced, so pauses while thinking are less likely to cut a longer answer. No full transcripts stored—only JSONB facts + ≤500 char English summary + short session notes (including recent spark ids so calls do not repeat).
-
-**In-call help:** I don't understand, slower, shorter, starter sentence, skip topic, let me talk more, repeat after me, and an "I'm thinking" mic pause. A mid-call nudge also asks for a longer turn once (halfway through a timed session, or after ~90s if unlimited).
-
-**Free tier:** 1 session/day, hard stop at ~3 minutes with a ~20 second recap/goodbye window. Premium/admin: unlimited. Episode player pauses while a speak session is active.
-
-**Security:** `Permissions-Policy: microphone=(self)`; CSP `connect-src` includes `api.openai.com` and `*.openai.com`. `OpenAI-Safety-Identifier` header uses SHA-256 of `user_id`.
+Full spec, session lifecycle, prompts, memory, entitlements, and extension checklists: [`speak.md`](speak.md).
 
 Key files: `src/lib/speak/`, `src/components/SpeakView.tsx`, `src/hooks/useSpeakProfile.ts`, `src/hooks/useSpeakSession.ts`, `src/app/styles/speak.css`.
 

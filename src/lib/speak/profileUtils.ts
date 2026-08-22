@@ -14,7 +14,6 @@ import {
   SPEAK_LEARNER_FACT_KEYS,
   SPEAK_NOTE_MAX_LENGTH,
   SPEAK_NOTES_MAX_ITEMS,
-  SPEAK_RECENT_TOPICS_MAX,
   SPEAK_SPEED_BY_LEVEL,
   SPEAK_SPEED_DEFAULT,
   SPEAK_SPEED_MAX,
@@ -136,7 +135,7 @@ function sanitizeNoteList(input: unknown, max = SPEAK_NOTES_MAX_ITEMS): string[]
 }
 
 export function emptySpeakSessionNotes(): SpeakSessionNotes {
-  return { lastCorrections: [], targetPhrases: [], recentTopics: [] };
+  return { lastCorrections: [], targetPhrases: [] };
 }
 
 export function sanitizeSessionNotes(input: unknown): SpeakSessionNotes {
@@ -145,10 +144,6 @@ export function sanitizeSessionNotes(input: unknown): SpeakSessionNotes {
   return {
     lastCorrections: sanitizeNoteList(raw.last_corrections ?? raw.lastCorrections),
     targetPhrases: sanitizeNoteList(raw.target_phrases ?? raw.targetPhrases),
-    recentTopics: sanitizeNoteList(
-      raw.recent_topics ?? raw.recentTopics,
-      SPEAK_RECENT_TOPICS_MAX
-    ),
   };
 }
 
@@ -156,7 +151,6 @@ export function sessionNotesToRow(notes: SpeakSessionNotes) {
   return {
     last_corrections: notes.lastCorrections.slice(0, SPEAK_NOTES_MAX_ITEMS),
     target_phrases: notes.targetPhrases.slice(0, SPEAK_NOTES_MAX_ITEMS),
-    recent_topics: notes.recentTopics.slice(0, SPEAK_RECENT_TOPICS_MAX),
   };
 }
 
@@ -167,7 +161,6 @@ export function mergeSessionNotes(
   return sanitizeSessionNotes({
     last_corrections: [...(patch.lastCorrections ?? []), ...existing.lastCorrections],
     target_phrases: [...(patch.targetPhrases ?? []), ...existing.targetPhrases],
-    recent_topics: patch.recentTopics ?? existing.recentTopics,
   });
 }
 

@@ -65,6 +65,7 @@ hebrewtime/
 ├── docs/
 │   ├── architecture.md     App internals, i18n, dictionary, premium rules
 │   ├── database.md         Schema and migration order
+│   ├── speak.md            Speak with AI (Realtime voice) — living spec
 │   └── dictionary_entries.md
 ├── supabase/migrations/    Numbered SQL migrations (run in order)
 └── pipeline/               Python content generation
@@ -82,6 +83,7 @@ hebrewtime/
 |-----|----------|
 | [`docs/architecture.md`](docs/architecture.md) | Components, hooks, data layer, i18n, dictionary lookup, premium/free tier |
 | [`docs/database.md`](docs/database.md) | Migration order, RLS, schema reference |
+| [`docs/speak.md`](docs/speak.md) | Speak with AI: session flow, prompts, memory, how to extend |
 | [`pipeline/README.md`](pipeline/README.md) | Content generation workflow, CLI flags, how to add a new level |
 | [`docs/dictionary_entries.md`](docs/dictionary_entries.md) | Pealim dictionary schema and JSONB shapes |
 

@@ -9,7 +9,6 @@ import {
   mergeLearnerFacts,
   mergeSessionNotes,
   sanitizeConversationSummary,
-  sanitizeSessionNotes,
   sessionNotesToRow,
   type SpeakProfileRow,
 } from "@/lib/speak/profileUtils";
@@ -189,19 +188,8 @@ export function useSpeakProfile(userId: string | null) {
     async (patch: Partial<SpeakSessionNotes>) => {
       if (!userId) return;
 
-      const { data: existingRow } = await supabase
-        .from("speak_profiles")
-        .select("session_notes")
-        .eq("user_id", userId)
-        .maybeSingle();
-      const dbNotes = sanitizeSessionNotes(existingRow?.session_notes);
-      const local = profile?.sessionNotes ?? emptySpeakSessionNotes();
       const merged = mergeSessionNotes(
-        {
-          lastCorrections: local.lastCorrections,
-          targetPhrases: local.targetPhrases,
-          recentTopics: dbNotes.recentTopics,
-        },
+        profile?.sessionNotes ?? emptySpeakSessionNotes(),
         patch
       );
       const payload = {
