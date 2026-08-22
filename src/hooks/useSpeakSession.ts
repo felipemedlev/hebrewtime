@@ -55,18 +55,113 @@ type SpeakRealtimeSession = InstanceType<RealtimeModule["RealtimeSession"]> & {
   transport?: { requestResponse?: (response?: Record<string, unknown>) => void };
 };
 
-function warmupMicrophone(): Promise<void> {
-  if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
-    return Promise.resolve();
+type WindowWithWebkitAudio = Window & {
+  webkitAudioContext?: typeof AudioContext;
+};
+
+const SPEAK_MIC_CONSTRAINTS: MediaStreamConstraints = {
+  audio: {
+    echoCancellation: true,
+    noiseSuppression: true,
+  },
+};
+
+function stopMediaStream(stream: MediaStream | null | undefined) {
+  if (!stream) return;
+  for (const track of stream.getTracks()) {
+    try {
+      track.stop();
+    } catch {
+      // ignore
+    }
   }
-  return navigator.mediaDevices
-    .getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } })
-    .then((stream) => {
-      stream.getTracks().forEach((track) => track.stop());
-    })
-    .catch(() => {
-      // SDK connect will surface mic errors
-    });
+}
+
+function disposeAudioElement(el: HTMLAudioElement | null | undefined) {
+  if (!el) return;
+  try {
+    el.pause();
+    el.srcObject = null;
+    el.removeAttribute("src");
+    el.load();
+  } catch {
+    // ignore
+  }
+  el.remove();
+}
+
+function createSpeakAudioElement(): HTMLAudioElement {
+  const el = document.createElement("audio");
+  el.autoplay = true;
+  el.setAttribute("playsinline", "true");
+  el.setAttribute("webkit-playsinline", "true");
+  (el as HTMLAudioElement & { playsInline?: boolean }).playsInline = true;
+  el.setAttribute("aria-hidden", "true");
+  el.style.position = "fixed";
+  el.style.width = "0";
+  el.style.height = "0";
+  el.style.opacity = "0";
+  el.style.pointerEvents = "none";
+  const playRemote = () => {
+    el.muted = false;
+    el.volume = 1;
+    void el.play().catch(() => {});
+  };
+  el.addEventListener("loadedmetadata", playRemote);
+  el.addEventListener("canplay", playRemote);
+  document.body.appendChild(el);
+  return el;
+}
+
+function unlockSpeakOutput(el: HTMLAudioElement) {
+  try {
+    const AC = window.AudioContext || (window as WindowWithWebkitAudio).webkitAudioContext;
+    if (AC) {
+      const ctx = new AC();
+      void ctx.resume();
+      const source = ctx.createBufferSource();
+      source.buffer = ctx.createBuffer(1, 1, 22050);
+      source.connect(ctx.destination);
+      source.start(0);
+    }
+  } catch {
+    // ignore Web Audio unlock failures
+  }
+  el.muted = true;
+  void el.play().finally(() => {
+    el.muted = false;
+  });
+}
+
+function captureMicrophone(): Promise<MediaStream> {
+  if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+    return Promise.reject(new Error("Microphone is not available in this browser."));
+  }
+  return navigator.mediaDevices.getUserMedia(SPEAK_MIC_CONSTRAINTS).catch((err: unknown) => {
+    const name = err instanceof Error ? err.name : "";
+    if (name === "OverconstrainedError" || name === "ConstraintNotSatisfiedError") {
+      return navigator.mediaDevices.getUserMedia({ audio: true });
+    }
+    throw err;
+  });
+}
+
+function connectFailureMessage(err: unknown): string {
+  const name = err instanceof DOMException || err instanceof Error ? err.name : "";
+  const message = (err instanceof Error ? err.message : String(err ?? "")).toLowerCase();
+  if (
+    name === "NotAllowedError" ||
+    name === "PermissionDeniedError" ||
+    message.includes("permission") ||
+    message.includes("notallowed") ||
+    message.includes("denied")
+  ) {
+    return "Microphone permission is required. Enable it for this site and try again.";
+  }
+  if (name === "NotFoundError" || message.includes("not found")) {
+    return "No microphone found.";
+  }
+  return "Could not start the voice call. Check your connection and try again.";
 }
 
 const RECOVERABLE_REALTIME_CODES = new Set([
@@ -147,9 +242,12 @@ export function useSpeakSession({
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
 
   const sessionRef = useRef<SpeakRealtimeSession | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const audioElementRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const endingRef = useRef(false);
   const startingRef = useRef(false);
+  const connectingRef = useRef(false);
   const startGenRef = useRef(0);
   const recapSentRef = useRef(false);
   const longerTurnSentRef = useRef(false);
@@ -181,6 +279,13 @@ export function useSpeakSession({
     } catch {
       // ignore mute errors
     }
+  }, []);
+
+  const releaseCapture = useCallback(() => {
+    stopMediaStream(mediaStreamRef.current);
+    mediaStreamRef.current = null;
+    disposeAudioElement(audioElementRef.current);
+    audioElementRef.current = null;
   }, []);
 
   const sendTurnMessage = useCallback((message: string) => {
@@ -246,12 +351,14 @@ export function useSpeakSession({
         // ignore close errors
       }
 
+      releaseCapture();
       setIsActive(false);
       setStatus("idle");
       endingRef.current = false;
       startingRef.current = false;
+      connectingRef.current = false;
     },
-    [clearTimer, muteSession]
+    [clearTimer, muteSession, releaseCapture]
   );
 
   const startSession = useCallback(async () => {
@@ -269,24 +376,58 @@ export function useSpeakSession({
 
     const isCurrent = () => gen === startGenRef.current;
 
-    const [result, realtimeMod, zodMod] = await Promise.all([
-      createSpeakSession(
-        accessToken,
-        voiceGender,
-        level,
-        realtimeModel,
-        speechSpeed,
-        episodeContext,
-        learnerGender
-      ),
-      import("@openai/agents/realtime"),
-      import("zod"),
-      warmupMicrophone(),
-    ]);
+    // iOS Safari requires getUserMedia + audio unlock in the originating tap.
+    // Keep the mic stream alive and pass it to WebRTC; stopping it here forces a
+    // second getUserMedia after the server round-trip, which iOS rejects.
+    const audioElement = createSpeakAudioElement();
+    audioElementRef.current = audioElement;
+    unlockSpeakOutput(audioElement);
+    const micPromise = captureMicrophone().then((stream) => {
+      if (!isCurrent()) {
+        stopMediaStream(stream);
+        return stream;
+      }
+      mediaStreamRef.current = stream;
+      return stream;
+    });
 
-    if (!isCurrent()) return;
+    let result: Awaited<ReturnType<typeof createSpeakSession>>;
+    let realtimeMod: RealtimeModule;
+    let zodMod: typeof import("zod");
+    let mediaStream: MediaStream;
+
+    try {
+      [result, realtimeMod, zodMod, mediaStream] = await Promise.all([
+        createSpeakSession(
+          accessToken,
+          voiceGender,
+          level,
+          realtimeModel,
+          speechSpeed,
+          episodeContext,
+          learnerGender
+        ),
+        import("@openai/agents/realtime"),
+        import("zod"),
+        micPromise,
+      ]);
+    } catch (err) {
+      releaseCapture();
+      if (!isCurrent()) return;
+      startingRef.current = false;
+      setStatus("error");
+      onError(connectFailureMessage(err));
+      return;
+    }
+
+    if (!isCurrent()) {
+      releaseCapture();
+      startingRef.current = false;
+      return;
+    }
 
     if (result.type === "auth_required") {
+      releaseCapture();
       startingRef.current = false;
       setStatus("idle");
       onAuthRequired();
@@ -294,6 +435,7 @@ export function useSpeakSession({
     }
 
     if (result.type === "limit_reached") {
+      releaseCapture();
       startingRef.current = false;
       setStatus("idle");
       onLimitReached();
@@ -301,6 +443,7 @@ export function useSpeakSession({
     }
 
     if (result.type === "error") {
+      releaseCapture();
       startingRef.current = false;
       setStatus("error");
       onError(result.message ?? "Could not start session.");
@@ -308,7 +451,23 @@ export function useSpeakSession({
     }
 
     try {
-      const { RealtimeAgent, RealtimeSession, tool } = realtimeMod;
+      audioElement.srcObject = mediaStream;
+      audioElement.muted = true;
+      await audioElement.play();
+    } catch {
+      // unlock is best-effort; remote playback still retried on canplay
+    }
+    audioElement.srcObject = null;
+    audioElement.muted = false;
+
+    if (!isCurrent()) {
+      releaseCapture();
+      startingRef.current = false;
+      return;
+    }
+
+    try {
+      const { RealtimeAgent, RealtimeSession, OpenAIRealtimeWebRTC, tool } = realtimeMod;
       const { z } = zodMod;
 
       const saveFactsTool = tool({
@@ -383,6 +542,10 @@ export function useSpeakSession({
       });
 
       const session = new RealtimeSession(agent, {
+        transport: new OpenAIRealtimeWebRTC({
+          mediaStream,
+          audioElement,
+        }),
         model: result.model,
         config: {
           outputModalities: ["audio"],
@@ -444,6 +607,10 @@ export function useSpeakSession({
           return;
         }
         console.error("Realtime session error:", event.error);
+        if (connectingRef.current) {
+          // connect() is still in flight and will reject with a specific message
+          return;
+        }
         setStatus("error");
         onError("Voice session error. Please try again.");
         void stopSession(false);
@@ -459,12 +626,20 @@ export function useSpeakSession({
           // ignore close errors
         }
         sessionRef.current = null;
+        releaseCapture();
         startingRef.current = false;
         setIsActive(false);
         return;
       }
 
-      await session.connect({ apiKey: result.clientSecret });
+      connectingRef.current = true;
+      try {
+        await session.connect({ apiKey: result.clientSecret });
+      } finally {
+        connectingRef.current = false;
+      }
+
+      void audioElement.play().catch(() => {});
 
       if (!isCurrent()) {
         startingRef.current = false;
@@ -535,11 +710,18 @@ export function useSpeakSession({
     } catch (err) {
       if (!isCurrent()) return;
       console.error("Failed to connect speak session:", err);
+      connectingRef.current = false;
       startingRef.current = false;
       setStatus("error");
       setIsActive(false);
+      try {
+        sessionRef.current?.close();
+      } catch {
+        // ignore close errors
+      }
       sessionRef.current = null;
-      onError("Could not connect microphone. Check permissions and try again.");
+      releaseCapture();
+      onError(connectFailureMessage(err));
     }
   }, [
     accessToken,
@@ -557,6 +739,7 @@ export function useSpeakSession({
     onAuthRequired,
     onError,
     muteSession,
+    releaseCapture,
     stopSession,
     sendTurnMessage,
   ]);
