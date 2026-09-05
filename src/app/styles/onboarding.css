@@ -18,6 +18,70 @@
   padding: 0 var(--space-8) var(--space-11);
 }
 
+.onboarding-container--quick { max-width: 720px; }
+.onboarding-hero--quick { margin-bottom: var(--space-7); }
+.onboarding-setup {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.onboarding-setup-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+}
+.onboarding-setup-field label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-semibold);
+}
+.onboarding-setup-field select {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text-main);
+  padding: var(--space-2) var(--space-3);
+  font: inherit;
+}
+.onboarding-track-description {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-base-sm);
+  line-height: var(--leading-relaxed);
+}
+.onboarding-first-step {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  padding: var(--space-4);
+  border: 1px solid var(--accent-border-soft);
+  border-radius: var(--radius-xl);
+  background: var(--accent-weak);
+  margin-bottom: var(--space-7);
+}
+.onboarding-first-step-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-lg);
+  color: var(--accent);
+  background: var(--surface);
+  flex: 0 0 auto;
+}
+.onboarding-first-step h2 { margin: 0 0 var(--space-1); font-size: var(--text-lg); }
+.onboarding-first-step p { margin: 0; color: var(--text-muted); line-height: var(--leading-relaxed); }
+.onboarding-footer--quick { padding-top: 0; border-top: 0; }
+
 .onboarding-header {
   position: sticky;
   top: 0;
@@ -498,6 +562,8 @@
     padding: 22px;
     border-radius: var(--radius-3xl);
   }
+
+  .onboarding-setup { grid-template-columns: 1fr; }
 
   .bilingual-row {
     grid-template-columns: 1fr;

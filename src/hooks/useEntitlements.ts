@@ -32,7 +32,14 @@ export function useEntitlements() {
   // supabase-js v2 because the callback runs while holding an internal lock.
   const resolveForToken = useCallback(async (token: string | undefined) => {
     const normalizedToken = token ?? null;
+    const tokenChanged = currentTokenRef.current !== normalizedToken;
     currentTokenRef.current = normalizedToken;
+    if (tokenChanged) {
+      // Do not expose the previous account's premium/admin state while the new
+      // token is being resolved.
+      setEntitlements(defaultEntitlements);
+      setIsLoading(true);
+    }
 
     try {
       const next = await getUserEntitlements(token);
@@ -63,8 +70,17 @@ export function useEntitlements() {
   // Public refresh that safely reads the current session (only call this
   // OUTSIDE of an onAuthStateChange callback).
   const refresh = useCallback(async () => {
-    const { data } = await supabase.auth.getSession();
-    await resolveForToken(data.session?.access_token);
+    try {
+      const { data } = await supabase.auth.getSession();
+      await resolveForToken(data.session?.access_token);
+    } catch {
+      // A refresh failure must not clobber a newer auth event or a known-good
+      // entitlement result.
+      if (currentTokenRef.current === null) {
+        setEntitlements(defaultEntitlements);
+        setIsLoading(false);
+      }
+    }
   }, [resolveForToken]);
 
   useEffect(() => {

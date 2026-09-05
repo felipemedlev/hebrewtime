@@ -25,7 +25,6 @@ function playAudio(url: string) {
 }
 
 function formsInSection(entry: DictionaryEntryDetails, section: ConjugationSection): DictionaryForm[] {
-  const ids = new Set(section.form_ids);
   const byId = new Map(entry.forms.map((form) => [form.form_id, form]));
   return section.form_ids
     .map((id) => byId.get(id))
@@ -109,7 +108,7 @@ function ConjugationTable({ forms }: { forms: DictionaryForm[] }) {
 function FormCell({ form }: { form: DictionaryForm }) {
   return (
     <div>
-      <div className="dictionary-details-cell-hebrew font-serif" dir="rtl">
+      <div className="dictionary-details-cell-hebrew font-serif" dir="rtl" lang="he">
         {form.hebrew_with_nekudot}
       </div>
       {form.transliteration && (
@@ -149,16 +148,16 @@ export default function DictionaryDetailsModal({
 
     const cached = entryCache.get(pealimId);
     if (cached) {
-      setEntry(cached);
-      setIsLoading(false);
-      setLoadError(false);
       return;
     }
 
     const requestId = ++requestIdRef.current;
-    setIsLoading(true);
-    setLoadError(false);
-    setEntry(null);
+    queueMicrotask(() => {
+      if (requestId !== requestIdRef.current) return;
+      setIsLoading(true);
+      setLoadError(false);
+      setEntry(null);
+    });
 
     void getDictionaryEntryDetails(pealimId).then((res) => {
       if (requestId !== requestIdRef.current) return;
@@ -173,13 +172,18 @@ export default function DictionaryDetailsModal({
     });
   }, [isOpen, pealimId]);
 
+  const cachedEntry = pealimId ? entryCache.get(pealimId) ?? null : null;
+  const displayedEntry = entry?.pealim_id === pealimId ? entry : cachedEntry;
+  const displayedLoading = cachedEntry ? false : isLoading;
+  const displayedLoadError = cachedEntry ? false : loadError;
+
   if (!isOpen || !pealimId) return null;
 
   const sections =
-    entry && entry.conjugation_sections.length > 0
-      ? entry.conjugation_sections
-      : entry
-        ? [{ title: "Forms", subtitle: null, form_ids: entry.forms.map((f) => f.form_id) }]
+    displayedEntry && displayedEntry.conjugation_sections.length > 0
+      ? displayedEntry.conjugation_sections
+      : displayedEntry
+        ? [{ title: "Forms", subtitle: null, form_ids: displayedEntry.forms.map((f) => f.form_id) }]
         : [];
 
   return (
@@ -198,21 +202,21 @@ export default function DictionaryDetailsModal({
       >
         <div className="modal-header">
           <div>
-            <h3 id={titleId} className="modal-title font-serif" dir="rtl">
-              {entry?.word_with_nekudot || "…"}
+            <h3 id={titleId} className="modal-title font-serif" dir="rtl" lang="he">
+              {displayedEntry?.word_with_nekudot || "…"}
             </h3>
-            {entry && (
+            {displayedEntry && (
               <div className="dictionary-details-meta">
-                {entry.transliteration && (
-                  <p className="dictionary-details-translit">{entry.transliteration}</p>
+                {displayedEntry.transliteration && (
+                  <p className="dictionary-details-translit">{displayedEntry.transliteration}</p>
                 )}
-                <span className="dictionary-details-pill">{entry.part_of_speech}</span>
-                {entry.root && <span className="dictionary-details-pill">{entry.root}</span>}
-                {entry.audio_url && (
+                <span className="dictionary-details-pill">{displayedEntry.part_of_speech}</span>
+                {displayedEntry.root && <span className="dictionary-details-pill">{displayedEntry.root}</span>}
+                {displayedEntry.audio_url && (
                   <button
                     type="button"
                     className="dictionary-details-audio-btn"
-                    onClick={() => playAudio(entry.audio_url!)}
+                    onClick={() => playAudio(displayedEntry.audio_url!)}
                     aria-label={t("playAudio")}
                   >
                     <Volume2 size={16} />
@@ -227,30 +231,30 @@ export default function DictionaryDetailsModal({
         </div>
 
         <div className="modal-body dictionary-details-body">
-          {isLoading ? (
+          {displayedLoading ? (
             <div className="translating-state">
               <Loader2 className="spinner" size={24} />
               <span>{t("loadingDetails")}</span>
             </div>
-          ) : loadError || !entry ? (
+          ) : displayedLoadError || !displayedEntry ? (
             <p className="dictionary-details-empty">{t("dictionaryLoadError")}</p>
           ) : (
             <>
-              {entry.meanings.length > 0 ? (
+              {displayedEntry.meanings.length > 0 ? (
                 <ul className="dictionary-details-meanings">
-                  {entry.meanings.map((meaning, i) => (
+                  {displayedEntry.meanings.map((meaning, i) => (
                     <li key={`${meaning}-${i}`}>{meaning}</li>
                   ))}
                 </ul>
               ) : (
                 <p className="dictionary-details-meanings" style={{ listStyle: "none", padding: 0 }}>
-                  {entry.meaning}
+                  {displayedEntry.meaning}
                 </p>
               )}
 
-              {entry.notes.length > 0 && (
+              {displayedEntry.notes.length > 0 && (
                 <div className="dictionary-details-notes">
-                  {entry.notes.map((note, i) => (
+                  {displayedEntry.notes.map((note, i) => (
                     <p key={`${note}-${i}`} style={{ margin: i === 0 ? 0 : "8px 0 0" }}>
                       {note}
                     </p>
@@ -259,7 +263,7 @@ export default function DictionaryDetailsModal({
               )}
 
               {sections.map((section) => {
-                const sectionForms = formsInSection(entry, section);
+                const sectionForms = formsInSection(displayedEntry, section);
                 if (sectionForms.length === 0) return null;
                 return (
                   <div
@@ -275,7 +279,7 @@ export default function DictionaryDetailsModal({
                 );
               })}
 
-              {entry.forms.length === 0 && (
+              {displayedEntry.forms.length === 0 && (
                 <p className="dictionary-details-empty">{t("noConjugationForms")}</p>
               )}
             </>

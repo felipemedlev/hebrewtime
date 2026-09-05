@@ -526,20 +526,20 @@ english_paragraphs must align 1:1 with hebrew_paragraphs (same count)."""
 
 
 def enrich_script_translations(client: OpenAI, script: dict) -> dict:
-    """Add ru/uk/pt/es/fr paragraph translations to a generated script."""
+    """Add Russian, Spanish, and French paragraph translations to a generated script."""
     hebrew = script.get("hebrew_paragraphs", [])
     english = script.get("english_paragraphs", [])
     if script.get("translations") and all(
-        lang in script["translations"] for lang in ("ru", "uk", "pt", "es", "fr")
+        lang in script["translations"] for lang in ("ru", "es", "fr")
     ):
         return script
 
-    print("  Generating ru, uk, pt, es, fr translations (gpt-5.4-mini)…")
+    print("  Generating ru, es, fr translations (gpt-5.4-mini)…")
     translations = build_translations_map(
         client,
         hebrew,
         english,
-        langs=("ru", "uk", "pt", "es", "fr"),
+        langs=("ru", "es", "fr"),
         on_lang=lambda lang: print(f"    → {lang}"),
     )
     script["translations"] = translations
@@ -821,7 +821,7 @@ def process_episode(
         script = bank_script
         if openai_client is not None:
             had_all_translations = script.get("translations") and all(
-                lang in script["translations"] for lang in ("ru", "uk", "pt", "es", "fr")
+                lang in script["translations"] for lang in ("ru", "es", "fr")
             )
             script = enrich_script_translations(openai_client, script)
             if not had_all_translations:
@@ -960,7 +960,7 @@ def main() -> None:
     parser.add_argument(
         "--scripts-only",
         action="store_true",
-        help="Generate/store Hebrew+English scripts only; skip TTS, upload, and DB upsert.",
+        help="Generate/store Hebrew plus English, Russian, Spanish, and French text; skip TTS, upload, and DB upsert.",
     )
     parser.add_argument(
         "--audio-only",
@@ -996,7 +996,7 @@ def main() -> None:
     if not args.audio_only and not OPENAI_API_KEY:
         raise SystemExit("Missing OPENAI_API_KEY")
     if args.audio_only and not OPENAI_API_KEY:
-        print("Warning: OPENAI_API_KEY not set; ru/uk/pt/es/fr translations will not be enriched.")
+        print("Warning: OPENAI_API_KEY not set; ru/es/fr translations will not be enriched.")
 
     curriculum_path = resolve_curriculum_path(args.level, args.curriculum)
     if not curriculum_path.exists():

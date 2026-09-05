@@ -83,7 +83,7 @@ Override with `--curriculum PATH` or `--script-bank PATH` if needed.
 | `--level SLUG` | Select level (default: `beginner`) |
 | `--episode N` | Run one episode only |
 | `--from-episode N` | Run from episode N onward |
-| `--scripts-only` | Generate Hebrew scripts + 6 language translations only |
+| `--scripts-only` | Generate Hebrew scripts + English, Russian, Spanish, and French translations only |
 | `--audio-only` | TTS + upload from existing script bank |
 | `--script-model MODEL` | Override OpenAI model for script writing |
 | `--force` | Regenerate even if checkpoint/DB row exists |
@@ -254,7 +254,7 @@ Safe to delete `pipeline/.checkpoints/` after verifying Supabase uploads. Regene
 | Setting | Value |
 |---------|-------|
 | Script model | Per curriculum `generation.openai_model` (default: `gpt-5.5` beginner/advanced, `gpt-5.4` intermediate-2) |
-| Translation model | `gpt-5.4-mini` (all 6 languages) |
+| Translation model | `gpt-5.4-mini` (English, Russian, Spanish, and French) |
 | TTS model | `gemini-3.1-flash-tts-preview` |
 | Voice | `Achernar`, `he-IL` |
 | Timing | Direct sentence level TTS (not Whisper) |

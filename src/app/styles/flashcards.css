@@ -646,6 +646,10 @@
   line-height: var(--leading-relaxed);
 }
 
+.vocab-empty-container .empty-state-btn {
+  margin-top: var(--space-4);
+}
+
 /* ── Mobile: fills edge-to-edge on iPhone (≤ 580px) ── */
 @media (max-width: 580px) {
   /* Container: tight horizontal inset, no extra centering margins */

@@ -252,6 +252,7 @@ export function useSpeakSession({
   const responseBusyRef = useRef(false);
   const allowBargeInRef = useRef(true);
   const pendingMessageRef = useRef<string | null>(null);
+  const previousAccessTokenRef = useRef<string | null>(null);
 
   useEffect(() => {
     void import("@openai/agents/realtime");
@@ -351,6 +352,16 @@ export function useSpeakSession({
     },
     [clearTimer, muteSession, releaseCapture]
   );
+
+  useEffect(() => {
+    const previousToken = previousAccessTokenRef.current;
+    previousAccessTokenRef.current = accessToken;
+    if (previousToken !== null && previousToken !== accessToken) {
+      // Logging out or switching accounts must release the microphone and
+      // invalidate any in-flight session mint for the previous user.
+      void stopSession(false);
+    }
+  }, [accessToken, stopSession]);
 
   const startSession = useCallback(async () => {
     if (!accessToken || isActive || startingRef.current) return;

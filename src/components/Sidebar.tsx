@@ -15,6 +15,7 @@ import {
   Clock,
   Sparkles,
   Mic,
+  Settings,
 } from "lucide-react";
 import type { EpisodeListItem, LevelTrackMeta, FlashcardStats } from "@/lib/types";
 import type { ViewMode } from "@/lib/viewMode";
@@ -42,8 +43,8 @@ type SidebarProps = {
   onOpenAuthModal?: () => void;
   isPremium?: boolean;
   isAdmin?: boolean;
-  isLoadingEntitlements?: boolean;
   onOpenAdminModal?: () => void;
+  onOpenOnboarding?: () => void;
   finishedEpisodes: Set<string>;
 };
 
@@ -65,8 +66,8 @@ export default function Sidebar({
   onOpenAuthModal,
   isPremium = false,
   isAdmin = false,
-  isLoadingEntitlements = false,
   onOpenAdminModal,
+  onOpenOnboarding,
   finishedEpisodes,
 }: SidebarProps) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -78,11 +79,53 @@ export default function Sidebar({
 
   // Initialize from local storage
   useEffect(() => {
-    const savedWidth = localStorage.getItem("sidebarWidth");
+    let savedWidth: string | null = null;
+    try {
+      savedWidth = localStorage.getItem("sidebarWidth");
+    } catch {
+      savedWidth = null;
+    }
     if (savedWidth) {
       document.documentElement.style.setProperty("--sidebar-width", `${savedWidth}px`);
     }
   }, []);
+
+  useEffect(() => {
+    if (!isSidebarOpen || window.innerWidth > 800) return;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const getFocusable = () =>
+      Array.from(
+        sidebarRef.current?.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        ) ?? []
+      ).filter((element) => element.offsetParent !== null);
+    const focusTimer = window.setTimeout(() => getFocusable()[0]?.focus(), 0);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusables = getFocusable();
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.clearTimeout(focusTimer);
+      document.removeEventListener("keydown", handleKeyDown);
+      previousFocus?.focus();
+    };
+  }, [isSidebarOpen, onClose]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -107,7 +150,11 @@ export default function Sidebar({
         document.body.style.userSelect = "";
         const currentWidth = document.documentElement.style.getPropertyValue("--sidebar-width");
         if (currentWidth) {
-          localStorage.setItem("sidebarWidth", currentWidth.replace("px", ""));
+          try {
+            localStorage.setItem("sidebarWidth", currentWidth.replace("px", ""));
+          } catch {
+            // Width persistence is optional.
+          }
         }
       }
     };
@@ -150,9 +197,16 @@ export default function Sidebar({
       <div
         className={`sidebar-overlay ${!isSidebarOpen ? "closed" : ""}`}
         onClick={onClose}
+        aria-hidden={!isSidebarOpen}
       />
 
-      <aside className={`sidebar ${!isSidebarOpen ? "closed" : ""}`} ref={sidebarRef}>
+      <aside
+        className={`sidebar ${!isSidebarOpen ? "closed" : ""}`}
+        ref={sidebarRef}
+        aria-hidden={!isSidebarOpen}
+        inert={!isSidebarOpen ? true : undefined}
+        aria-label={t("mainNav")}
+      >
         <div className="sidebar-resizer" onMouseDown={handleMouseDown} />
         <div className="sidebar-header">
           <div className="sidebar-title">
@@ -160,7 +214,7 @@ export default function Sidebar({
               <BookOpen size={18} />
               <span>{t("appName")}</span>
             </div>
-            <button className="close-mobile-btn" onClick={onClose}>
+            <button className="close-mobile-btn" onClick={onClose} aria-label={t("closeSidebar")}>
               <X size={18} />
             </button>
           </div>
@@ -252,13 +306,13 @@ export default function Sidebar({
                 <span className="ep-num">
                   {String(ep.episode).padStart(2, "0")}
                 </span>
-                <span className="ep-title">
+                <bdi className="ep-title">
                   {ep.title
                     .replace(/Episode \d+:?\s*/i, "")
                     .split("–")[0]
                     .split("-")[0]
                     .trim()}
-                </span>
+                </bdi>
                 {finishedEpisodes.has(finishedKey(currentLevel, ep.episode)) && (
                   <CheckCircle size={14} className="ep-check" />
                 )}
@@ -362,6 +416,11 @@ export default function Sidebar({
         )}
 
         <div className="sidebar-footer">
+          {onOpenOnboarding && (
+            <button type="button" className="sidebar-setup-btn" onClick={onOpenOnboarding}>
+              <Settings size={14} /> {t("setup")}
+            </button>
+          )}
           {isAdmin && (
             <button className="sidebar-admin-btn" onClick={onOpenAdminModal}>
               {t("openAdminPanel")}

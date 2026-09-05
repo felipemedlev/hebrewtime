@@ -12,6 +12,7 @@ type RateLimitAction = keyof typeof RATE_LIMITS;
 type RateLimitEntry = { count: number; resetAt: number };
 
 const rateLimitStore = new Map<string, RateLimitEntry>();
+const MAX_RATE_LIMIT_ENTRIES = 5_000;
 
 export const INPUT_LIMITS = {
   word: 100,
@@ -25,19 +26,30 @@ export const INPUT_LIMITS = {
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export function clampString(value: string, maxLength: number): string {
-  return value.trim().slice(0, maxLength);
+export function clampString(value: unknown, maxLength: number): string {
+  return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
 }
 
-export function isValidEmail(email: string): boolean {
-  return EMAIL_REGEX.test(email);
+export function isValidEmail(email: unknown): boolean {
+  return typeof email === "string" && EMAIL_REGEX.test(email);
 }
 
-export function checkRateLimit(userId: string, action: RateLimitAction): boolean {
-  const config = RATE_LIMITS[action];
+export function checkRateLimit(userId: unknown, action: unknown): boolean {
+  if (typeof userId !== "string" || !userId || typeof action !== "string" || !(action in RATE_LIMITS)) return false;
+  const config = RATE_LIMITS[action as RateLimitAction];
   const key = `${userId}:${action}`;
   const now = Date.now();
-  const entry = rateLimitStore.get(key);
+  let entry = rateLimitStore.get(key);
+
+  // Keep this process-local guard bounded. Expired entries are cheap to prune;
+  // if an attacker fills the map with active keys, fail closed for new keys.
+  if (rateLimitStore.size >= MAX_RATE_LIMIT_ENTRIES) {
+    for (const [storedKey, storedEntry] of rateLimitStore) {
+      if (now >= storedEntry.resetAt) rateLimitStore.delete(storedKey);
+    }
+    entry = rateLimitStore.get(key);
+    if (!entry && rateLimitStore.size >= MAX_RATE_LIMIT_ENTRIES) return false;
+  }
 
   if (!entry || now >= entry.resetAt) {
     rateLimitStore.set(key, { count: 1, resetAt: now + config.windowMs });
@@ -53,5 +65,5 @@ export function checkRateLimit(userId: string, action: RateLimitAction): boolean
 }
 
 export function wrapUserContent(label: string, content: string): string {
-  return `<${label}>${content.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</${label}>`;
+  return `<${label}>${content.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</${label}>`;
 }

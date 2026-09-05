@@ -5,6 +5,7 @@ import { Bookmark, Trash2, LogIn, Edit2, Check, X, ExternalLink, Search, Message
 import type { VocabWord } from "@/lib/types";
 import { useUser } from "@/hooks/useUser";
 import { useT } from "@/lib/i18n/LanguageProvider";
+import { normalizeHebrewInput } from "@/lib/progress";
 import ExamplePhrasesPanel from "./ExamplePhrasesPanel";
 import DictionaryDetailsModal from "./DictionaryDetailsModal";
 import AddVocabWordModal from "./AddVocabWordModal";
@@ -20,7 +21,6 @@ type VocabularyViewProps = {
   vocabWords: VocabWord[];
   onDeleteWord: (id: string) => void;
   onEditWord?: (id: string, updates: Partial<VocabWord>) => void;
-  isPremium: boolean;
   isAuthenticated: boolean;
   onWordSaved: (
     word: Omit<VocabWord, "id" | "savedAt">
@@ -29,19 +29,20 @@ type VocabularyViewProps = {
   onRequireSubscription: () => void;
   generateExamples: (word: VocabWord) => Promise<{ ok: boolean; message?: string }>;
   regenerateExample: (word: VocabWord, index: number) => Promise<{ ok: boolean; message?: string }>;
+  onStartReading?: () => void;
 };
 
 export default function VocabularyView({
   vocabWords,
   onDeleteWord,
   onEditWord,
-  isPremium,
   isAuthenticated,
   onWordSaved,
   onRequireAuth,
   onRequireSubscription,
   generateExamples,
   regenerateExample,
+  onStartReading,
 }: VocabularyViewProps) {
   const t = useT();
   const { user } = useUser();
@@ -123,8 +124,8 @@ export default function VocabularyView({
   const saveEdit = (id: string) => {
     if (onEditWord) {
       onEditWord(id, {
-        wordWithNekudot: editValues.wordWithNekudot,
-        verbFormWithNekudot: editValues.verbFormWithNekudot,
+        wordWithNekudot: normalizeHebrewInput(editValues.wordWithNekudot),
+        verbFormWithNekudot: normalizeHebrewInput(editValues.verbFormWithNekudot),
         translation: editValues.translation,
         pronunciation: editValues.pronunciation,
       });
@@ -158,6 +159,12 @@ export default function VocabularyView({
           <h2 className="vocab-page-title">{t("myVocabulary")}</h2>
           {vocabWords.length > 0 && (
             <span className="vocab-count-badge">{vocabWords.length}</span>
+          )}
+          {onStartReading && (
+            <button type="button" className="empty-state-btn primary" onClick={onStartReading}>
+              <BookOpen size={16} />
+              {t("startReading")}
+            </button>
           )}
         </div>
 
@@ -307,6 +314,7 @@ export default function VocabularyView({
                     {!isPhrase && (isEditing ? (
                       <input
                         dir="rtl"
+                        lang="he"
                         value={editValues.verbFormWithNekudot}
                         onChange={(e) => setEditValues({ ...editValues, verbFormWithNekudot: e.target.value })}
                         onKeyDown={(e) => e.key === "Enter" && saveEdit(vw.id)}
@@ -315,7 +323,7 @@ export default function VocabularyView({
                         style={{ fontSize: "18px", textAlign: "right" }}
                       />
                     ) : vw.verbFormWithNekudot ? (
-                      <span className="font-serif vocab-verb-word" dir="rtl">{vw.verbFormWithNekudot}</span>
+                      <span className="font-serif vocab-verb-word" dir="rtl" lang="he">{vw.verbFormWithNekudot}</span>
                     ) : (
                       <span className="vocab-dash">—</span>
                     ))}
@@ -327,6 +335,7 @@ export default function VocabularyView({
                     {isEditing ? (
                       <input
                         dir="rtl"
+                        lang="he"
                         value={editValues.wordWithNekudot}
                         onChange={(e) => setEditValues({ ...editValues, wordWithNekudot: e.target.value })}
                         onKeyDown={(e) => e.key === "Enter" && saveEdit(vw.id)}
@@ -338,7 +347,7 @@ export default function VocabularyView({
                         {isPhrase && (
                           <span className="vocab-entry-phrase-badge">{t("vocabEntryPhraseBadge")}</span>
                         )}
-                        <span className="font-serif vocab-hebrew-word" dir="rtl">
+                        <span className="font-serif vocab-hebrew-word" dir="rtl" lang="he">
                           {vw.wordWithNekudot || vw.word}
                         </span>
                       </>
@@ -455,6 +464,7 @@ export default function VocabularyView({
                       {isEditing ? (
                         <input
                           dir="rtl"
+                          lang="he"
                           value={editValues.wordWithNekudot}
                           onChange={(e) => setEditValues({ ...editValues, wordWithNekudot: e.target.value })}
                           onKeyDown={(e) => e.key === "Enter" && saveEdit(vw.id)}
@@ -466,7 +476,7 @@ export default function VocabularyView({
                           {isPhrase && (
                             <span className="vocab-entry-phrase-badge">{t("vocabEntryPhraseBadge")}</span>
                           )}
-                          <span className="font-serif vocab-card-hebrew" dir="rtl">
+                          <span className="font-serif vocab-card-hebrew" dir="rtl" lang="he">
                             {vw.wordWithNekudot || vw.word}
                           </span>
                         </>
@@ -475,6 +485,7 @@ export default function VocabularyView({
                         isEditing ? (
                           <input
                             dir="rtl"
+                            lang="he"
                             value={editValues.verbFormWithNekudot}
                             onChange={(e) => setEditValues({ ...editValues, verbFormWithNekudot: e.target.value })}
                             onKeyDown={(e) => e.key === "Enter" && saveEdit(vw.id)}
@@ -483,7 +494,7 @@ export default function VocabularyView({
                             style={{ fontSize: "16px", textAlign: "right" }}
                           />
                         ) : (
-                          <span className="font-serif vocab-card-verb" dir="rtl">{vw.verbFormWithNekudot}</span>
+                          <span className="font-serif vocab-card-verb" dir="rtl" lang="he">{vw.verbFormWithNekudot}</span>
                         )
                       )}
                     </div>

@@ -53,7 +53,7 @@ export default function TranslationModal({
         aria-labelledby={titleId}
       >
         <div className="modal-header">
-          <h3 id={titleId} className="modal-title font-serif" dir="rtl">
+          <h3 id={titleId} className="modal-title font-serif" dir="rtl" lang="he">
             {wordWithNekudot || word}
           </h3>
           <button onClick={onClose} className="close-btn" aria-label={t("close")}>
@@ -86,7 +86,7 @@ export default function TranslationModal({
               )}
               {verbFormWithNekudot && (
                 <p className="verb-form-text" style={{ marginTop: "8px", fontSize: "14px", color: "var(--text-muted)" }}>
-                  {t("verbForm")}: <span className="font-serif" dir="rtl" style={{ fontSize: "18px", color: "var(--accent)" }}>{verbFormWithNekudot}</span>
+                  {t("verbForm")}: <span className="font-serif" dir="rtl" lang="he" style={{ fontSize: "18px", color: "var(--accent)" }}>{verbFormWithNekudot}</span>
                 </p>
               )}
             </div>

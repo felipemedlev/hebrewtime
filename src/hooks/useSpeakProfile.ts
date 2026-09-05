@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
   clampSpeechSpeed,
@@ -38,10 +38,13 @@ const PROFILE_COLUMNS =
 export function useSpeakProfile(userId: string | null) {
   const [profile, setProfile] = useState<SpeakProfile | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const loadIdRef = useRef(0);
 
   const loadProfile = useCallback(async () => {
+    const loadId = ++loadIdRef.current;
     if (!userId) {
       setProfile(null);
+      setIsLoading(false);
       return;
     }
 
@@ -55,22 +58,29 @@ export function useSpeakProfile(userId: string | null) {
 
       if (error) {
         console.error("Failed to load speak profile:", error);
+        if (loadId !== loadIdRef.current) return;
         setProfile({ userId, ...DEFAULT_PROFILE });
         return;
       }
 
       if (!data) {
+        if (loadId !== loadIdRef.current) return;
         setProfile({ userId, ...DEFAULT_PROFILE });
         return;
       }
 
-      setProfile(mapSpeakProfileRow(data as SpeakProfileRow));
+      if (loadId === loadIdRef.current) setProfile(mapSpeakProfileRow(data as SpeakProfileRow));
+    } catch (error) {
+      console.error("Unexpected error loading speak profile:", error);
+      if (loadId === loadIdRef.current) setProfile({ userId, ...DEFAULT_PROFILE });
     } finally {
-      setIsLoading(false);
+      if (loadId === loadIdRef.current) setIsLoading(false);
     }
   }, [userId]);
 
   useEffect(() => {
+    // Never render another account's learner facts while this profile loads.
+    setProfile(null);
     void loadProfile();
   }, [loadProfile]);
 
@@ -82,6 +92,7 @@ export function useSpeakProfile(userId: string | null) {
       speechSpeed: number;
     }) => {
       if (!userId) return;
+      const mutationLoadId = loadIdRef.current;
 
       const payload = {
         user_id: userId,
@@ -100,6 +111,8 @@ export function useSpeakProfile(userId: string | null) {
         return;
       }
 
+      if (mutationLoadId !== loadIdRef.current) return;
+
       setProfile((prev) =>
         prev
           ? {
@@ -117,12 +130,13 @@ export function useSpeakProfile(userId: string | null) {
             }
       );
     },
-    [userId, profile]
+    [userId]
   );
 
   const saveLearnerFacts = useCallback(
     async (patch: SpeakLearnerFacts) => {
       if (!userId) return;
+      const mutationLoadId = loadIdRef.current;
 
       const merged = mergeLearnerFacts(profile?.learnerFacts ?? {}, patch);
       const payload = {
@@ -143,6 +157,8 @@ export function useSpeakProfile(userId: string | null) {
         return;
       }
 
+      if (mutationLoadId !== loadIdRef.current) return;
+
       setProfile((prev) =>
         prev
           ? { ...prev, learnerFacts: merged }
@@ -155,6 +171,7 @@ export function useSpeakProfile(userId: string | null) {
   const saveConversationSummary = useCallback(
     async (summary: string) => {
       if (!userId) return;
+      const mutationLoadId = loadIdRef.current;
 
       const safeSummary = sanitizeConversationSummary(summary);
       const payload = {
@@ -175,6 +192,8 @@ export function useSpeakProfile(userId: string | null) {
         return;
       }
 
+      if (mutationLoadId !== loadIdRef.current) return;
+
       setProfile((prev) =>
         prev
           ? { ...prev, conversationSummary: safeSummary }
@@ -187,6 +206,7 @@ export function useSpeakProfile(userId: string | null) {
   const saveSessionNotes = useCallback(
     async (patch: Partial<SpeakSessionNotes>) => {
       if (!userId) return;
+      const mutationLoadId = loadIdRef.current;
 
       const merged = mergeSessionNotes(
         profile?.sessionNotes ?? emptySpeakSessionNotes(),
@@ -209,6 +229,8 @@ export function useSpeakProfile(userId: string | null) {
         console.error("Failed to save session notes:", error);
         return;
       }
+
+      if (mutationLoadId !== loadIdRef.current) return;
 
       setProfile((prev) =>
         prev

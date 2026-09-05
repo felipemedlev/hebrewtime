@@ -1,6 +1,6 @@
 # HebrewTime
 
-HebrewTime is a multilingual web reader for the Hebrew Time podcast and AI generated learning tracks. Learners read Hebrew with side by side translations in **English**, **Russian**, **Ukrainian**, **Portuguese**, **Spanish**, or **French**, click words for Pealim backed dictionary lookup, save vocabulary, review with FSRS flashcards, and **practice speaking Hebrew** with an AI teacher (OpenAI Realtime voice).
+HebrewTime is a multilingual web reader for the Hebrew Time podcast and AI generated learning tracks. Learners read Hebrew with side by side translations in **English**, **Russian**, **Spanish**, or **French**, click words for Pealim backed dictionary lookup, save vocabulary, review with FSRS flashcards, and **practice speaking Hebrew** with an AI teacher (OpenAI Realtime voice).
 
 ## Learning tracks
 
@@ -65,6 +65,7 @@ hebrewtime/
 ├── docs/
 │   ├── architecture.md     App internals, i18n, dictionary, premium rules
 │   ├── database.md         Schema and migration order
+│   ├── retention-and-reliability.md  Implemented retention, security, analytics, rollout notes
 │   ├── speak.md            Speak with AI (Realtime voice) — living spec
 │   └── dictionary_entries.md
 ├── supabase/migrations/    Numbered SQL migrations (run in order)
@@ -83,6 +84,7 @@ hebrewtime/
 |-----|----------|
 | [`docs/architecture.md`](docs/architecture.md) | Components, hooks, data layer, i18n, dictionary lookup, premium/free tier |
 | [`docs/database.md`](docs/database.md) | Migration order, RLS, schema reference |
+| [`docs/retention-and-reliability.md`](docs/retention-and-reliability.md) | Implemented retention behavior, security findings, analytics, verification, rollout |
 | [`docs/speak.md`](docs/speak.md) | Speak with AI: session flow, prompts, memory, how to extend |
 | [`pipeline/README.md`](pipeline/README.md) | Content generation workflow, CLI flags, how to add a new level |
 | [`docs/dictionary_entries.md`](docs/dictionary_entries.md) | Pealim dictionary schema and JSONB shapes |
@@ -95,6 +97,7 @@ hebrewtime/
 | `pipeline/data/scripts/*.json` | Yes | Reviewed script banks for `--audio-only` |
 | `pipeline/data/episodes.json` | Yes | Legacy intermediate archive + app fallback |
 | `pipeline/.checkpoints/` | No | Local TTS/alignment cache |
+| `scripts/.checkpoints/` | No | Retired local translation checkpoint location; ignored for compatibility |
 | `secrets/` | No | GCP service account keys |
 
 ## Premium access (summary)

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAllPublishedEpisodeParams, getEpisode } from "@/lib/episodes";
+import { getAllPublishedEpisodeParams, getEpisode, isKnownLevelSlug } from "@/lib/episodes";
 
 export const dynamic = "force-dynamic";
 
@@ -13,10 +13,14 @@ export async function GET(
   { params }: { params: Promise<{ level: string; id: string }> }
 ) {
   const { level, id } = await params;
-  const episodeNum = parseInt(id, 10);
+  const episodeNum = /^\d+$/.test(id) ? Number(id) : NaN;
 
-  if (isNaN(episodeNum)) {
+  if (!Number.isSafeInteger(episodeNum) || episodeNum < 1) {
     return NextResponse.json({ error: "Invalid episode number" }, { status: 400 });
+  }
+
+  if (!(await isKnownLevelSlug(level))) {
+    return NextResponse.json({ error: "Invalid level" }, { status: 400 });
   }
 
   const episode = await getEpisode(level, episodeNum);

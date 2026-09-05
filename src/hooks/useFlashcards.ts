@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "./useUser";
 import type {
@@ -125,8 +125,10 @@ export function useFlashcards(vocabWords: VocabWord[]) {
   const { user } = useUser();
   const [progresses, setProgresses] = useState<FlashcardProgress[]>([]);
   const [isProgressLoaded, setIsProgressLoaded] = useState(false);
+  const loadIdRef = useRef(0);
 
   const loadProgress = useCallback(async (options?: { silent?: boolean }) => {
+    const loadId = ++loadIdRef.current;
     if (!user) {
       setProgresses([]);
       setIsProgressLoaded(true);
@@ -134,6 +136,8 @@ export function useFlashcards(vocabWords: VocabWord[]) {
     }
 
     if (!options?.silent) {
+      // Do not show the previous account's schedules while the new account loads.
+      setProgresses([]);
       setIsProgressLoaded(false);
     }
     try {
@@ -145,12 +149,13 @@ export function useFlashcards(vocabWords: VocabWord[]) {
       if (error) {
         console.error("Error fetching flashcard progress:", error);
       } else if (data) {
+        if (loadId !== loadIdRef.current) return;
         setProgresses(data.map((row) => normalizeProgress(row as FlashcardProgress)));
       }
     } catch (err) {
       console.error("Unexpected error loading flashcard progress:", err);
     } finally {
-      setIsProgressLoaded(true);
+      if (loadId === loadIdRef.current) setIsProgressLoaded(true);
     }
   }, [user]);
 
@@ -175,6 +180,7 @@ export function useFlashcards(vocabWords: VocabWord[]) {
       direction: FlashcardDirection = "forward"
     ) => {
       if (!user) return;
+      const mutationLoadId = loadIdRef.current;
 
       const directionSet =
         direction === "reverse" ? reverse.flashcards : forward.flashcards;
@@ -238,6 +244,8 @@ export function useFlashcards(vocabWords: VocabWord[]) {
         .select()
         .single();
 
+      if (mutationLoadId !== loadIdRef.current) return;
+
       if (error) {
         console.error("Failed to save flashcard review progress:", error);
         loadProgress({ silent: true });
@@ -264,6 +272,7 @@ export function useFlashcards(vocabWords: VocabWord[]) {
   const unlearnWord = useCallback(
     async (vocabId: string, direction: FlashcardDirection = "forward") => {
       if (!user) return;
+      const mutationLoadId = loadIdRef.current;
 
       setProgresses((prev) =>
         prev.filter(
@@ -284,7 +293,7 @@ export function useFlashcards(vocabWords: VocabWord[]) {
 
       if (error) {
         console.error("Failed to unlearn word:", error);
-        loadProgress({ silent: true });
+        if (mutationLoadId === loadIdRef.current) loadProgress({ silent: true });
       }
     },
     [user, loadProgress]

@@ -407,6 +407,22 @@
   gap: var(--radius-lg);
 }
 
+.sidebar-setup-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+.sidebar-setup-btn:hover { background: var(--surface-hover); color: var(--text-main); }
+
 .sidebar-admin-btn {
   width: 100%;
   background: var(--surface);

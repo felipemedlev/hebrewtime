@@ -150,12 +150,15 @@ export default function SpeakView({
 
   useEffect(() => {
     if (!profile) return;
-    setVoiceGender(profile.voiceGender);
-    setLevel(profile.level);
-    setRealtimeModel(profile.realtimeModel);
-    setSpeechSpeed(profile.speechSpeed);
-    setSpeedTouched(profile.speechSpeed !== SPEAK_SPEED_BY_LEVEL[profile.level]);
-    setLearnerGender(profile.learnerFacts.gender ?? null);
+    const syncTimer = window.setTimeout(() => {
+      setVoiceGender(profile.voiceGender);
+      setLevel(profile.level);
+      setRealtimeModel(profile.realtimeModel);
+      setSpeechSpeed(profile.speechSpeed);
+      setSpeedTouched(profile.speechSpeed !== SPEAK_SPEED_BY_LEVEL[profile.level]);
+      setLearnerGender(profile.learnerFacts.gender ?? null);
+    }, 0);
+    return () => window.clearTimeout(syncTimer);
   }, [profile]);
 
   const handleLevelChange = useCallback(

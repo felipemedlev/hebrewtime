@@ -14,6 +14,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const LEVEL_SLUG_REGEX = /^[a-z0-9-]+$/;
+const SUPABASE_FETCH_TIMEOUT_MS = 10_000;
 
 export function isLevelSlugFormatValid(level: string): boolean {
   return LEVEL_SLUG_REGEX.test(level) && level.length > 0 && level.length <= 64;
@@ -53,10 +54,23 @@ async function supabaseFetch<T>(path: string): Promise<T | null> {
   const headers = getServiceHeaders();
   if (!headers || !supabaseUrl) return null;
 
-  const res = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
-    headers,
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
+      headers,
+      cache: "no-store",
+      signal: AbortSignal.timeout(SUPABASE_FETCH_TIMEOUT_MS),
+    });
+  } catch (error) {
+    // Build and request-time fallbacks can still serve the checked-in legacy
+    // catalog when Supabase is unavailable. Keep the failure bounded and
+    // avoid leaking upstream details to callers.
+    console.error(
+      `Supabase fetch failed (${path}):`,
+      error instanceof Error ? error.message : "unknown error"
+    );
+    return null;
+  }
 
   if (!res.ok) {
     console.error(`Supabase fetch failed (${path}):`, res.status, await res.text());
@@ -258,6 +272,14 @@ export async function getEpisode(level: string, num: number): Promise<Episode | 
   if (rows && rows.length > 0) return mapEpisodeRow(rows[0]);
 
   return legacyEpisodesForLevel(level).find((ep) => ep.episode === num) ?? null;
+}
+
+/** Load only a published database episode. This intentionally does not use the legacy fallback. */
+export async function getPublishedEpisode(level: string, num: number): Promise<Episode | null> {
+  const rows = await supabaseFetch<EpisodeRow[]>(
+    `episodes?select=*&level_slug=eq.${encodeURIComponent(level)}&episode_number=eq.${num}&is_published=eq.true&limit=1`
+  );
+  return rows && rows.length > 0 ? mapEpisodeRow(rows[0]) : null;
 }
 
 export async function getFirstEpisodeNum(level: string): Promise<number | null> {

@@ -16,6 +16,8 @@ type MediaPlayerProps = {
   viewMode?: ViewMode;
   isMobile?: boolean;
   pauseForSpeak?: boolean;
+  initialTime?: number;
+  onLearningInteraction?: () => void;
 };
 
 function formatTime(seconds: number): string {
@@ -36,6 +38,8 @@ export default function MediaPlayer({
   viewMode = "episodes",
   isMobile = false,
   pauseForSpeak = false,
+  initialTime = 0,
+  onLearningInteraction,
 }: MediaPlayerProps) {
   const t = useT();
   const [isExpanded, setIsExpanded] = useState(true);
@@ -46,6 +50,7 @@ export default function MediaPlayer({
   const [isScrubbing, setIsScrubbing] = useState(false);
   const [scrubPreviewTime, setScrubPreviewTime] = useState<number | null>(null);
   const [playbackError, setPlaybackError] = useState<string | null>(null);
+  const restoredTimeRef = useRef(false);
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const seekRef = useRef<HTMLInputElement>(null);
@@ -55,6 +60,7 @@ export default function MediaPlayer({
   const isSecondaryView =
     viewMode === "vocabulary" || viewMode === "flashcards" || viewMode === "speak";
   const hideBar = isMobile && isSecondaryView;
+  const expanded = isSecondaryView ? false : isExpanded;
 
   useEffect(() => {
     if (hideBar) {
@@ -62,9 +68,9 @@ export default function MediaPlayer({
       return;
     }
 
-    const height = isExpanded ? (isMobile ? "120px" : "108px") : "48px";
+    const height = expanded ? (isMobile ? "120px" : "108px") : "48px";
     document.documentElement.style.setProperty("--media-player-height", height);
-  }, [hideBar, isExpanded, isMobile]);
+  }, [expanded, hideBar, isMobile]);
 
   useEffect(() => {
     return () => {
@@ -73,30 +79,10 @@ export default function MediaPlayer({
   }, []);
 
   useEffect(() => {
-    if (isSecondaryView) {
-      setIsExpanded(false);
-    }
-  }, [isSecondaryView, viewMode]);
-
-  useEffect(() => {
     const audio = audioRef.current;
     if (!audio || !pauseForSpeak) return;
     audio.pause();
-    setIsPlaying(false);
   }, [pauseForSpeak]);
-
-  // When episode changes, reset playback
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    audio.pause();
-    audio.load();
-    setIsPlaying(false);
-    setCurrentTime(0);
-    setDuration(0);
-    setScrubPreviewTime(null);
-    setPlaybackError(null);
-  }, [audioUrl]);
 
   // Audio event listeners
   useEffect(() => {
@@ -114,7 +100,15 @@ export default function MediaPlayer({
         }
       }
     };
-    const onDurationChange = () => setDuration(audio.duration);
+    const onDurationChange = () => {
+      setDuration(audio.duration);
+      if (!restoredTimeRef.current && initialTime > 0 && Number.isFinite(audio.duration)) {
+        audio.currentTime = Math.min(initialTime, Math.max(0, audio.duration - 0.25));
+        setCurrentTime(audio.currentTime);
+        window.dispatchEvent(new CustomEvent("playerTimeUpdate", { detail: audio.currentTime }));
+        restoredTimeRef.current = true;
+      }
+    };
     const onPlay  = () => setIsPlaying(true);
     const onPause = () => setIsPlaying(false);
     const onEnded = () => setIsPlaying(false);
@@ -141,11 +135,12 @@ export default function MediaPlayer({
       audio.removeEventListener("ended", onEnded);
       audio.removeEventListener("error", onError);
     };
-  }, [isScrubbing, t]);
+  }, [initialTime, isScrubbing, t]);
 
   const togglePlay = useCallback(async () => {
     const audio = audioRef.current;
     if (!audio) return;
+    onLearningInteraction?.();
     if (audio.paused) {
       try {
         await audio.play();
@@ -155,7 +150,7 @@ export default function MediaPlayer({
     } else {
       audio.pause();
     }
-  }, [t]);
+  }, [onLearningInteraction, t]);
 
   const toggleMute = useCallback(() => {
     const audio = audioRef.current;
@@ -168,7 +163,14 @@ export default function MediaPlayer({
     const time = Number(e.target.value);
     setCurrentTime(time);
     setScrubPreviewTime(time);
-  }, []);
+    const audio = audioRef.current;
+    if (audio && Number.isFinite(time)) {
+      // Range inputs update from arrow keys as well as pointer drags. Seek the
+      // media element immediately so keyboard users hear the requested point.
+      audio.currentTime = time;
+      onLearningInteraction?.();
+    }
+  }, [onLearningInteraction]);
 
   const handleSeekStart = useCallback(() => {
     setIsScrubbing(true);
@@ -187,6 +189,12 @@ export default function MediaPlayer({
     setIsScrubbing(false);
   }, []);
 
+  const handleSeekKeyUp = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    window.dispatchEvent(new CustomEvent("playerTimeUpdate", { detail: audio.currentTime }));
+  }, []);
+
 
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
@@ -199,7 +207,7 @@ export default function MediaPlayer({
 
   return (
     <div
-      className={`media-player-bar ${isExpanded ? "expanded" : "collapsed"} ${isSidebarOpen ? "sidebar-open" : ""} ${hideBar ? "media-player-hidden" : ""}`}
+      className={`media-player-bar ${expanded ? "expanded" : "collapsed"} ${isSidebarOpen ? "sidebar-open" : ""} ${hideBar ? "media-player-hidden" : ""}`}
       aria-hidden={hideBar}
     >
       {/* Hidden native audio element for playback control */}
@@ -211,7 +219,7 @@ export default function MediaPlayer({
       />
 
       {/* Header strip — always visible */}
-      <div className="media-player-header" onClick={() => setIsExpanded(!isExpanded)}>
+      <div className="media-player-header" onClick={() => setIsExpanded(!expanded)}>
         <div className="media-player-info">
           <div className="media-player-icon">
             <Radio size={14} />
@@ -222,25 +230,26 @@ export default function MediaPlayer({
                 EP {String(episodeNum).padStart(2, "0")}
               </span>
             )}
-            <span className="media-player-title">
+            <bdi className="media-player-title">
               {playbackError ?? episodeTitle ?? t("loading")}
-            </span>
+            </bdi>
           </div>
         </div>
         <button
           className="media-player-toggle"
-          aria-label={isExpanded ? t("close") : t("openSidebar")}
+          aria-label={expanded ? t("collapsePlayer") : t("expandPlayer")}
+          aria-expanded={expanded}
           onClick={(e) => {
             e.stopPropagation();
-            setIsExpanded(!isExpanded);
+            setIsExpanded(!expanded);
           }}
         >
-          {isExpanded ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+          {expanded ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
         </button>
       </div>
 
       {/* Custom controls body */}
-      {isExpanded && (
+      {expanded && (
         <div className="media-player-body">
           {/* Play / Pause */}
           <button
@@ -278,7 +287,9 @@ export default function MediaPlayer({
                 onChange={handleSeekChange}
                 onPointerDown={handleSeekStart}
                 onPointerUp={handlePointerUp}
-                aria-label="Seek"
+                onKeyUp={handleSeekKeyUp}
+                aria-label={t("seekAudio")}
+                aria-valuetext={`${formatTime(displayTime)} / ${formatTime(duration)}`}
               />
             </div>
           </div>

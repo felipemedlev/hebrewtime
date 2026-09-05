@@ -137,7 +137,7 @@ function CombinedWeakWordsList({
           return (
             <li key={w.vocabId} className="review-weak-word-row">
               <div className="review-weak-word-main">
-                <span className="font-serif" dir="rtl">
+                <span className="font-serif" dir="rtl" lang="he">
                   {word.wordWithNekudot || word.word}
                 </span>
                 <span className="review-weak-meta">{word.translation}</span>

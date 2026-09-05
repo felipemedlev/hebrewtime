@@ -21,8 +21,9 @@ Run migrations in [`supabase/migrations/`](../supabase/migrations/) **in numeric
 | 13 | `13_speak_profiles.sql` | `speak_profiles` + `user_activity_daily.speak_sessions_count` |
 | 14 | `14_speak_scenes_notes.sql` | `speak_profiles.scene` + `session_notes` (scene later dropped in 15) |
 | 15 | `15_speak_drop_scene.sql` | Drops `speak_profiles.scene` |
+| 16 | `16_security_and_atomic_usage.sql` | Atomic daily quota reservations/releases and vocabulary ownership checks for review writes |
 
-**Fresh install:** run 01 through 15 in order.
+**Fresh install:** run 01 through 16 in order.
 
 **Existing project:** skip migrations you have already applied. Migration 09 is important if your project still has premium only RLS on vocabulary/flashcards.
 
@@ -42,7 +43,7 @@ FSRS scheduling per vocab card. Unique on `(user_id, vocab_id, direction)` after
 
 ### `episodes`
 
-Published episodes per level. Key columns: `level_slug`, `episode_number`, `hebrew_paragraphs`, `english_paragraphs`, `translations` (JSONB map of 6 languages), `audio_url`.
+Published episodes per level. Key columns: `level_slug`, `episode_number`, `hebrew_paragraphs`, `english_paragraphs`, `translations` (JSONB map of supported language paragraphs), `audio_url`. Privileged storage audio requires a published row; the local JSON archive remains an intermediate-content fallback for the reader only.
 
 ### `levels`
 
@@ -78,13 +79,14 @@ Per-user Hebrew speaking teacher memory (not a chat log). One row per user. Feat
 | `conversation_summary` | ≤500 char English summary of prior topics |
 | `session_notes` | JSONB: `last_corrections`, `target_phrases` (max 5 short strings each). Legacy `recent_topics` keys are ignored. |
 
-RLS: authenticated users CRUD own row only. Daily speak caps enforced in `createSpeakSession` via `increment_speak_sessions_count()` (service role only).
+RLS: authenticated users CRUD own row only. Daily speak caps enforced in `createSpeakSession` via the migration 16 `reserve_daily_usage()` RPC (service role only), with `release_daily_usage()` after confirmed upstream failure.
 
 ## RLS summary
 
 After all migrations:
 
-- **vocabulary / flashcard_progress**: authenticated users can CRUD their own rows (migration 09 relaxed premium only policies)
+- **vocabulary / flashcard_progress**: authenticated users can CRUD their own rows (migration 09 relaxed premium only policies); migration 16 also requires the referenced vocabulary owner for flashcard writes
+- **review_practice_attempts**: authenticated users can insert/read only their own attempts whose `vocab_id` belongs to them (migration 16)
 - **finished_episodes**: users manage their own rows
 - **speak_profiles**: users manage their own rows
 - **premium_users**: users can read only their own email row
@@ -92,6 +94,12 @@ After all migrations:
 - **episodes / levels**: public read for published content (via service role in app)
 
 Premium enforcement for unlimited usage happens in server actions (`src/app/actions.ts`), not only in RLS.
+
+### Atomic daily usage RPCs (migration 16)
+
+`reserve_daily_usage(user_id, counter, limit, usage_date)` locks the user/date row, validates the counter name, applies the existing free limit, and increments in one transaction. Supported counters are `translations_count`, `ai_examples_count`, `fill_in_count`, and `speak_sessions_count`. `release_daily_usage(...)` safely decrements a prior reservation after a confirmed upstream failure. Both functions are executable only by `service_role`; application actions fail closed if reservation storage is unavailable. A timeout or ambiguous upstream response remains counted.
+
+Apply migration 16 and verify the functions and policies in staging before deploying the application. Do not run the application against a partially migrated project: quota calls intentionally fail closed until the RPC exists.
 
 ## Admin accounts
 

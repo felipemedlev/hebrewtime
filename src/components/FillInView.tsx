@@ -1,16 +1,18 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import { ArrowLeft, Check, X, Sparkles, PenLine, Loader2 } from "lucide-react";
+import { ArrowLeft, Check, X, PenLine, Loader2 } from "lucide-react";
 import type {
   VocabWord,
   FlashcardItem,
   FillInExercise,
   ReviewPracticeStats,
 } from "@/lib/types";
-import { useT } from "@/lib/i18n/LanguageProvider";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { gradeFillInAnswer } from "@/lib/fillInGrading";
 import SessionRecapScreen from "@/components/SessionRecapScreen";
+import { normalizeHebrewInput } from "@/lib/progress";
+import { recordLearningEvent } from "@/lib/analytics";
 
 const SESSION_SIZE = 10;
 
@@ -73,7 +75,7 @@ export default function FillInView({
   recordAttempt,
   onRequireSubscription,
 }: FillInViewProps) {
-  const t = useT();
+  const { t, lang } = useLanguage();
   const [phase, setPhase] = useState<"start" | "loading" | "active" | "complete">("start");
   const [exercises, setExercises] = useState<FillInExercise[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -111,7 +113,8 @@ export default function FillInView({
     setBestStreak(0);
     setCurrentStreak(0);
     setPhase("active");
-  }, [generateFillIn, sessionWords, t, onRequireSubscription]);
+    recordLearningEvent("review_started", { language: lang, modality: "fill-in", count: res.exercises.length });
+  }, [generateFillIn, sessionWords, t, onRequireSubscription, lang]);
 
   const advance = useCallback(
     (correct: boolean, vocabId: string) => {
@@ -124,6 +127,7 @@ export default function FillInView({
       setBestStreak((prev) => Math.max(prev, nextStreak));
 
       if (currentIndex + 1 >= exercises.length) {
+        recordLearningEvent("review_completed", { language: lang, modality: "fill-in", count: exercises.length });
         setPhase("complete");
         return;
       }
@@ -132,7 +136,7 @@ export default function FillInView({
       setUserInput("");
       setFeedback("idle");
     },
-    [currentIndex, exercises.length, results, recordAttempt, currentStreak]
+    [currentIndex, exercises.length, results, recordAttempt, currentStreak, lang]
   );
 
   const handleCheck = () => {
@@ -273,7 +277,7 @@ export default function FillInView({
             <div className="fill-in-prompt">
               <span className="fill-in-meaning-label">{t("meaningHint")}</span>
               <p className="fill-in-meaning">{currentExercise.sentenceMeaning}</p>
-              <p className="font-serif fill-in-sentence" dir="rtl">
+              <p className="font-serif fill-in-sentence" dir="rtl" lang="he">
                 {currentExercise.maskedHebrew}
               </p>
             </div>
@@ -286,8 +290,9 @@ export default function FillInView({
               type="text"
               className="fill-in-input font-serif"
               dir="rtl"
+              lang="he"
               value={userInput}
-              onChange={(e) => setUserInput(e.target.value)}
+              onChange={(e) => setUserInput(normalizeHebrewInput(e.target.value))}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   if (feedback === "idle") handleCheck();
@@ -313,7 +318,7 @@ export default function FillInView({
                   answer:
                     currentExercise.answerWithNekudot || currentExercise.answer,
                 })}
-                <p className="font-serif fill-in-reveal" dir="rtl">
+                <p className="font-serif fill-in-reveal" dir="rtl" lang="he">
                   {currentExercise.fullHebrew}
                 </p>
               </div>

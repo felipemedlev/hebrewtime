@@ -246,6 +246,31 @@ html, body {
   border: 0;
 }
 
+.skip-link {
+  position: fixed;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: 1000;
+  transform: translateY(-160%);
+  background: var(--text-main);
+  color: var(--color-white);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-base);
+}
+
+.skip-link:focus { transform: translateY(0); }
+
+@media (max-width: 800px) {
+  button, input, select { min-height: 44px; }
+}
+
+[dir="rtl"] { unicode-bidi: isolate; }
+
+@media (prefers-reduced-motion: reduce) {
+  .skip-link { transition: none; }
+}
+
 /* ── Shared focus ring ── */
 .hebrew-word:focus-visible,
 button:focus-visible,

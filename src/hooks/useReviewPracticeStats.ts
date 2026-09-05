@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "./useUser";
 import type { ReviewModality, ReviewPracticeStats } from "@/lib/types";
@@ -20,11 +20,6 @@ function isSameLocalDay(iso: string, now: Date): boolean {
     d.getDate() === now.getDate()
   );
 }
-
-const EMPTY_PRACTICED: Record<ReviewModality, Set<string>> = {
-  fill_in: new Set(),
-  matching: new Set(),
-};
 
 const EMPTY_STATS: ReviewPracticeStats = {
   fillInAttemptsToday: 0,
@@ -74,14 +69,18 @@ export function useReviewPracticeStats() {
   const { user } = useUser();
   const [attempts, setAttempts] = useState<AttemptRow[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const loadIdRef = useRef(0);
 
   const loadAttempts = useCallback(async () => {
+    const loadId = ++loadIdRef.current;
     if (!user) {
       setAttempts([]);
       setIsLoaded(true);
       return;
     }
 
+    // Clear the previous account's attempts before requesting the new account.
+    setAttempts([]);
     setIsLoaded(false);
     try {
       const { data, error } = await supabase
@@ -94,15 +93,16 @@ export function useReviewPracticeStats() {
 
       if (error) {
         console.error("Error fetching review practice attempts:", error);
-        setAttempts([]);
+        if (loadId === loadIdRef.current) setAttempts([]);
       } else {
+        if (loadId !== loadIdRef.current) return;
         setAttempts((data ?? []) as AttemptRow[]);
       }
     } catch (err) {
       console.error("Unexpected error loading practice attempts:", err);
-      setAttempts([]);
+      if (loadId === loadIdRef.current) setAttempts([]);
     } finally {
-      setIsLoaded(true);
+      if (loadId === loadIdRef.current) setIsLoaded(true);
     }
   }, [user]);
 
@@ -217,6 +217,7 @@ export function useReviewPracticeStats() {
   const recordAttempt = useCallback(
     async (vocabId: string, correct: boolean, modality: ReviewModality) => {
       if (!user) return;
+      const mutationLoadId = loadIdRef.current;
 
       const optimistic: AttemptRow = {
         id: `temp-${Date.now()}`,
@@ -238,6 +239,8 @@ export function useReviewPracticeStats() {
         })
         .select("id, vocab_id, modality, correct, created_at")
         .single();
+
+      if (mutationLoadId !== loadIdRef.current) return;
 
       if (error) {
         console.error("Failed to record practice attempt:", error);

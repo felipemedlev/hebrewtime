@@ -85,6 +85,7 @@ function UpdatePasswordForm() {
 
             {successMsg && (
               <div
+                role="status"
                 style={{
                   padding: "10px",
                   background: "#ebfbee",
@@ -99,6 +100,7 @@ function UpdatePasswordForm() {
 
             {errorMsg && (
               <div
+                role="alert"
                 style={{
                   padding: "10px",
                   background: "#ffeaee",
@@ -112,10 +114,11 @@ function UpdatePasswordForm() {
             )}
 
             <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-              <label style={{ fontSize: "13px", fontWeight: 500 }}>
+              <label htmlFor="new-password" style={{ fontSize: "13px", fontWeight: 500 }}>
                 {t("newPassword")}
               </label>
               <input
+                id="new-password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -134,10 +137,11 @@ function UpdatePasswordForm() {
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-              <label style={{ fontSize: "13px", fontWeight: 500 }}>
+              <label htmlFor="confirm-password" style={{ fontSize: "13px", fontWeight: 500 }}>
                 {t("confirmPassword")}
               </label>
               <input
+                id="confirm-password"
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}

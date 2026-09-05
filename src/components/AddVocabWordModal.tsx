@@ -9,6 +9,7 @@ import { useModalAccessibility } from "@/hooks/useModalAccessibility";
 import { useLanguage, useT } from "@/lib/i18n/LanguageProvider";
 import { incrementAnonTranslations } from "@/lib/anonUsage";
 import type { VocabWord } from "@/lib/types";
+import { normalizeHebrewInput } from "@/lib/progress";
 
 type LookupResult = {
   lemmaWord: string;
@@ -238,7 +239,7 @@ export default function AddVocabWordModal({
   const handleSelectSuggestion = async (suggestion: DictionarySuggestion) => {
     skipSuggestRef.current = true;
     abortRef.current?.abort();
-    requestIdRef.current += 1;
+    const requestId = ++requestIdRef.current;
     setQuery(suggestion.word);
     setShowSuggestions(false);
     setSuggestions([]);
@@ -250,6 +251,7 @@ export default function AddVocabWordModal({
 
     try {
       const res = await resolveDictionarySuggestion(suggestion.pealimId, lang);
+      if (requestId !== requestIdRef.current || !isOpen) return;
       if (res.type === "error") {
         setError(res.translation || t("translationError"));
         return;
@@ -266,10 +268,12 @@ export default function AddVocabWordModal({
         });
       }
     } catch {
-      setError(t("translationError"));
+      if (requestId === requestIdRef.current && isOpen) setError(t("translationError"));
     } finally {
-      setIsSearching(false);
-      inputRef.current?.focus();
+      if (requestId === requestIdRef.current) {
+        setIsSearching(false);
+        inputRef.current?.focus();
+      }
     }
   };
 
@@ -291,7 +295,7 @@ export default function AddVocabWordModal({
     if (isLatin) {
       skipSuggestRef.current = true;
       abortRef.current?.abort();
-      requestIdRef.current += 1;
+      const requestId = ++requestIdRef.current;
       setIsSearching(true);
       setResult(null);
       setError(null);
@@ -304,6 +308,7 @@ export default function AddVocabWordModal({
           const res = await fetch(
             `/api/dictionary/suggest?q=${encodeURIComponent(plain)}`
           );
+          if (requestId !== requestIdRef.current || !isOpen) return;
           if (res.ok) {
             const data = (await res.json()) as { suggestions?: DictionarySuggestion[] };
             match = data.suggestions?.[0] ?? null;
@@ -315,19 +320,22 @@ export default function AddVocabWordModal({
           return;
         }
 
+        if (requestId !== requestIdRef.current || !isOpen) return;
         await handleSelectSuggestion(match);
       } catch {
-        setError(t("translationError"));
+        if (requestId === requestIdRef.current && isOpen) setError(t("translationError"));
       } finally {
-        setIsSearching(false);
-        inputRef.current?.focus();
+        if (requestId === requestIdRef.current) {
+          setIsSearching(false);
+          inputRef.current?.focus();
+        }
       }
       return;
     }
 
     skipSuggestRef.current = true;
     abortRef.current?.abort();
-    requestIdRef.current += 1;
+    const requestId = ++requestIdRef.current;
     setIsSearching(true);
     setResult(null);
     setError(null);
@@ -338,6 +346,7 @@ export default function AddVocabWordModal({
       const { data } = await supabase.auth.getSession();
       const accessToken = data.session?.access_token;
       const res = await translateWord(accessToken, cleanWord, "", "", lang);
+      if (requestId !== requestIdRef.current || !isOpen) return;
 
       if (res.type === "auth_required") {
         onRequireAuth();
@@ -366,10 +375,12 @@ export default function AddVocabWordModal({
         });
       }
     } catch {
-      setError(t("translationError"));
+      if (requestId === requestIdRef.current && isOpen) setError(t("translationError"));
     } finally {
-      setIsSearching(false);
-      inputRef.current?.focus();
+      if (requestId === requestIdRef.current) {
+        setIsSearching(false);
+        inputRef.current?.focus();
+      }
     }
   };
 
@@ -402,7 +413,7 @@ export default function AddVocabWordModal({
   const handleSavePhrase = async (event?: React.FormEvent) => {
     event?.preventDefault();
 
-    const hebrewInput = phraseHebrew.trim();
+    const hebrewInput = normalizeHebrewInput(phraseHebrew);
     const translationInput = phraseTranslation.trim();
     if (!hebrewInput || !translationInput) return;
 
@@ -426,7 +437,7 @@ export default function AddVocabWordModal({
     }
   };
 
-  const phraseReady = phraseHebrew.trim().length > 0 && phraseTranslation.trim().length > 0;
+  const phraseReady = normalizeHebrewInput(phraseHebrew).length > 0 && phraseTranslation.trim().length > 0;
 
   const handleInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Escape" && showSuggestions) {
@@ -602,7 +613,7 @@ export default function AddVocabWordModal({
                       onClick={() => void handleSelectSuggestion(suggestion)}
                     >
                       <span className="add-vocab-suggestion-main">
-                        <span className="add-vocab-suggestion-hebrew font-serif" dir="rtl">
+                        <span className="add-vocab-suggestion-hebrew font-serif" dir="rtl" lang="he">
                           {suggestion.wordWithNekudot || suggestion.word}
                         </span>
                         {suggestion.transliteration && (
@@ -638,9 +649,10 @@ export default function AddVocabWordModal({
               id="add-vocab-phrase-hebrew"
               className="add-vocab-phrase-input font-serif"
               dir="rtl"
+              lang="he"
               rows={3}
               value={phraseHebrew}
-              onChange={(e) => setPhraseHebrew(e.target.value)}
+              onChange={(e) => setPhraseHebrew(normalizeHebrewInput(e.target.value))}
               placeholder={t("phraseHebrewPlaceholder")}
               autoFocus
             />
@@ -653,7 +665,7 @@ export default function AddVocabWordModal({
               type="text"
               className="add-vocab-search-input"
               value={phraseTranslation}
-              onChange={(e) => setPhraseTranslation(e.target.value)}
+              onChange={(e) => setPhraseTranslation(e.target.value.normalize("NFC"))}
               placeholder={t("phraseTranslationPlaceholder")}
               dir="auto"
             />
@@ -687,7 +699,7 @@ export default function AddVocabWordModal({
           {mode === "word" && result && !isSearching && (
             <div className="add-vocab-result">
               <div className="add-vocab-result-word-area">
-                <p className="add-vocab-result-hebrew font-serif" dir="rtl">
+                <p className="add-vocab-result-hebrew font-serif" dir="rtl" lang="he">
                   {result.wordWithNekudot}
                 </p>
                 {result.pronunciation && (
@@ -703,7 +715,7 @@ export default function AddVocabWordModal({
                   {result.verbFormWithNekudot && (
                     <span className="add-vocab-result-verbform">
                       {t("verbForm")}:{" "}
-                      <span className="font-serif" dir="rtl">{result.verbFormWithNekudot}</span>
+                      <span className="font-serif" dir="rtl" lang="he">{result.verbFormWithNekudot}</span>
                     </span>
                   )}
                 </div>

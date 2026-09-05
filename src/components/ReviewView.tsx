@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { Brain } from "lucide-react";
+import { useState } from "react";
+import { Brain, BookOpen } from "lucide-react";
 import type {
   VocabWord,
   FlashcardItem,
@@ -25,7 +25,6 @@ type ReviewViewProps = {
   dueCards: FlashcardItem[];
   sessionQueue: FlashcardItem[];
   reverseLearnedCards: FlashcardItem[];
-  reverseDueCards: FlashcardItem[];
   reverseSessionQueue: FlashcardItem[];
   reverseStats: FlashcardStats;
   isLoaded: boolean;
@@ -42,6 +41,7 @@ type ReviewViewProps = {
   practiceStats: ReviewPracticeStats;
   attemptTimestamps?: string[];
   startSignal?: number;
+  startMode?: "standard" | "quick";
   generateExamples: (word: VocabWord) => Promise<{ ok: boolean; message?: string }>;
   regenerateExample: (word: VocabWord, index: number) => Promise<{ ok: boolean; message?: string }>;
   generateFillIn: (
@@ -54,6 +54,7 @@ type ReviewViewProps = {
   ) => Promise<void>;
   isPremium?: boolean;
   onRequireSubscription?: () => void;
+  onStartReading?: () => void;
 };
 
 export default function ReviewView({
@@ -62,7 +63,6 @@ export default function ReviewView({
   dueCards,
   sessionQueue,
   reverseLearnedCards,
-  reverseDueCards,
   reverseSessionQueue,
   reverseStats,
   isLoaded,
@@ -72,32 +72,22 @@ export default function ReviewView({
   practiceStats,
   attemptTimestamps = [],
   startSignal = 0,
+  startMode = "standard",
   generateExamples,
   regenerateExample,
   generateFillIn,
   recordAttempt,
   isPremium = false,
   onRequireSubscription,
+  onStartReading,
 }: ReviewViewProps) {
   const t = useT();
-  const [reviewMode, setReviewMode] = useState<ReviewMode>("hub");
-  const [flashcardStartSignal, setFlashcardStartSignal] = useState(0);
-  const hasLoadedOnce = useRef(false);
+  const [reviewMode, setReviewMode] = useState<ReviewMode>(() =>
+    startSignal > 0 ? "flashcards" : "hub"
+  );
+  const [flashcardStartSignal] = useState(startSignal);
 
-  useEffect(() => {
-    if (isLoaded) {
-      hasLoadedOnce.current = true;
-    }
-  }, [isLoaded]);
-
-  useEffect(() => {
-    if (startSignal > 0) {
-      setReviewMode("flashcards");
-      setFlashcardStartSignal((s) => s + 1);
-    }
-  }, [startSignal]);
-
-  if (!isLoaded && !hasLoadedOnce.current) {
+  if (!isLoaded && vocabWords.length === 0) {
     return (
       <div
         className="vocab-loading"
@@ -114,6 +104,12 @@ export default function ReviewView({
         <Brain size={48} className="vocab-empty-icon" />
         <h3 className="vocab-empty-title">{t("noWordsToReview")}</h3>
         <p className="vocab-empty-text">{t("noWordsToReviewSub")}</p>
+        {onStartReading && (
+          <button type="button" className="empty-state-btn primary" onClick={onStartReading}>
+            <BookOpen size={16} />
+            {t("startReading")}
+          </button>
+        )}
       </div>
     );
   }
@@ -129,10 +125,12 @@ export default function ReviewView({
         unlearnWord={(vocabId) => unlearnWord(vocabId, "forward")}
         stats={stats}
         startSignal={flashcardStartSignal}
+        sessionLimit={startMode === "quick" ? 5 : undefined}
         generateExamples={generateExamples}
         regenerateExample={regenerateExample}
         isPremium={isPremium}
         onRequireSubscription={onRequireSubscription}
+        onStartReading={onStartReading}
         onBackToHub={() => setReviewMode("hub")}
         showBackToHub
       />

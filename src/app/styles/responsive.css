@@ -35,7 +35,7 @@
     z-index: 100;
     width: 320px;
     max-width: 85vw;
-    height: 100vh;
+    height: 100dvh;
     box-shadow: var(--shadow-sidebar);
     transform: translateX(0);
     visibility: visible;
@@ -92,6 +92,16 @@
   .top-nav {
     padding: var(--space-2) var(--space-4);
   }
+
+  .toggle-sidebar-btn,
+  .translation-toggle-btn,
+  .topnav-login-btn,
+  .language-select,
+  .media-player-toggle,
+  .mp-play-btn,
+  .mp-mute-btn { min-width: 44px; min-height: 44px; }
+
+  .main-content { min-height: 100dvh; padding-bottom: calc(var(--media-player-height, 0px) + env(safe-area-inset-bottom)); }
 
   .main-header {
     padding: var(--space-5) var(--space-5) var(--radius-lg) var(--space-5);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { VocabWord } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "./useUser";
@@ -9,9 +9,11 @@ export function useVocabulary(isPremium = false) {
   const [vocabWords, setVocabWords] = useState<VocabWord[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const { user } = useUser();
+  const loadIdRef = useRef(0);
 
   // Load from Supabase on mount or when user changes
   useEffect(() => {
+    const loadId = ++loadIdRef.current;
     if (!user) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setVocabWords([]);
@@ -19,12 +21,16 @@ export function useVocabulary(isPremium = false) {
       return;
     }
 
+    // Clear the previous account before loading this account's vocabulary.
+    setVocabWords([]);
     setIsLoaded(false);
     supabase
       .from("vocabulary")
       .select("*")
+      .eq("user_id", user.id)
       .order("saved_at", { ascending: false })
       .then(({ data, error }) => {
+        if (loadId !== loadIdRef.current) return;
         if (!error && data) {
           setVocabWords(
             data.map((d) => ({
@@ -43,6 +49,11 @@ export function useVocabulary(isPremium = false) {
             }))
           );
         }
+        setIsLoaded(true);
+      }, (error: unknown) => {
+        if (loadId !== loadIdRef.current) return;
+        console.error("Unexpected error loading vocabulary:", error);
+        setVocabWords([]);
         setIsLoaded(true);
       });
   }, [user]);
@@ -75,6 +86,7 @@ export function useVocabulary(isPremium = false) {
       }
 
       const tempId = Date.now().toString() + Math.random().toString();
+      const mutationLoadId = loadIdRef.current;
       const newWord: VocabWord = {
         ...word,
         id: tempId, // We use this until real id returns, but actually UUID is generated on server.
@@ -103,9 +115,14 @@ export function useVocabulary(isPremium = false) {
         .select()
         .single();
 
+      if (mutationLoadId !== loadIdRef.current) {
+        return { added: false, message: "Session changed while saving vocabulary.", type: "error" };
+      }
+
       if (error) {
+        console.error("Failed to save word:", error);
         setVocabWords((prev) => prev.filter((v) => v.id !== tempId));
-        return { added: false, message: "Error saving word: " + error.message, type: "error" };
+        return { added: false, message: "Could not save this word. Please try again.", type: "error" };
       }
 
       // Replace temp id with real id
@@ -117,12 +134,14 @@ export function useVocabulary(isPremium = false) {
 
       return { added: true, message: `Saved "${word.word}" to vocabulary!`, type: "success" };
     },
-    [vocabWords, user]
+    [vocabWords, user, isPremium]
   );
 
   const deleteWord = useCallback(
     async (id: string) => {
       if (!user) return;
+      const mutationLoadId = loadIdRef.current;
+      const previous = vocabWords.find((word) => word.id === id);
       
       // Optimistic delete
       setVocabWords((prev) => prev.filter((v) => v.id !== id));
@@ -135,9 +154,12 @@ export function useVocabulary(isPremium = false) {
 
       if (error) {
         console.error("Failed to delete word:", error);
+        if (mutationLoadId === loadIdRef.current && previous) {
+          setVocabWords((prev) => (prev.some((word) => word.id === id) ? prev : [...prev, previous]));
+        }
       }
     },
-    [user]
+    [user, vocabWords]
   );
 
   const updateWord = useCallback(
@@ -146,6 +168,7 @@ export function useVocabulary(isPremium = false) {
 
       // Snapshot previous value for rollback
       const previous = vocabWords.find((v) => v.id === id);
+      const mutationLoadId = loadIdRef.current;
 
       // Optimistic update
       setVocabWords((prev) =>
@@ -171,6 +194,10 @@ export function useVocabulary(isPremium = false) {
         .eq("user_id", user.id)
         .select();
 
+      if (mutationLoadId !== loadIdRef.current) {
+        return { updated: false, message: "Session changed while updating vocabulary.", type: "error" };
+      }
+
       if (error || !data || data.length === 0) {
         console.error("Failed to update word:", error ?? "No rows matched — check RLS UPDATE policy");
         // Rollback optimistic update
@@ -179,7 +206,7 @@ export function useVocabulary(isPremium = false) {
             prev.map((v) => (v.id === id ? previous : v))
           );
         }
-        return { updated: false, message: error ? "Failed to update: " + error.message : "Update was blocked — no rows changed.", type: "error" };
+        return { updated: false, message: "Could not update this word. Please try again.", type: "error" };
       }
       return { updated: true, message: "Word updated!", type: "success" };
     },

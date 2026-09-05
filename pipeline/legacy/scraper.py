@@ -171,10 +171,10 @@ def translate_episode(episode: dict) -> dict:
     english = translate_paragraphs(client, hebrew_texts, "en")
     episode["english_paragraphs"] = english
 
-    print(f"  Episode {episode['episode']:02d}: translating to ru, uk, pt, es, fr…")
-    extra = build_translations_map(client, hebrew_texts, english, langs=("ru", "uk", "pt", "es", "fr"))
+    print(f"  Episode {episode['episode']:02d}: translating to ru, es, fr…")
+    extra = build_translations_map(client, hebrew_texts, english, langs=("ru", "es", "fr"))
     episode["translations"] = extra
-    print(f"  Episode {episode['episode']:02d}: ✓ translated (6 languages)")
+    print(f"  Episode {episode['episode']:02d}: ✓ translated (4 languages including English)")
     return episode
 
 

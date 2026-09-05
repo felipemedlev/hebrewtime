@@ -9,6 +9,14 @@ export function parseLangCookie(value: string | undefined | null): LangCode {
 }
 
 export function persistClientLang(lang: LangCode): void {
-  window.localStorage.setItem(LANG_STORAGE_KEY, lang);
-  document.cookie = `${LANG_COOKIE_NAME}=${lang}; path=/; max-age=${COOKIE_MAX_AGE_SECONDS}; SameSite=Lax`;
+  try {
+    window.localStorage.setItem(LANG_STORAGE_KEY, lang);
+  } catch {
+    // Language selection should still work when browser storage is blocked.
+  }
+  try {
+    document.cookie = `${LANG_COOKIE_NAME}=${lang}; path=/; max-age=${COOKIE_MAX_AGE_SECONDS}; SameSite=Lax`;
+  } catch {
+    // Cookie writes can be blocked by embedded-browser privacy settings.
+  }
 }

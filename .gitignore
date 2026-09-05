@@ -42,6 +42,7 @@ next-env.d.ts
 
 # pipeline checkpoints (local cache; regenerate via generate_episodes.py)
 /pipeline/.checkpoints/
+/scripts/.checkpoints/
 
 # python bytecode
 __pycache__/

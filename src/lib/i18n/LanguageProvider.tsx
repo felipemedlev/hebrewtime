@@ -38,8 +38,12 @@ const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 function readStoredBlur(): boolean {
   if (typeof window === "undefined") return false;
-  if (window.localStorage.getItem(BLUR_STORAGE_KEY) === "1") return true;
-  return window.localStorage.getItem("blur-english-translations") === "1";
+  try {
+    if (window.localStorage.getItem(BLUR_STORAGE_KEY) === "1") return true;
+    return window.localStorage.getItem("blur-english-translations") === "1";
+  } catch {
+    return false;
+  }
 }
 
 export function LanguageProvider({
@@ -54,7 +58,12 @@ export function LanguageProvider({
   const [isTranslationBlurred, setIsTranslationBlurred] = useState(readStoredBlur);
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(LANG_STORAGE_KEY);
+    let stored: string | null = null;
+    try {
+      stored = window.localStorage.getItem(LANG_STORAGE_KEY);
+    } catch {
+      stored = null;
+    }
     if (stored && isLangCode(stored) && stored !== lang) {
       setLangState(stored);
       persistClientLang(stored);
@@ -63,6 +72,10 @@ export function LanguageProvider({
     persistClientLang(lang);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- sync storage/cookie once after hydration
   }, []);
+
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
 
   useEffect(() => {
     const metaLang = user?.user_metadata?.preferred_language;
@@ -85,7 +98,11 @@ export function LanguageProvider({
   );
 
   useEffect(() => {
-    window.localStorage.setItem(BLUR_STORAGE_KEY, isTranslationBlurred ? "1" : "0");
+    try {
+      window.localStorage.setItem(BLUR_STORAGE_KEY, isTranslationBlurred ? "1" : "0");
+    } catch {
+      // Translation display preference is optional and must not block reading.
+    }
   }, [isTranslationBlurred]);
 
   const t = useCallback(

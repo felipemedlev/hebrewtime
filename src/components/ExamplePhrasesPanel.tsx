@@ -59,7 +59,7 @@ export default function ExamplePhrasesPanel({
         {phrases.map((phrase: ExamplePhrase, index: number) => (
           <li key={`${word.id}-phrase-${index}`} className="example-phrase">
             <div className="example-phrase-content">
-              <p className="example-phrase-hebrew font-serif" dir="rtl">
+              <p className="example-phrase-hebrew font-serif" dir="rtl" lang="he">
                 {phrase.hebrew}
               </p>
               <p className="example-phrase-english">{phrase.english}</p>

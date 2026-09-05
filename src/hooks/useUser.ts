@@ -9,20 +9,30 @@ export function useUser() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+    let authEventReceived = false;
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    void supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted || authEventReceived) return;
       setUser(session?.user ?? null);
       setIsLoading(false);
+    }).catch(() => {
+      if (mounted && !authEventReceived) setIsLoading(false);
     });
 
     // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      authEventReceived = true;
       setUser(session?.user ?? null);
+      setIsLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   return { user, isLoading };

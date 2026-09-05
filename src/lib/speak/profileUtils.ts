@@ -115,8 +115,10 @@ export function mergeLearnerFacts(
   return merged;
 }
 
-export function sanitizeConversationSummary(summary: string): string {
-  return summary.trim().slice(0, SPEAK_SUMMARY_MAX_LENGTH);
+export function sanitizeConversationSummary(summary: unknown): string {
+  return typeof summary === "string"
+    ? summary.trim().slice(0, SPEAK_SUMMARY_MAX_LENGTH)
+    : "";
 }
 
 function sanitizeNoteList(input: unknown, max = SPEAK_NOTES_MAX_ITEMS): string[] {

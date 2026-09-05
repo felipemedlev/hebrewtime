@@ -22,9 +22,10 @@ import type {
   FlashcardRating,
   FlashcardStats,
 } from "@/lib/types";
-import { useT } from "@/lib/i18n/LanguageProvider";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import ExamplePhrasesPanel from "./ExamplePhrasesPanel";
 import DictionaryDetailsModal from "./DictionaryDetailsModal";
+import { recordLearningEvent } from "@/lib/analytics";
 
 function formatNextReview(iso: string | null, soonLabel: string): string {
   if (!iso) return "—";
@@ -47,12 +48,14 @@ type FlashcardsViewProps = {
   unlearnWord: (vocabId: string) => Promise<void>;
   stats: FlashcardStats;
   startSignal?: number;
+  sessionLimit?: number;
   generateExamples: (word: VocabWord) => Promise<{ ok: boolean; message?: string }>;
   regenerateExample: (word: VocabWord, index: number) => Promise<{ ok: boolean; message?: string }>;
   isPremium?: boolean;
   onRequireSubscription?: () => void;
   onBackToHub?: () => void;
   showBackToHub?: boolean;
+  onStartReading?: () => void;
 };
 
 export default function FlashcardsView({
@@ -64,14 +67,16 @@ export default function FlashcardsView({
   unlearnWord,
   stats,
   startSignal = 0,
+  sessionLimit,
   generateExamples,
   regenerateExample,
   isPremium = false,
   onRequireSubscription,
   onBackToHub,
   showBackToHub = false,
+  onStartReading,
 }: FlashcardsViewProps) {
-  const t = useT();
+  const { t, lang } = useLanguage();
   const [sessionActive, setSessionActive] = useState(false);
   const [activeSessionCards, setActiveSessionCards] = useState<FlashcardItem[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -81,12 +86,7 @@ export default function FlashcardsView({
   const [isGenerating, setIsGenerating] = useState(false);
   const [regeneratingIndex, setRegeneratingIndex] = useState<number | null>(null);
   const [detailsPealimId, setDetailsPealimId] = useState<number | null>(null);
-  const hasLoadedOnce = useRef(isLoaded);
-
-  if (isLoaded) {
-    hasLoadedOnce.current = true;
-  }
-
+  const lastStartedSignalRef = useRef(0);
   const reviewQueue = sessionActive ? activeSessionCards : sessionQueue;
   const currentWord = reviewQueue[currentIndex]?.vocabWord;
 
@@ -111,9 +111,11 @@ export default function FlashcardsView({
     });
   }, [sessionActive, vocabWords]);
 
-  const beginSession = (cards: FlashcardItem[]) => {
-    if (cards.length === 0) return;
-    setActiveSessionCards(cards);
+  const beginSession = (cards: FlashcardItem[], limit?: number) => {
+    const sessionCards = typeof limit === "number" ? cards.slice(0, limit) : cards;
+    if (sessionCards.length === 0) return;
+    recordLearningEvent("review_started", { language: lang, modality: "flashcards", count: sessionCards.length });
+    setActiveSessionCards(sessionCards);
     setCurrentIndex(0);
     setIsFlipped(false);
     setShowExamples(false);
@@ -128,11 +130,12 @@ export default function FlashcardsView({
 
   // Launch a session when the sidebar "Start review" CTA bumps the signal.
   useEffect(() => {
-    if (startSignal > 0 && sessionQueue.length > 0) {
-      beginSession(sessionQueue);
+    if (startSignal > 0 && sessionQueue.length > 0 && lastStartedSignalRef.current !== startSignal) {
+      lastStartedSignalRef.current = startSignal;
+      beginSession(sessionQueue, sessionLimit);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startSignal]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- begin only for a new explicit signal
+  }, [startSignal, sessionQueue.length]);
 
   const handleFlip = () => {
     setIsFlipped(!isFlipped);
@@ -152,6 +155,11 @@ export default function FlashcardsView({
     if (currentIndex + 1 < reviewQueue.length) {
       setCurrentIndex(currentIndex + 1);
     } else {
+      recordLearningEvent("review_completed", {
+        language: lang,
+        modality: "flashcards",
+        count: reviewQueue.length,
+      });
       setSessionActive(false);
       setActiveSessionCards([]);
     }
@@ -187,7 +195,7 @@ export default function FlashcardsView({
     return result;
   };
 
-  if (!isLoaded && !hasLoadedOnce.current) {
+  if (!isLoaded && vocabWords.length === 0) {
     return (
       <div className="vocab-loading" style={{ height: "400px", display: "flex", justifyContent: "center", alignItems: "center" }}>
         <div className="vocab-spinner"></div>
@@ -204,6 +212,12 @@ export default function FlashcardsView({
         <p className="vocab-empty-text">
           {t("noWordsToReviewSub")}
         </p>
+        {onStartReading && (
+          <button type="button" className="empty-state-btn primary" onClick={onStartReading}>
+            <BookOpen size={16} />
+            {t("startReading")}
+          </button>
+        )}
       </div>
     );
   }
@@ -342,11 +356,11 @@ export default function FlashcardsView({
                   {/* Front Side (Hebrew word) */}
                   <div className="flashcard-card-front">
                     <span className="flashcard-badge-side">{t("hebrew")}</span>
-                    <h2 className="font-serif flashcard-hebrew-word" dir="rtl">
+                    <h2 className="font-serif flashcard-hebrew-word" dir="rtl" lang="he">
                       {reviewQueue[currentIndex].vocabWord.wordWithNekudot || reviewQueue[currentIndex].vocabWord.word}
                     </h2>
                     {reviewQueue[currentIndex].vocabWord.verbFormWithNekudot && (
-                      <span className="font-serif flashcard-verb-form" dir="rtl">
+                      <span className="font-serif flashcard-verb-form" dir="rtl" lang="he">
                         {reviewQueue[currentIndex].vocabWord.verbFormWithNekudot}
                       </span>
                     )}
@@ -367,7 +381,7 @@ export default function FlashcardsView({
                     )}
 
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", margin: "16px 0" }}>
-                      <span className="font-serif flashcard-hebrew-word-small" dir="rtl">
+                      <span className="font-serif flashcard-hebrew-word-small" dir="rtl" lang="he">
                         {reviewQueue[currentIndex].vocabWord.wordWithNekudot || reviewQueue[currentIndex].vocabWord.word}
                       </span>
                       {reviewQueue[currentIndex].vocabWord.episodeTitle && (
@@ -549,11 +563,11 @@ export default function FlashcardsView({
 
                       <div className="vocab-card-body">
                         <div className="vocab-card-hebrew-container">
-                          <span className="font-serif vocab-card-hebrew" dir="rtl">
+                          <span className="font-serif vocab-card-hebrew" dir="rtl" lang="he">
                             {vw.wordWithNekudot || vw.word}
                           </span>
                           {vw.verbFormWithNekudot && (
-                            <span className="font-serif vocab-card-verb" dir="rtl">
+                            <span className="font-serif vocab-card-verb" dir="rtl" lang="he">
                               {vw.verbFormWithNekudot}
                             </span>
                           )}

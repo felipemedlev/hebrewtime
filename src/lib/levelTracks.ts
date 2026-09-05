@@ -16,9 +16,13 @@ export function readLastEpisodesByLevel(): Record<string, number> {
 
 export function writeLastEpisodeForLevel(level: string, episode: number): void {
   if (typeof window === "undefined") return;
-  const stored = readLastEpisodesByLevel();
-  stored[level] = episode;
-  window.localStorage.setItem(LAST_EPISODE_BY_LEVEL_KEY, JSON.stringify(stored));
+  try {
+    const stored = readLastEpisodesByLevel();
+    stored[level] = episode;
+    window.localStorage.setItem(LAST_EPISODE_BY_LEVEL_KEY, JSON.stringify(stored));
+  } catch {
+    // Lesson navigation should still succeed when storage is unavailable.
+  }
 }
 
 export function finishedKey(level: string, episode: number): string {

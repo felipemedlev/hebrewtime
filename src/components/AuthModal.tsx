@@ -54,15 +54,17 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
         if (error) throw error;
         onClose();
       } else {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
         });
         if (error) throw error;
-        onClose();
+        if (data.session) onClose();
+        else setSuccessMsg(t("checkEmailSignup"));
       }
     } catch (err: unknown) {
-      setErrorMsg(err instanceof Error ? err.message : t("authError"));
+      console.error("Authentication request failed:", err);
+      setErrorMsg(t("authError"));
     } finally {
       setIsLoading(false);
     }
@@ -99,6 +101,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
             
             {successMsg && (
               <div
+                role="status"
                 style={{
                   padding: "10px",
                   background: "#ebfbee",
@@ -111,7 +114,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
               </div>
             )}
             {errorMsg && (
-              <div style={{ padding: "10px", background: "#ffeaee", color: "#e03131", borderRadius: "8px", fontSize: "13px" }}>
+              <div role="alert" style={{ padding: "10px", background: "#ffeaee", color: "#e03131", borderRadius: "8px", fontSize: "13px" }}>
                 {errorMsg}
               </div>
             )}

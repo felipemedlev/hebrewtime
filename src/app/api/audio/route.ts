@@ -5,19 +5,21 @@ import {
   isAllowedAudioProxyUrl,
   isAllowedAudioRedirectUrl,
 } from "@/lib/allowedAudioHosts";
+import { isValidByteRange } from "@/lib/audioRange";
 
 const MAX_REDIRECTS = 3;
 const FETCH_HEADERS = {
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
 };
 
-async function fetchAllowedAudio(initialUrl: string): Promise<Response> {
+async function fetchAllowedAudio(initialUrl: string, range?: string): Promise<Response> {
   let currentUrl = initialUrl;
 
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
     const response = await fetch(currentUrl, {
       redirect: "manual",
-      headers: FETCH_HEADERS,
+      headers: range ? { ...FETCH_HEADERS, Range: range } : FETCH_HEADERS,
+      signal: AbortSignal.timeout(15_000),
     });
 
     if (response.status >= 300 && response.status < 400) {
@@ -65,11 +67,17 @@ export async function GET(request: NextRequest) {
     return new NextResponse("URL not allowed", { status: 403 });
   }
 
+  const requestedRange = request.headers.get("range");
+  if (requestedRange && !isValidByteRange(requestedRange)) {
+    return new NextResponse("Invalid range", { status: 416 });
+  }
+  const range = requestedRange || undefined;
+
   try {
-    const response = await fetchAllowedAudio(fetchUrl);
+    const response = await fetchAllowedAudio(fetchUrl, range);
 
     if (!response.ok) {
-      console.error(`Failed to fetch from ${fetchUrl}:`, response.status);
+      console.error("Failed to fetch audio upstream:", response.status);
       return new NextResponse("Failed to fetch audio stream", { status: response.status });
     }
 
@@ -81,10 +89,15 @@ export async function GET(request: NextRequest) {
     if (contentLength) {
       headers.set("Content-Length", contentLength);
     }
+    const contentRange = response.headers.get("content-range");
+    if (contentRange) headers.set("Content-Range", contentRange);
 
-    return new NextResponse(response.body, { headers });
+    return new NextResponse(response.body, { headers, status: response.status === 206 ? 206 : 200 });
   } catch (error) {
-    console.error("Error proxying audio:", error);
-    return new NextResponse("Error proxying audio", { status: 500 });
+    console.error(
+      "Error proxying audio:",
+      error instanceof Error ? error.message : "unknown error"
+    );
+    return new NextResponse("Audio service unavailable", { status: 502 });
   }
 }

@@ -20,7 +20,7 @@ Living spec for the **Speak** feature: a real-time, audio-only Hebrew conversati
 | Sanitize / VAD / mapping | [`src/lib/speak/profileUtils.ts`](../src/lib/speak/profileUtils.ts) |
 | Tests | `src/lib/speak/*.test.ts` (`npm test`) |
 | Shell integration | [`src/components/AppShell.tsx`](../src/components/AppShell.tsx), [`src/components/Sidebar.tsx`](../src/components/Sidebar.tsx) |
-| Copy (6 languages) | `speak*` keys in [`src/lib/i18n/messages.ts`](../src/lib/i18n/messages.ts) |
+| Copy (4 languages) | `speak*` keys in [`src/lib/i18n/messages.ts`](../src/lib/i18n/messages.ts) |
 | Schema | migrations `13`, `14`, `15` under [`supabase/migrations/`](../supabase/migrations/) |
 
 There is **no speak API route**. The browser calls the `createSpeakSession` server action, then connects WebRTC with an ephemeral OpenAI client secret.
@@ -173,7 +173,7 @@ Order of checks:
 7. Merge optional `learnerGender` from the setup toggle into stored facts.
 8. `buildTeacherInstructions(...)` from level, facts, previous summary, session notes, practice block, and time budget. No spark catalog.
 9. `POST https://api.openai.com/v1/realtime/client_secrets` with `OpenAI-Safety-Identifier: sha256(user_id)`.
-10. Upsert profile (preferences + facts + notes). Free users also `increment_speak_sessions_count` **after a successful mint**, on the same request. Quota is consumed even if WebRTC later fails to connect.
+10. Upsert profile (preferences + facts + notes). Free users reserve `speak_sessions_count` atomically **before the upstream mint**, on the same request, so concurrent starts cannot overrun the cap. A confirmed upstream failure releases the reservation; a successful mint consumes it even if WebRTC later fails to connect.
 
 Return shape (`CreateSpeakSessionResult`): `success` | `auth_required` | `limit_reached` | `error`.
 
@@ -223,7 +223,7 @@ Sanitization accepts both camelCase and snake_case on read. `mergeSessionNotes` 
 
 `conversation_summary` is the cross-session continuity mechanism. The recap tool is told to summarize actual subjects so the next call does not reopen the same opener.
 
-RLS: authenticated users CRUD their own row only. Daily caps are **not** in RLS; they are enforced in `createSpeakSession` via `increment_speak_sessions_count()` (service role only).
+RLS: authenticated users CRUD their own row only. Daily caps are **not** in RLS; they are enforced in `createSpeakSession` via the migration 16 `reserve_daily_usage()` RPC (service role only), with confirmed upstream failures releasing the reservation.
 
 Schema history: migration 13 created the table; 14 added `scene` + `session_notes`; 15 dropped `scene`. Do not reintroduce a scene column or a spark catalog without a new product decision.
 
@@ -285,14 +285,14 @@ Daily count lives on `user_activity_daily.speak_sessions_count`. Hitting the cap
 - `OpenAI-Safety-Identifier` is `SHA-256(user_id)`, not the raw id.
 - `Permissions-Policy: microphone=(self)` in [`next.config.ts`](../next.config.ts).
 - CSP `connect-src` includes `https://api.openai.com` and `https://*.openai.com` (WebRTC / Realtime).
-- `createSpeakSession` rate limited (10 / minute / user), in-process (resets on server restart; not a distributed limit).
+- `createSpeakSession` rate limited (10 / minute / user), in-process (resets on server restart; not a distributed limit); the limiter prunes expired entries and caps new keys.
 - Profile writes from the browser use the user's JWT + RLS. The daily counter RPC is service-role only so clients cannot increment (or reset) their own cap.
 
 ---
 
 ## i18n and chrome
 
-All user-visible Speak strings are `speak*` keys in `messages.ts` (en, ru, uk, pt, es, fr). Adding a chip or setup control requires all six catalogs.
+All user-visible Speak strings are `speak*` keys in `messages.ts` (en, ru, es, fr). Adding a chip or setup control requires all four supported catalogs. Retired Portuguese/Ukrainian keys may remain in old production JSON rows, but runtime language selection excludes them.
 
 `AppShell` mounts `SpeakView` even when the tab is hidden (`hidden={viewMode !== "speak"}`) so profile load can happen in the background. Recap phrases call `addWord` as phrases.
 
@@ -314,7 +314,7 @@ Use this as a checklist when iterating. Prefer updating this doc in the same cha
 ### Change setup UI or help chips
 
 - `SpeakView.tsx` + `speak.css`.
-- New copy: `messages.ts` (six languages).
+- New copy: `messages.ts` (four supported languages: English, Russian, Spanish, French).
 - New in-call action: add a `build*Prompt`, expose it from `useSpeakSession`, wire the button.
 
 ### Change memory shape
@@ -344,6 +344,7 @@ Use this as a checklist when iterating. Prefer updating this doc in the same cha
 - **No session history UI.** Memory is facts + a 500-char summary + tiny notes. Replaying a call is impossible by design today.
 - **Quota on mint, not on connect.** A successful client-secret mint consumes the free daily session even if WebRTC fails afterward.
 - **In-memory rate limit.** `createSpeakSession` throttling is per Node process.
+- **Client duration enforcement.** The three-minute timer is enforced in the browser; authoritative call termination needs separate infrastructure.
 - **iOS Safari** requires mic + audio unlock in the originating tap; do not move `getUserMedia` to after the server round-trip.
 - **Episode context is whatever episode is selected**, even if the user is on the Speak tab — it is an optional hint, not a lesson plan.
 - **No spark catalog.** Topic variety comes from the teacher prompt + `conversation_summary`, not a pooled script.
@@ -372,5 +373,5 @@ After changing the teacher prompt, run at least one call at beginner, intermedia
 ## Related docs
 
 - [`architecture.md`](architecture.md) — app overview, premium table, security notes
-- [`database.md`](database.md) — `speak_profiles`, migrations 13–15, `increment_speak_sessions_count`
+- [`database.md`](database.md) — `speak_profiles`, migrations 13–16, and atomic usage reservations
 - [`dictionary_entries.md`](dictionary_entries.md) — not used during a call; vocab saves from recap are user-typed phrases, not Pealim lookups

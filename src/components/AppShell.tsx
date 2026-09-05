@@ -32,6 +32,13 @@ import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import LanguageSelector from "./LanguageSelector";
 import type { MessageKey } from "@/lib/i18n/messages";
 import type { ViewMode } from "@/lib/viewMode";
+import {
+  readLatestBookmarkedEpisodes,
+  readLessonBookmark,
+  writeLessonBookmark,
+  type LessonBookmark,
+} from "@/lib/progress";
+import { recordLearningEvent } from "@/lib/analytics";
 
 type AppShellProps = {
   levels: Level[];
@@ -47,6 +54,8 @@ type SubscriptionPromptSource =
   | "flashcards"
   | "fill_in_limit"
   | "speak_limit";
+
+type EpisodeRequestTarget = { level: string; episode: number };
 
 const FREE_TIER_FEATURE_KEYS = [
   "freeFeature1",
@@ -97,14 +106,24 @@ export default function AppShell({
   const [lastEpisodesByLevel, setLastEpisodesByLevel] = useState<Record<string, number>>({});
   const [isEpisodeLoading, setIsEpisodeLoading] = useState(false);
   const [episodeLoadError, setEpisodeLoadError] = useState<string | null>(null);
+  const [episodeRequestTarget, setEpisodeRequestTarget] = useState<EpisodeRequestTarget | null>(null);
   const [reviewStartSignal, setReviewStartSignal] = useState(0);
+  const [reviewStartMode, setReviewStartMode] = useState<"standard" | "quick">("standard");
+  const [lessonBookmark, setLessonBookmark] = useState<LessonBookmark | null>(null);
 
   const mainRef = useRef<HTMLElement>(null);
+  const episodeRequestRef = useRef<AbortController | null>(null);
+  const episodeRequestIdRef = useRef(0);
+  const bookmarkWriteTimerRef = useRef<number | null>(null);
+  const latestAudioTimeRef = useRef(0);
+  const lessonInteractionKeyRef = useRef<string | null>(null);
   const { user } = useUser();
+  const activeUserIdRef = useRef<string | null>(null);
+  const accountScopeRef = useRef<string | null | undefined>(undefined);
+  activeUserIdRef.current = user?.id ?? null;
   const { entitlements, isLoading: isLoadingEntitlements } = useEntitlements();
   const { vocabWords, addWord, deleteWord, updateWord } = useVocabulary(entitlements.isPremium);
   const {
-    forward,
     reverse,
     learnedCards,
     dueCards,
@@ -115,9 +134,27 @@ export default function AppShell({
     stats,
   } = useFlashcards(vocabWords);
   const { stats: practiceStats, recordAttempt, attemptTimestamps } = useReviewPracticeStats();
-  const { shouldShow: shouldShowOnboarding, dismiss: dismissOnboarding } = useOnboarding();
-  const { finishedEpisodes, isFinished, toggleFinished } = useFinishedEpisodes();
+  const {
+    shouldShow: shouldShowOnboarding,
+    dismiss: dismissOnboarding,
+    reopen: reopenOnboarding,
+  } = useOnboarding();
+  const {
+    finishedEpisodes,
+    isFinished,
+    toggleFinished,
+    importLegacyProgress,
+    legacyProgressAvailable,
+    saveError: progressSaveError,
+    savingKey: progressSavingKey,
+  } = useFinishedEpisodes();
   useUsageTracking();
+
+  useEffect(() => {
+    if (shouldShowOnboarding) {
+      recordLearningEvent("setup_viewed", { language: lang, track: currentLevel });
+    }
+  }, [shouldShowOnboarding, lang, currentLevel]);
 
   const levelEpisodes = episodeList.filter((ep) => ep.level === currentLevel);
 
@@ -138,21 +175,36 @@ export default function AppShell({
     currentLevel.charAt(0).toUpperCase() + currentLevel.slice(1);
 
   useEffect(() => {
-    const storedLastEpisodes = readLastEpisodesByLevel();
+    // Bookmarks are the source of truth for a returning guest. Keep the
+    // older last-episode map as a compatibility fallback for pre-bookmark
+    // sessions.
+    const storedLastEpisodes = user?.id
+      ? readLatestBookmarkedEpisodes(user.id)
+      : {
+          ...readLastEpisodesByLevel(),
+          ...readLatestBookmarkedEpisodes(null),
+        };
     setLastEpisodesByLevel(storedLastEpisodes);
 
-    const storedLevel = window.localStorage.getItem("hebrewtime-level");
+    let storedLevel: string | null = null;
+    try {
+      storedLevel = window.localStorage.getItem("hebrewtime-level");
+    } catch {
+      // A blocked storage area should not prevent the initial lesson from rendering.
+    }
     if (storedLevel && levels.some((l) => l.slug === storedLevel)) {
-      setCurrentLevel(storedLevel);
-      if (initialEpisode && storedLevel !== initialEpisode.level) {
-        const resumeEpisode = resolveResumeEpisode(
-          storedLevel,
-          episodeList,
-          storedLastEpisodes
-        );
-        if (resumeEpisode != null) {
-          void navigateToEpisode(storedLevel, resumeEpisode);
-        }
+      const resumeEpisode = resolveResumeEpisode(storedLevel, episodeList, storedLastEpisodes);
+      if (
+        resumeEpisode != null &&
+        (!initialEpisode || storedLevel !== initialEpisode.level || resumeEpisode !== initialEpisode.episode)
+      ) {
+        void navigateToEpisode(storedLevel, resumeEpisode);
+      } else if (storedLevel !== initialEpisode?.level) {
+        setCurrentLevel(storedLevel);
+        setEpisode(null);
+        setCurrentEpNum(null);
+      } else {
+        setCurrentLevel(storedLevel);
       }
     } else if (initialEpisode) {
       writeLastEpisodeForLevel(initialEpisode.level, initialEpisode.episode);
@@ -165,7 +217,81 @@ export default function AppShell({
   }, []);
 
   useEffect(() => {
-    window.localStorage.setItem("hebrewtime-level", currentLevel);
+    const episodeLevel = episode?.level;
+    const episodeNumber = episode?.episode;
+    if (!episodeLevel || episodeNumber == null) {
+      setLessonBookmark(null);
+      return;
+    }
+    const bookmark = readLessonBookmark(episodeLevel, episodeNumber, user?.id);
+    setLessonBookmark(bookmark);
+    latestAudioTimeRef.current = bookmark?.audioSeconds ?? 0;
+    if (bookmark) {
+      window.setTimeout(() => mainRef.current?.scrollTo({ top: bookmark.scrollTop, behavior: "auto" }), 0);
+    }
+  }, [episode?.level, episode?.episode, user?.id]);
+
+  useEffect(() => {
+    const main = mainRef.current;
+    if (!main || !episode || viewMode !== "episodes") return;
+    const save = () => {
+      if (bookmarkWriteTimerRef.current !== null) return;
+      bookmarkWriteTimerRef.current = window.setTimeout(() => {
+        bookmarkWriteTimerRef.current = null;
+        const timedParagraph =
+          episode.hebrew_paragraphs.findIndex(
+                (paragraph) =>
+                typeof paragraph === "object" &&
+                  paragraph !== null &&
+                  latestAudioTimeRef.current >= paragraph.start &&
+                  latestAudioTimeRef.current <= paragraph.end
+              );
+        writeLessonBookmark(
+          {
+            level: episode.level,
+            episode: episode.episode,
+            paragraphIndex: timedParagraph >= 0 ? timedParagraph : lessonBookmark?.paragraphIndex ?? null,
+            audioSeconds: latestAudioTimeRef.current,
+            scrollTop: main.scrollTop,
+          },
+          user?.id
+        );
+      }, 250);
+    };
+    const onPlayerTime = (event: Event) => {
+      const value = (event as CustomEvent<number>).detail;
+      if (typeof value === "number" && Number.isFinite(value)) latestAudioTimeRef.current = value;
+      save();
+    };
+    const onScroll = () => save();
+    main.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("playerTimeUpdate", onPlayerTime);
+    return () => {
+      main.removeEventListener("scroll", onScroll);
+      window.removeEventListener("playerTimeUpdate", onPlayerTime);
+      if (bookmarkWriteTimerRef.current !== null) {
+        window.clearTimeout(bookmarkWriteTimerRef.current);
+        bookmarkWriteTimerRef.current = null;
+        writeLessonBookmark(
+          {
+            level: episode.level,
+            episode: episode.episode,
+            paragraphIndex: lessonBookmark?.paragraphIndex ?? null,
+            audioSeconds: latestAudioTimeRef.current,
+            scrollTop: main.scrollTop,
+          },
+          user?.id
+        );
+      }
+    };
+  }, [episode, lessonBookmark?.audioSeconds, lessonBookmark?.paragraphIndex, user?.id, viewMode]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("hebrewtime-level", currentLevel);
+    } catch {
+      // The selected track is a convenience; navigation remains functional.
+    }
   }, [currentLevel]);
 
   // Responsive
@@ -249,10 +375,13 @@ export default function AppShell({
         showSubscriptionPrompt("vocab_limit");
       } else {
         showToast(res.message);
+        if (res.added) {
+          recordLearningEvent("vocabulary_saved", { language: lang, count: 1 });
+        }
       }
       return res;
     },
-    [addWord, showToast, showSubscriptionPrompt]
+    [addWord, showToast, showSubscriptionPrompt, lang]
   );
 
   const generateExamples = useCallback(
@@ -409,44 +538,117 @@ export default function AppShell({
 
   const navigateToEpisode = useCallback(
     async (level: string, num: number) => {
-      setCurrentLevel(level);
-      setCurrentEpNum(num);
+      episodeRequestRef.current?.abort();
+      const requestId = ++episodeRequestIdRef.current;
+      const requestUserId = activeUserIdRef.current;
+      const controller = new AbortController();
+      episodeRequestRef.current = controller;
+      setEpisodeRequestTarget({ level, episode: num });
       setEpisodeLoadError(null);
       setIsEpisodeLoading(true);
       if (isMobile) setIsSidebarOpen(false);
 
       setScrollPositions((prev: Record<string, number>) => ({ ...prev, episodes: 0 }));
 
+      let didLoad = false;
+      let bookmarkToRestore: LessonBookmark | null = null;
       try {
         const res = await fetch(`/api/episode/${level}/${num}`, {
           cache: "no-store",
+          signal: controller.signal,
         });
+        if (requestId !== episodeRequestIdRef.current || requestUserId !== activeUserIdRef.current) return;
         if (res.ok) {
           const data = await res.json();
+          setCurrentLevel(level);
+          setCurrentEpNum(num);
           setEpisode(data);
-          writeLastEpisodeForLevel(level, num);
+          if (!requestUserId) writeLastEpisodeForLevel(level, num);
           setLastEpisodesByLevel((prev) => ({ ...prev, [level]: num }));
+          bookmarkToRestore = readLessonBookmark(level, num, requestUserId);
+          if (!bookmarkToRestore) {
+            bookmarkToRestore = writeLessonBookmark(
+              {
+                level,
+                episode: num,
+                paragraphIndex: null,
+                audioSeconds: 0,
+                scrollTop: 0,
+              },
+              requestUserId
+            );
+          }
+          setLessonBookmark(bookmarkToRestore);
+          setEpisodeRequestTarget(null);
+          didLoad = true;
         } else {
           setEpisodeLoadError(t("episodeLoadError"));
           showToast(t("episodeLoadError"));
         }
-      } catch {
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        if (requestId !== episodeRequestIdRef.current || requestUserId !== activeUserIdRef.current) return;
         setEpisodeLoadError(t("episodeLoadError"));
         showToast(t("episodeLoadError"));
       } finally {
-        setIsEpisodeLoading(false);
+        if (requestId === episodeRequestIdRef.current && requestUserId === activeUserIdRef.current) setIsEpisodeLoading(false);
       }
 
-      setTimeout(() => {
-        mainRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-      }, 50);
+      if (didLoad && requestId === episodeRequestIdRef.current && requestUserId === activeUserIdRef.current && !bookmarkToRestore) {
+        setTimeout(() => {
+          if (requestId === episodeRequestIdRef.current && requestUserId === activeUserIdRef.current) {
+            mainRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+          }
+        }, 50);
+      }
     },
     [isMobile, showToast, t]
   );
 
+  useEffect(() => {
+    const scopedUserId = user?.id ?? null;
+    if (accountScopeRef.current === undefined) {
+      accountScopeRef.current = scopedUserId;
+      // The initial guest render is handled by the startup effect above. An
+      // already available authenticated user still needs account bookmarks.
+      if (!scopedUserId) return;
+    } else if (accountScopeRef.current === scopedUserId) {
+      return;
+    }
+
+    accountScopeRef.current = scopedUserId;
+    const scopedLastEpisodes = scopedUserId
+      ? readLatestBookmarkedEpisodes(scopedUserId)
+      : {
+          ...readLastEpisodesByLevel(),
+          ...readLatestBookmarkedEpisodes(null),
+        };
+    setLastEpisodesByLevel(scopedLastEpisodes);
+    const currentBookmark = episode
+      ? readLessonBookmark(episode.level, episode.episode, scopedUserId)
+      : null;
+    setLessonBookmark(currentBookmark);
+    latestAudioTimeRef.current = currentBookmark?.audioSeconds ?? 0;
+
+    let storedLevel: string | null = null;
+    try {
+      storedLevel = window.localStorage.getItem("hebrewtime-level");
+    } catch {
+      // The account switch remains safe when storage is blocked.
+    }
+    const savedEpisode = storedLevel ? scopedLastEpisodes[storedLevel] : undefined;
+    if (
+      storedLevel &&
+      savedEpisode != null &&
+      levels.some((level) => level.slug === storedLevel) &&
+      (!episode || episode.level !== storedLevel || episode.episode !== savedEpisode)
+    ) {
+      void navigateToEpisode(storedLevel, savedEpisode);
+    }
+  }, [episode, levels, navigateToEpisode, user?.id]);
+
   const handleChangeLevel = useCallback(
     async (level: string) => {
-      setCurrentLevel(level);
       const resumeEpisode = resolveResumeEpisode(
         level,
         episodeList,
@@ -455,6 +657,11 @@ export default function AppShell({
       if (resumeEpisode != null) {
         await navigateToEpisode(level, resumeEpisode);
       } else {
+        episodeRequestRef.current?.abort();
+        ++episodeRequestIdRef.current;
+        setIsEpisodeLoading(false);
+        setEpisodeRequestTarget(null);
+        setCurrentLevel(level);
         setEpisode(null);
         setCurrentEpNum(null);
         setEpisodeLoadError(null);
@@ -485,8 +692,44 @@ export default function AppShell({
     [currentIndex, levelEpisodes, navigateToEpisode, currentLevel]
   );
 
+  const nextUnfinishedEpisode = episode
+    ? levelEpisodes.find(
+        (candidate) => candidate.episode > episode.episode && !finishedEpisodes.has(`${currentLevel}:${candidate.episode}`)
+      ) ?? null
+    : null;
+
+  const handleLearningInteraction = useCallback(() => {
+    if (!episode) return;
+    const key = `${user?.id ?? "guest"}:${episode.level}:${episode.episode}`;
+    if (lessonInteractionKeyRef.current === key) return;
+    lessonInteractionKeyRef.current = key;
+    const bookmark = readLessonBookmark(episode.level, episode.episode, user?.id);
+    const hasSavedLearningPosition = Boolean(
+      bookmark &&
+      (bookmark.paragraphIndex !== null || bookmark.audioSeconds > 0 || bookmark.scrollTop > 0)
+    );
+    recordLearningEvent(hasSavedLearningPosition ? "lesson_resumed" : "lesson_started", {
+      language: lang,
+      track: episode.level,
+      episode: episode.episode,
+    });
+  }, [episode, lang, user?.id]);
+
+  const handleOnboardingSkip = useCallback(() => {
+    recordLearningEvent("setup_skipped", { language: lang, track: currentLevel });
+    void dismissOnboarding();
+  }, [currentLevel, dismissOnboarding, lang]);
+
+  const handleOnboardingStart = useCallback(() => {
+    recordLearningEvent("setup_completed", { language: lang, track: currentLevel });
+    void dismissOnboarding();
+  }, [currentLevel, dismissOnboarding, lang]);
+
+  const handleCloseSidebar = useCallback(() => setIsSidebarOpen(false), []);
+
   return (
     <div className={`app-container ${isMobile && isSidebarOpen ? "mobile-sidebar-open" : ""}`}>
+      <a className="skip-link" href="#main-content">{t("skipToContent")}</a>
       <Sidebar
         levelTracks={levelTrackMeta}
         onChangeLevel={handleChangeLevel}
@@ -499,24 +742,27 @@ export default function AppShell({
         flashcardStats={stats}
         onStartReview={() => {
           handleChangeViewMode("flashcards");
+          setReviewStartMode("standard");
           setReviewStartSignal((s) => s + 1);
         }}
         isSidebarOpen={isSidebarOpen}
         onSelectEpisode={navigateToEpisode}
         onChangeViewMode={handleChangeViewMode}
-        onClose={() => setIsSidebarOpen(false)}
+        onClose={handleCloseSidebar}
         onOpenAuthModal={() => {
           setAuthInitialMode("login");
           setIsAuthModalOpen(true);
         }}
         isPremium={entitlements.isPremium}
-        isLoadingEntitlements={isLoadingEntitlements}
         isAdmin={entitlements.isAdmin}
         onOpenAdminModal={() => window.open("/admin", "_blank", "noopener,noreferrer")}
+        onOpenOnboarding={reopenOnboarding}
         finishedEpisodes={finishedEpisodes}
       />
 
       <main
+        id="main-content"
+        tabIndex={-1}
         className={`main-content ${
           !episode?.audio_url
             ? "player-pad-none"
@@ -533,6 +779,8 @@ export default function AppShell({
             className="toggle-sidebar-btn"
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             title={isSidebarOpen ? t("closeSidebar") : t("openSidebar")}
+            aria-label={isSidebarOpen ? t("closeSidebar") : t("openSidebar")}
+            aria-expanded={isSidebarOpen}
           >
             {isSidebarOpen ? (
               <PanelLeftClose size={20} />
@@ -588,6 +836,42 @@ export default function AppShell({
             )}
           </div>
         </div>
+
+        {legacyProgressAvailable && (
+          <aside className="legacy-progress-banner" role="status">
+            <div>
+              <strong>{t("legacyProgressTitle")}</strong>
+              <p>{t("legacyProgressDesc")}</p>
+            </div>
+            <button
+              type="button"
+              className="empty-state-btn secondary"
+              onClick={() => {
+                void importLegacyProgress().then((ok) =>
+                  showToast(ok ? t("progressImported") : t("progressImportFailed"))
+                );
+              }}
+            >
+              {t("importProgress")}
+            </button>
+          </aside>
+        )}
+        {progressSaveError && (
+          <p className="progress-save-error" role="alert">
+            {progressSaveError === "sync" ? t("progressSyncError") : t("progressSaveError")}
+          </p>
+        )}
+
+        {viewMode === "episodes" && episodeLoadError && episode && (
+          <div className="episode-error-banner" role="alert">
+            <span>{episodeLoadError}</span>
+            {episodeRequestTarget && (
+              <button type="button" className="empty-state-btn secondary" onClick={() => navigateToEpisode(episodeRequestTarget.level, episodeRequestTarget.episode)}>
+                {t("tryAgain")}
+              </button>
+            )}
+          </div>
+        )}
 
         {subscriptionPrompt && (
           <div
@@ -694,7 +978,6 @@ export default function AppShell({
               const res = await updateWord(id, updates);
               if (res) showToast(res.message);
             }}
-            isPremium={entitlements.isPremium}
             isAuthenticated={entitlements.isAuthenticated}
             onWordSaved={handleWordSaved}
             onRequireAuth={() => {
@@ -704,17 +987,18 @@ export default function AppShell({
             onRequireSubscription={() => showSubscriptionPrompt("translation_limit")}
             generateExamples={generateExamples}
             regenerateExample={regenerateExample}
+            onStartReading={() => handleChangeViewMode("episodes")}
           />
         ) : null}
 
         <div hidden={viewMode !== "flashcards"}>
           <ReviewView
+            key={`review-${reviewStartSignal}-${reviewStartMode}`}
             vocabWords={vocabWords}
             learnedCards={learnedCards}
             dueCards={dueCards}
             sessionQueue={sessionQueue}
             reverseLearnedCards={reverse.learnedCards}
-            reverseDueCards={reverse.dueCards}
             reverseSessionQueue={reverse.sessionQueue}
             reverseStats={reverse.stats}
             isLoaded={isProgressLoaded}
@@ -724,12 +1008,14 @@ export default function AppShell({
             practiceStats={practiceStats}
             attemptTimestamps={attemptTimestamps}
             startSignal={reviewStartSignal}
+            startMode={reviewStartMode}
             generateExamples={generateExamples}
             regenerateExample={regenerateExample}
             generateFillIn={generateFillIn}
             recordAttempt={recordAttempt}
             isPremium={entitlements.isPremium}
             onRequireSubscription={() => showSubscriptionPrompt("flashcards")}
+            onStartReading={() => handleChangeViewMode("episodes")}
           />
         </div>
 
@@ -768,10 +1054,10 @@ export default function AppShell({
               <BookOpen size={48} strokeWidth={1} />
               <p>{episodeLoadError}</p>
               <div className="empty-state-actions">
-                {currentEpNum != null && (
+                {episodeRequestTarget && (
                   <button
                     className="empty-state-btn primary"
-                    onClick={() => navigateToEpisode(currentLevel, currentEpNum)}
+                    onClick={() => navigateToEpisode(episodeRequestTarget.level, episodeRequestTarget.episode)}
                   >
                     <RotateCcw size={16} />
                     {t("tryAgain")}
@@ -842,9 +1128,46 @@ export default function AppShell({
                 onRequireSubscription={() => showSubscriptionPrompt("translation_limit")}
                 isFinished={episode ? isFinished(episode.level, episode.episode) : false}
                 onToggleFinished={() => {
-                  if (episode) toggleFinished(episode.level, episode.episode);
+                  if (episode) {
+                    void toggleFinished(episode.level, episode.episode).then((saved) => {
+                      if (saved && !isFinished(episode.level, episode.episode)) {
+                        recordLearningEvent("lesson_completed", {
+                          language: lang,
+                          track: episode.level,
+                          episode: episode.episode,
+                        });
+                      }
+                    });
+                  }
                 }}
+                onLearningInteraction={handleLearningInteraction}
+                progressSaving={progressSavingKey === `${episode.level}:${episode.episode}`}
               />
+              {episode && isFinished(episode.level, episode.episode) && (
+                <section className="continuation-panel" aria-label={t("continueAfterLesson")}>
+                  <div>
+                    <p className="continuation-eyebrow">{t("episodeFinished")}</p>
+                    <h3>{t("continueAfterLesson")}</h3>
+                    <p>{t("continueAfterLessonDesc", { count: vocabWords.length })}</p>
+                  </div>
+                  <div className="continuation-actions">
+                    {stats.due > 0 && (
+                      <button type="button" className="empty-state-btn primary" onClick={() => {
+                        handleChangeViewMode("flashcards");
+                        setReviewStartMode("quick");
+                        setReviewStartSignal((s) => s + 1);
+                      }}>{t("quickReview")}</button>
+                    )}
+                    {nextUnfinishedEpisode ? (
+                      <button type="button" className="empty-state-btn secondary" onClick={() => navigateToEpisode(currentLevel, nextUnfinishedEpisode.episode)}>
+                        {t("nextLesson")}
+                      </button>
+                    ) : (
+                      <span className="continuation-complete">{t("trackComplete")}</span>
+                    )}
+                  </div>
+                </section>
+              )}
             </div>
           ))}
       </main>
@@ -854,6 +1177,7 @@ export default function AppShell({
 
       {/* Sticky Media Player */}
       <MediaPlayer
+        key={`${user?.id ?? "guest"}:${episode?.level ?? currentLevel}:${episode?.episode ?? "none"}`}
         audioUrl={episode?.audio_url ?? null}
         episodeTitle={episode?.title ?? null}
         episodeNum={episode?.episode ?? null}
@@ -862,6 +1186,8 @@ export default function AppShell({
         viewMode={viewMode}
         isMobile={isMobile}
         pauseForSpeak={speakSessionActive}
+        initialTime={lessonBookmark?.audioSeconds ?? 0}
+        onLearningInteraction={handleLearningInteraction}
       />
 
       <AuthModal
@@ -871,9 +1197,13 @@ export default function AppShell({
       />
       <OnboardingOverlay
         isOpen={shouldShowOnboarding}
-        onDismiss={dismissOnboarding}
-        onGetStarted={dismissOnboarding}
+        levels={levels}
+        selectedLevel={currentLevel}
+        onSelectLevel={handleChangeLevel}
+        onDismiss={handleOnboardingSkip}
+        onGetStarted={handleOnboardingStart}
       />
+      <div className="sr-only" aria-live="polite">{episodeLoadError ?? ""}</div>
     </div>
   );
 }

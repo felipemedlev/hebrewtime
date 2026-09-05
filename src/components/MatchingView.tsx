@@ -1,14 +1,15 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import { ArrowLeft, Check, X, Sparkles, Shuffle } from "lucide-react";
+import { ArrowLeft, Check, X, Shuffle } from "lucide-react";
 import type {
   VocabWord,
   FlashcardItem,
   ReviewPracticeStats,
   ReviewModality,
 } from "@/lib/types";
-import { useT } from "@/lib/i18n/LanguageProvider";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
+import { recordLearningEvent } from "@/lib/analytics";
 import SessionRecapScreen from "@/components/SessionRecapScreen";
 
 const ROUND_SIZE = 6;
@@ -115,7 +116,7 @@ export default function MatchingView({
   onBack,
   recordAttempt,
 }: MatchingViewProps) {
-  const t = useT();
+  const { t, lang } = useLanguage();
   const [phase, setPhase] = useState<"start" | "active" | "complete">("start");
   const [roundWords, setRoundWords] = useState<VocabWord[]>([]);
   const [hebrewTiles, setHebrewTiles] = useState<MatchingTile[]>([]);
@@ -162,14 +163,16 @@ export default function MatchingView({
     setBestStreak(0);
     setCurrentStreak(0);
     setPhase("active");
-  }, [vocabWords, dueCards, practicedIds, usedThisSession]);
+    recordLearningEvent("review_started", { language: lang, modality: "matching", count: words.length });
+  }, [vocabWords, dueCards, practicedIds, usedThisSession, lang]);
 
   const completeRound = useCallback(
     (finalResults: { vocabId: string; correct: boolean }[]) => {
       setResults(finalResults);
+      recordLearningEvent("review_completed", { language: lang, modality: "matching", count: finalResults.length });
       setPhase("complete");
     },
-    []
+    [lang]
   );
 
   const handleSelectHebrew = (tile: MatchingTile) => {
@@ -353,6 +356,7 @@ export default function MatchingView({
                     type="button"
                     className={`matching-tile font-serif${isMatched ? " is-matched" : ""}${isSelected ? " is-selected" : ""}${isWrong ? " is-wrong" : ""}`}
                     dir="rtl"
+                    lang="he"
                     disabled={isMatched || wrongPair}
                     onClick={() => handleSelectHebrew(tile)}
                   >

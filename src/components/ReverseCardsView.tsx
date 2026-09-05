@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import {
   ArrowLeftRight,
   RotateCcw,
@@ -22,9 +22,10 @@ import type {
   FlashcardRating,
   FlashcardStats,
 } from "@/lib/types";
-import { useT } from "@/lib/i18n/LanguageProvider";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import ExamplePhrasesPanel from "./ExamplePhrasesPanel";
 import DictionaryDetailsModal from "./DictionaryDetailsModal";
+import { recordLearningEvent } from "@/lib/analytics";
 
 function formatNextReview(iso: string | null, soonLabel: string): string {
   if (!iso) return "—";
@@ -67,7 +68,7 @@ export default function ReverseCardsView({
   onRequireSubscription,
   onBack,
 }: ReverseCardsViewProps) {
-  const t = useT();
+  const { t, lang } = useLanguage();
   const [sessionActive, setSessionActive] = useState(false);
   const [activeSessionCards, setActiveSessionCards] = useState<FlashcardItem[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -77,36 +78,12 @@ export default function ReverseCardsView({
   const [isGenerating, setIsGenerating] = useState(false);
   const [regeneratingIndex, setRegeneratingIndex] = useState<number | null>(null);
   const [detailsPealimId, setDetailsPealimId] = useState<number | null>(null);
-  const hasLoadedOnce = useRef(isLoaded);
-
-  if (isLoaded) {
-    hasLoadedOnce.current = true;
-  }
-
   const reviewQueue = sessionActive ? activeSessionCards : sessionQueue;
   const currentWord = reviewQueue[currentIndex]?.vocabWord;
 
-  useEffect(() => {
-    if (!sessionActive) return;
-
-    const wordsById = new Map(vocabWords.map((word) => [word.id, word]));
-
-    setActiveSessionCards((prev) => {
-      let changed = false;
-      const next = prev.map((card) => {
-        const updatedWord = wordsById.get(card.vocabWord.id);
-        if (!updatedWord || updatedWord === card.vocabWord) {
-          return card;
-        }
-        changed = true;
-        return { ...card, vocabWord: updatedWord };
-      });
-      return changed ? next : prev;
-    });
-  }, [sessionActive, vocabWords]);
-
   const beginSession = (cards: FlashcardItem[]) => {
     if (cards.length === 0) return;
+    recordLearningEvent("review_started", { language: lang, modality: "reverse", count: cards.length });
     setActiveSessionCards(cards);
     setCurrentIndex(0);
     setIsFlipped(false);
@@ -135,6 +112,11 @@ export default function ReverseCardsView({
     if (currentIndex + 1 < reviewQueue.length) {
       setCurrentIndex((index) => index + 1);
     } else {
+      recordLearningEvent("review_completed", {
+        language: lang,
+        modality: "reverse",
+        count: reviewQueue.length,
+      });
       setSessionActive(false);
       setActiveSessionCards([]);
     }
@@ -170,7 +152,7 @@ export default function ReverseCardsView({
     return result;
   };
 
-  if (!isLoaded && !hasLoadedOnce.current) {
+  if (!isLoaded && vocabWords.length === 0) {
     return (
       <div
         className="vocab-loading"
@@ -314,12 +296,12 @@ export default function ReverseCardsView({
                       onClick={(e) => e.stopPropagation()}
                     >
                       <span className="flashcard-badge-side back">{t("hebrew")}</span>
-                      <h2 className="font-serif flashcard-hebrew-word" dir="rtl">
+                      <h2 className="font-serif flashcard-hebrew-word" dir="rtl" lang="he">
                         {reviewQueue[currentIndex].vocabWord.wordWithNekudot ||
                           reviewQueue[currentIndex].vocabWord.word}
                       </h2>
                       {reviewQueue[currentIndex].vocabWord.verbFormWithNekudot && (
-                        <span className="font-serif flashcard-verb-form" dir="rtl">
+                        <span className="font-serif flashcard-verb-form" dir="rtl" lang="he">
                           {reviewQueue[currentIndex].vocabWord.verbFormWithNekudot}
                         </span>
                       )}
@@ -512,7 +494,7 @@ export default function ReverseCardsView({
                       </div>
                       <div className="vocab-card-body">
                         <div className="vocab-card-hebrew-container">
-                          <span className="font-serif vocab-card-hebrew" dir="rtl">
+                          <span className="font-serif vocab-card-hebrew" dir="rtl" lang="he">
                             {vw.wordWithNekudot || vw.word}
                           </span>
                         </div>

@@ -9,7 +9,7 @@ import DictionaryDetailsModal from "./DictionaryDetailsModal";
 import { supabase } from "@/lib/supabase";
 import { hasReachedAnonTranslationLimit, incrementAnonTranslations } from "@/lib/anonUsage";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
-import { getTranslationParagraphs } from "@/lib/episodeTranslations";
+import { resolveTranslationParagraphs } from "@/lib/episodeTranslations";
 
 type EpisodeViewerProps = {
   episode: Episode;
@@ -36,6 +36,8 @@ type EpisodeViewerProps = {
   isLoadingEntitlements: boolean;
   isFinished: boolean;
   onToggleFinished: () => void;
+  onLearningInteraction?: () => void;
+  progressSaving?: boolean;
 };
 
 type ModalState = {
@@ -115,7 +117,7 @@ function renderHebrewTokens(
         key={idx}
         className={cleanWord ? "hebrew-word" : ""}
         role={cleanWord ? "button" : undefined}
-        tabIndex={cleanWord ? 0 : undefined}
+        tabIndex={cleanWord ? -1 : undefined}
         onClick={() => {
           if (cleanWord) onWordClick(token, text, translationPara || "");
         }}
@@ -124,6 +126,19 @@ function renderHebrewTokens(
           if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
             onWordClick(token, text, translationPara || "");
+            return;
+          }
+          if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+            const container = event.currentTarget.closest(".text-hebrew");
+            const words = container
+              ? Array.from(container.querySelectorAll<HTMLElement>(".hebrew-word"))
+              : [];
+            const currentIndex = words.indexOf(event.currentTarget);
+            const nextIndex = event.key === "ArrowLeft" ? currentIndex - 1 : currentIndex + 1;
+            if (nextIndex >= 0 && nextIndex < words.length) {
+              event.preventDefault();
+              words[nextIndex]?.focus();
+            }
           }
         }}
         aria-label={cleanWord ? translateLabel(cleanWord) : undefined}
@@ -142,6 +157,7 @@ type EpisodeParagraphProps = {
   activeSentenceIndex: number | null;
   isTranslationBlurred: boolean;
   noTranslationLabel: string;
+  paragraphLabel: (index: number) => string;
   onWordClick: (word: string, heb: string, ctx: string) => void;
   translateLabel: (word: string) => string;
   onParagraphRef: (index: number, el: HTMLDivElement | null) => void;
@@ -160,6 +176,7 @@ const EpisodeParagraph = memo(function EpisodeParagraph({
   activeSentenceIndex,
   isTranslationBlurred,
   noTranslationLabel,
+  paragraphLabel,
   onWordClick,
   translateLabel,
   onParagraphRef,
@@ -173,8 +190,18 @@ const EpisodeParagraph = memo(function EpisodeParagraph({
     <div
       ref={(el) => onParagraphRef(index, el)}
       className={`para-pair ${isParagraphActive ? "active-paragraph" : ""}`}
+      role="group"
+      tabIndex={0}
+      aria-label={paragraphLabel(index + 1)}
+      onKeyDown={(event) => {
+        if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+        const words = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(".hebrew-word"));
+        if (words.length === 0) return;
+        event.preventDefault();
+        (event.key === "ArrowLeft" ? words[words.length - 1] : words[0])?.focus();
+      }}
     >
-      <div className="text-hebrew font-serif" dir="rtl">
+      <div className="text-hebrew font-serif" dir="rtl" lang="he">
         {hasSentences ? (
           hebObj.sentences!.map((sent, j) => {
             const isSentenceActive = activeSentenceIndex === j;
@@ -217,12 +244,15 @@ export default function EpisodeViewer({
   isLoadingEntitlements,
   isFinished,
   onToggleFinished,
+  onLearningInteraction,
+  progressSaving = false,
 }: EpisodeViewerProps) {
   const { lang, isTranslationBlurred, t } = useLanguage();
-  const translationParagraphs = useMemo(
-    () => getTranslationParagraphs(episode, lang),
+  const translationResolution = useMemo(
+    () => resolveTranslationParagraphs(episode, lang),
     [episode, lang]
   );
+  const translationParagraphs = translationResolution.paragraphs;
 
   const [modal, setModal] = useState<ModalState>({
     isOpen: false,
@@ -268,6 +298,7 @@ export default function EpisodeViewer({
       ) {
         return;
       }
+      if (e.defaultPrevented) return;
       if (e.key === "ArrowLeft" && hasPrev) {
         e.preventDefault();
         onNavigate("prev");
@@ -326,6 +357,7 @@ export default function EpisodeViewer({
     hebContext: string,
     transContext: string
   ) => {
+    onLearningInteraction?.();
     if (isLoadingEntitlements) return;
 
     if (!isAuthenticated && hasReachedAnonTranslationLimit()) {
@@ -412,6 +444,7 @@ export default function EpisodeViewer({
     onRequireSubscription,
     onRequireAuth,
     lang,
+    onLearningInteraction,
   ]);
 
   const handleSave = async () => {
@@ -442,13 +475,14 @@ export default function EpisodeViewer({
   const episodeMeta = `${levelLabel} · ${t("episodes")} ${String(episode.episode).padStart(2, "0")}`;
   const translateLabel = useCallback((word: string) => t("translateWord", { word }), [t]);
   const noTranslationLabel = t("noTranslation");
+  const paragraphLabel = useCallback((index: number) => t("hebrewParagraph", { count: index }), [t]);
 
   return (
     <>
       <div className="main-header">
-        <h2 className="main-title font-serif">{episode.title}</h2>
+        <h2 className="main-title font-serif"><bdi>{episode.title}</bdi></h2>
         <div className="main-meta">
-          <span>{episodeMeta}</span>
+          <span><bdi>{episodeMeta}</bdi></span>
           {episode.url ? (
             <>
               <span>•</span>
@@ -461,13 +495,20 @@ export default function EpisodeViewer({
           <button
             type="button"
             onClick={onToggleFinished}
+            disabled={progressSaving}
+            aria-busy={progressSaving}
             className={`finish-inline-btn ${isFinished ? "finished" : ""}`}
             aria-pressed={isFinished}
           >
             <CheckCircle size={14} />
-            {isFinished ? t("finished") : t("markFinished")}
+            {progressSaving ? t("savingProgress") : isFinished ? t("finished") : t("markFinished")}
           </button>
-        </div>
+          </div>
+        {translationResolution.isFallback && (
+          <p className="translation-fallback-note" role="status">
+            {t("translationFallback")}
+          </p>
+        )}
       </div>
 
       <div className="content-grid">
@@ -492,6 +533,7 @@ export default function EpisodeViewer({
               activeSentenceIndex={activeSentenceIndex}
               isTranslationBlurred={isTranslationBlurred}
               noTranslationLabel={noTranslationLabel}
+              paragraphLabel={paragraphLabel}
               onWordClick={handleWordClick}
               translateLabel={translateLabel}
               onParagraphRef={onParagraphRef}
@@ -503,11 +545,13 @@ export default function EpisodeViewer({
         <button
           type="button"
           onClick={onToggleFinished}
+          disabled={progressSaving}
+          aria-busy={progressSaving}
           className={`finish-episode-btn ${isFinished ? "finished" : ""}`}
           aria-pressed={isFinished}
         >
           <CheckCircle size={20} />
-          {isFinished ? t("episodeFinished") : t("markFinished")}
+          {progressSaving ? t("savingProgress") : isFinished ? t("episodeFinished") : t("markFinished")}
         </button>
 
         <div className="nav-controls">

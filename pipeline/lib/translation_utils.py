@@ -9,13 +9,11 @@ from typing import Callable
 from openai import OpenAI
 
 TRANSLATION_MODEL = "gpt-5.4-mini"
-TARGET_LANGS = ("ru", "uk", "pt", "es", "fr")
+TARGET_LANGS = ("ru", "es", "fr")
 
 LANG_NAMES = {
     "en": "English",
     "ru": "Russian",
-    "uk": "Ukrainian",
-    "pt": "Portuguese",
     "es": "Spanish",
     "fr": "French",
 }
