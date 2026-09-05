@@ -101,6 +101,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Migrate episodes.json to Supabase")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--json-path", default=str(LEGACY_EPISODES_PATH))
+    parser.add_argument("--from-episode", type=int, default=None, help="Only upsert episode N and later")
+    parser.add_argument("--to-episode", type=int, default=None, help="Only upsert through episode N")
     args = parser.parse_args()
 
     json_path = Path(args.json_path)
@@ -114,10 +116,17 @@ def main() -> None:
         ensure_levels()
 
     episodes.sort(key=lambda e: int(e["episode"]))
+    migrated = 0
     for ep in episodes:
+        number = int(ep["episode"])
+        if args.from_episode is not None and number < args.from_episode:
+            continue
+        if args.to_episode is not None and number > args.to_episode:
+            continue
         upsert_episode(ep, args.dry_run)
+        migrated += 1
 
-    print(f"Done. Migrated {len(episodes)} episodes to level={LEVEL}.")
+    print(f"Done. Migrated {migrated} episodes to level={LEVEL}.")
 
 
 if __name__ == "__main__":

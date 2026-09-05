@@ -206,8 +206,23 @@ For the original Hebrew Time Squarespace podcast (intermediate level):
 # Scrape + translate → pipeline/data/episodes.json
 python3 pipeline/legacy/scraper.py
 
-# Push to Supabase
-python3 pipeline/migrate_legacy_episodes.py
+# Verify Google TTS credentials before generating the new 41–50 recordings
+python3 pipeline/verify_gcp_tts.py
+
+# Import full transcripts for episodes 41–115 from PDFs and generate
+# synchronized Google TTS recordings for episodes 41–50
+python3 pipeline/legacy/import_pdf_transcripts.py --dry-run
+python3 pipeline/legacy/import_pdf_transcripts.py \
+  --from-episode 41 \
+  --to-episode 115 \
+  --tts-from-episode 41 \
+  --tts-to-episode 50
+
+# Push only the imported episodes; episodes 1–40 have existing multilingual
+# translations that must not be overwritten by this JSON file.
+python3 pipeline/migrate_legacy_episodes.py \
+  --from-episode 41 \
+  --to-episode 115
 
 # Patch missing paragraphs (if scraper missed leading text nodes)
 python3 pipeline/legacy/apply_scraping_patch.py
