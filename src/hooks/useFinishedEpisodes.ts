@@ -136,7 +136,7 @@ export function useFinishedEpisodes() {
         ? await supabase.from("finished_episodes").delete().eq("user_id", user.id).eq("level_slug", level).eq("episode_number", epNum)
         : await supabase.from("finished_episodes").upsert(
             { user_id: user.id, level_slug: level, episode_number: epNum },
-            { onConflict: "user_id,level_slug,episode_number" }
+            { onConflict: "user_id,level_slug,episode_number", ignoreDuplicates: true }
           );
       if (mutationId !== requestId.current) return false;
       if (result.error) {
@@ -172,7 +172,8 @@ export function useFinishedEpisodes() {
     try {
       const { error } = await supabase
         .from("finished_episodes")
-        .upsert(rows, { onConflict: "user_id,level_slug,episode_number" });
+        // Existing completions must be left intact: RLS does not allow updates.
+        .upsert(rows, { onConflict: "user_id,level_slug,episode_number", ignoreDuplicates: true });
       if (error || mutationId !== requestId.current) return false;
     } catch {
       return false;
