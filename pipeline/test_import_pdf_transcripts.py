@@ -54,6 +54,7 @@ class ImportPdfTranscriptTests(unittest.TestCase):
         self.assertTrue(importer.is_cta_or_junk("Patreon support"))
         self.assertTrue(importer.is_cta_or_junk("זמן עברית"))
         self.assertFalse(importer.is_cta_or_junk("שלום לכולם, ברוכים הבאים"))
+        self.assertEqual(importer.strip_isolates("שלום\x00 לכולם"), "שלום לכולם")
 
     def test_tts_range_requires_both_flags_and_stays_in_41_50(self) -> None:
         self.assertEqual(

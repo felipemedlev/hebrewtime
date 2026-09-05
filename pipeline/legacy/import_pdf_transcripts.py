@@ -360,8 +360,8 @@ def extract_hebrew_paragraphs(pdf_path: Path) -> list[str]:
     collected: list[str] = []
     for lines in by_page.values():
         for para, raw in _group_line_records(lines):
-            para = re.sub(r"\s+", " ", para).strip()
-            raw = re.sub(r"\s+", " ", raw).strip()
+            para = strip_isolates(re.sub(r"\s+", " ", para)).strip()
+            raw = strip_isolates(re.sub(r"\s+", " ", raw)).strip()
             if not para or is_cta_or_junk(f"{para} {raw}"):
                 continue
             if HEADER_RE.match(para):
@@ -374,7 +374,7 @@ def extract_hebrew_paragraphs(pdf_path: Path) -> list[str]:
 
     cleaned: list[str] = []
     for para in collected:
-        para = re.sub(r"\s+", " ", para).strip()
+        para = strip_isolates(re.sub(r"\s+", " ", para)).strip()
         if not para or is_cta_or_junk(para):
             continue
         if hebrew_ratio(para) < 0.55:

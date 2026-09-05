@@ -17,6 +17,8 @@ pip install -r pipeline/requirements.txt
 | `SUPABASE_SERVICE_ROLE_KEY` | DB and Storage upload |
 | `GOOGLE_APPLICATION_CREDENTIALS` | Gemini TTS (OAuth2 service account, not API key) |
 | `SUPABASE_AUDIO_BUCKET` | Storage bucket name (default: `episode-audio`) |
+| `SUPABASE_AUDIO_PUBLIC` | Use public Storage URLs instead of signed URLs (default: `false`) |
+| `SUPABASE_AUDIO_URL_TTL_SECONDS` | Signed URL lifetime (default: 10 years) |
 
 ### GCP credentials checklist
 
@@ -206,20 +208,20 @@ For the original Hebrew Time Squarespace podcast (intermediate level):
 # Scrape + translate → pipeline/data/episodes.json
 python3 pipeline/legacy/scraper.py
 
-# Verify Google TTS credentials before generating the new 41–50 recordings
+# Verify Google TTS credentials before generating the new 41–43 recordings
 python3 pipeline/verify_gcp_tts.py
 
 # Import full transcripts for episodes 41–115 from PDFs and generate
-# synchronized Google TTS recordings for episodes 41–50
+# synchronized Google TTS recordings for episodes 41–43 in this pass
 python3 pipeline/legacy/import_pdf_transcripts.py --dry-run
 python3 pipeline/legacy/import_pdf_transcripts.py \
   --from-episode 41 \
   --to-episode 115 \
   --tts-from-episode 41 \
-  --tts-to-episode 50
+  --tts-to-episode 43
 
-# Push only the imported episodes; episodes 1–40 have existing multilingual
-# translations that must not be overwritten by this JSON file.
+# Push only the imported episodes; episodes 1–40 are intentionally outside
+# this migration and must not be overwritten by this JSON file.
 python3 pipeline/migrate_legacy_episodes.py \
   --from-episode 41 \
   --to-episode 115
@@ -230,6 +232,10 @@ python3 pipeline/legacy/apply_scraping_patch.py
 # Fix audio URLs
 python3 pipeline/legacy/patch_audio.py
 ```
+
+To generate the remaining legacy recordings later, resume the same importer
+with `--tts-from-episode 44 --tts-to-episode 50`; existing checkpoints make
+episodes 41–43 reuse their completed audio.
 
 ## Translation backfill
 
@@ -263,6 +269,7 @@ Safe to delete `pipeline/.checkpoints/` after verifying Supabase uploads. Regene
 - Service account needs `roles/aiplatform.user`
 - Python 3.13: `requirements.txt` includes `audioop-lts` for pydub
 - If Vertex reports a usage guidelines false positive, the pipeline retries with neutral prompt, no prompt, and sanitized punctuation before failing with the exact sentence
+- Episode audio uses long-lived signed Supabase Storage URLs by default, so the `episode-audio` bucket can remain private.
 
 ## Generation stack (current)
 

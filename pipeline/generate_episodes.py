@@ -37,6 +37,10 @@ load_dotenv(ENV_PATH)
 SUPABASE_URL = os.environ.get("NEXT_PUBLIC_SUPABASE_URL", "").rstrip("/")
 SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 AUDIO_BUCKET = os.environ.get("SUPABASE_AUDIO_BUCKET", "episode-audio")
+AUDIO_PUBLIC = os.environ.get("SUPABASE_AUDIO_PUBLIC", "false").lower() in {"1", "true", "yes"}
+AUDIO_URL_TTL_SECONDS = int(
+    os.environ.get("SUPABASE_AUDIO_URL_TTL_SECONDS", str(10 * 365 * 24 * 60 * 60))
+)
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 
 DEFAULT_TTS_MODEL = "gemini-3.1-flash-tts-preview"
@@ -734,6 +738,23 @@ def synthesize_episode(
     return duration_sec, timed_paragraphs
 
 
+def signed_audio_url(storage_path: str) -> str:
+    res = requests.post(
+        f"{SUPABASE_URL}/storage/v1/object/sign/{AUDIO_BUCKET}/{storage_path}",
+        headers=service_headers({"Content-Type": "application/json"}),
+        json={"expiresIn": AUDIO_URL_TTL_SECONDS},
+        timeout=60,
+    )
+    if res.status_code not in (200, 201):
+        raise RuntimeError(f"Signed audio URL failed: {res.status_code} {res.text}")
+    signed_path = res.json().get("signedURL")
+    if not signed_path:
+        raise RuntimeError(f"Signed audio URL response did not include signedURL: {res.text}")
+    if signed_path.startswith("http://") or signed_path.startswith("https://"):
+        return signed_path
+    return f"{SUPABASE_URL}/storage/v1{signed_path}"
+
+
 def upload_audio(level: str, episode_number: int, audio_path: Path) -> str:
     storage_path = f"{level}/{episode_number:02d}.mp3"
     with audio_path.open("rb") as f:
@@ -748,7 +769,9 @@ def upload_audio(level: str, episode_number: int, audio_path: Path) -> str:
     if res.status_code not in (200, 201):
         raise RuntimeError(f"Storage upload failed: {res.status_code} {res.text}")
 
-    return f"{SUPABASE_URL}/storage/v1/object/public/{AUDIO_BUCKET}/{storage_path}"
+    if AUDIO_PUBLIC:
+        return f"{SUPABASE_URL}/storage/v1/object/public/{AUDIO_BUCKET}/{storage_path}"
+    return signed_audio_url(storage_path)
 
 def upsert_episode(level: str, episode_number: int, payload: dict) -> None:
     row = {
