@@ -101,7 +101,11 @@
   .mp-play-btn,
   .mp-mute-btn { min-width: 44px; min-height: 44px; }
 
-  .main-content { min-height: 100dvh; padding-bottom: calc(var(--media-player-height, 0px) + env(safe-area-inset-bottom)); }
+  .sidebar-setup-btn {
+    min-height: 44px;
+  }
+
+  .main-content { min-height: 100dvh; padding-bottom: var(--media-player-height, 0px); }
 
   .main-header {
     padding: var(--space-5) var(--space-5) var(--radius-lg) var(--space-5);

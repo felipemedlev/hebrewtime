@@ -5,6 +5,8 @@ This document records the behavior shipped with the retention and reliability pa
 ## User-facing behavior
 
 - The reader restores the most recent lesson and paragraph for the current guest or Supabase account. Audio position and scroll position are stored in a versioned bookmark and restored after audio metadata loads without autoplay.
+- Episode navigation invalidates requests from a previous account or superseded selection, checks ownership after the response body is parsed, and fails into the existing retry UI after 15 seconds. A failed or superseded request cannot leave the reader stuck on episode loading or replace the current lesson.
+- The mobile media player uses the dynamic viewport and safe-area inset for its fixed height. Its expanded state always matches the controls, arrow direction, accessibility state, and content padding; secondary views may hide it temporarily and returning to Episodes restores the visible player header.
 - Episode identity, content, and bookmark are committed together only after a request succeeds. A superseded request is ignored, and a failed navigation keeps the current lesson visible with a retry action.
 - Completion data is isolated by guest/account namespace. Old unscoped completion data is imported into the guest namespace; an authenticated user gets an explicit one-time legacy import action instead of silent attachment.
 - The first visit offers a short language and published-track setup. Guests can read immediately, authenticated users retain the selected lesson through signup, and Settings can reopen setup. The overlay points to one paragraph of reading/listening rather than a feature tour.

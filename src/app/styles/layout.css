@@ -10,6 +10,7 @@
   position: relative;
   scroll-behavior: smooth;
   height: 100vh;
+  height: 100dvh;
 }
 
 .main-content.player-pad-full {

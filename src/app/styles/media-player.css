@@ -19,11 +19,11 @@
 }
 
 .media-player-bar.expanded {
-  height: 108px;
+  height: var(--media-player-height, 108px);
 }
 
 .media-player-bar.collapsed {
-  height: 48px;
+  height: var(--media-player-height, 48px);
 }
 
 .media-player-bar.media-player-hidden {
@@ -115,7 +115,7 @@
   align-items: center;
   padding: 0 var(--space-3) var(--radius-lg) var(--space-3);
   gap: var(--radius-md);
-  height: calc(108px - 48px);
+  height: calc(var(--media-player-height, 108px) - 48px);
 }
 
 .mp-play-btn {
@@ -310,10 +310,10 @@
     left: 0;
   }
   .media-player-bar.expanded {
-    height: 120px;
+    height: var(--media-player-height, 120px);
   }
   .media-player-body {
-    height: calc(120px - 48px);
+    height: calc(var(--media-player-height, 120px) - 48px);
     padding: 0 var(--radius-lg) var(--space-3) var(--radius-lg);
     gap: var(--radius-sm);
   }

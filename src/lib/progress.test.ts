@@ -30,6 +30,10 @@ describe("progress helpers", () => {
     expect(normalizeHebrewInput("\u200f שָׁלוֹם   ")).toBe("שָׁלוֹם");
   });
 
+  it("normalizes phrase whitespace only when the value is saved", () => {
+    expect(normalizeHebrewInput("שָׁלוֹם  \nעוֹלָם")).toBe("שָׁלוֹם עוֹלָם");
+  });
+
   it("uses level and episode as a stable bookmark key", () => {
     expect(bookmarkKey("beginner", 3)).toBe("beginner:3");
   });

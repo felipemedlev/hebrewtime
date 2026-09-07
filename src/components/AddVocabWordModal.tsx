@@ -210,10 +210,6 @@ export default function AddVocabWordModal({
   };
 
   const handleQueryChange = (value: string) => {
-    if (mode === "word" && /\s/.test(value.trim())) {
-      switchToPhraseMode(value);
-      return;
-    }
     setQuery(value);
     setResult(null);
     setError(null);
@@ -652,7 +648,7 @@ export default function AddVocabWordModal({
               lang="he"
               rows={3}
               value={phraseHebrew}
-              onChange={(e) => setPhraseHebrew(normalizeHebrewInput(e.target.value))}
+              onChange={(e) => setPhraseHebrew(e.target.value.normalize("NFC"))}
               placeholder={t("phraseHebrewPlaceholder")}
               autoFocus
             />

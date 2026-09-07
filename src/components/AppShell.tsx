@@ -39,6 +39,10 @@ import {
   type LessonBookmark,
 } from "@/lib/progress";
 import { recordLearningEvent } from "@/lib/analytics";
+import {
+  isEpisodeRequestCurrent,
+  shouldReportEpisodeLoadError,
+} from "@/lib/episodeRequest";
 
 type AppShellProps = {
   levels: Level[];
@@ -543,6 +547,11 @@ export default function AppShell({
       const requestUserId = activeUserIdRef.current;
       const controller = new AbortController();
       episodeRequestRef.current = controller;
+      let didTimeout = false;
+      const timeoutId = window.setTimeout(() => {
+        didTimeout = true;
+        controller.abort();
+      }, 15_000);
       setEpisodeRequestTarget({ level, episode: num });
       setEpisodeLoadError(null);
       setIsEpisodeLoading(true);
@@ -552,14 +561,22 @@ export default function AppShell({
 
       let didLoad = false;
       let bookmarkToRestore: LessonBookmark | null = null;
+      const isCurrentRequest = () =>
+        isEpisodeRequestCurrent(
+          { requestId, userId: requestUserId },
+          { requestId: episodeRequestIdRef.current, userId: activeUserIdRef.current }
+        );
       try {
         const res = await fetch(`/api/episode/${level}/${num}`, {
           cache: "no-store",
           signal: controller.signal,
         });
-        if (requestId !== episodeRequestIdRef.current || requestUserId !== activeUserIdRef.current) return;
+        if (!isCurrentRequest()) return;
         if (res.ok) {
           const data = await res.json();
+          // Parsing can yield after a newer navigation or account switch.
+          // Check ownership again before committing any state.
+          if (!isCurrentRequest()) return;
           setCurrentLevel(level);
           setCurrentEpNum(num);
           setEpisode(data);
@@ -586,17 +603,21 @@ export default function AppShell({
           showToast(t("episodeLoadError"));
         }
       } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") return;
-        if (requestId !== episodeRequestIdRef.current || requestUserId !== activeUserIdRef.current) return;
+        if (!shouldReportEpisodeLoadError(error, didTimeout)) return;
+        if (!isCurrentRequest()) return;
         setEpisodeLoadError(t("episodeLoadError"));
         showToast(t("episodeLoadError"));
       } finally {
-        if (requestId === episodeRequestIdRef.current && requestUserId === activeUserIdRef.current) setIsEpisodeLoading(false);
+        window.clearTimeout(timeoutId);
+        if (isCurrentRequest()) {
+          setIsEpisodeLoading(false);
+          episodeRequestRef.current = null;
+        }
       }
 
-      if (didLoad && requestId === episodeRequestIdRef.current && requestUserId === activeUserIdRef.current && !bookmarkToRestore) {
+      if (didLoad && isCurrentRequest() && !bookmarkToRestore) {
         setTimeout(() => {
-          if (requestId === episodeRequestIdRef.current && requestUserId === activeUserIdRef.current) {
+          if (isCurrentRequest()) {
             mainRef.current?.scrollTo({ top: 0, behavior: "smooth" });
           }
         }, 50);
@@ -616,6 +637,13 @@ export default function AppShell({
       return;
     }
 
+    // Invalidate any request that was started for the previous account before
+    // loading scoped bookmarks for the new account.
+    episodeRequestRef.current?.abort();
+    ++episodeRequestIdRef.current;
+    setIsEpisodeLoading(false);
+    setEpisodeRequestTarget(null);
+    setEpisodeLoadError(null);
     accountScopeRef.current = scopedUserId;
     const scopedLastEpisodes = scopedUserId
       ? readLatestBookmarkedEpisodes(scopedUserId)

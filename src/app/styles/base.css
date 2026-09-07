@@ -229,6 +229,8 @@ html, body {
 .app-container {
   display: flex;
   height: 100vh;
+  height: 100dvh;
+  min-height: 100%;
   width: 100%;
   overflow: hidden;
   position: relative;

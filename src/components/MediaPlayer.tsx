@@ -68,7 +68,13 @@ export default function MediaPlayer({
       return;
     }
 
-    const height = expanded ? (isMobile ? "120px" : "108px") : "48px";
+    const height = expanded
+      ? isMobile
+        ? "calc(120px + env(safe-area-inset-bottom, 0px))"
+        : "108px"
+      : isMobile
+        ? "calc(48px + env(safe-area-inset-bottom, 0px))"
+        : "48px";
     document.documentElement.style.setProperty("--media-player-height", height);
   }, [expanded, hideBar, isMobile]);
 
@@ -219,7 +225,7 @@ export default function MediaPlayer({
       />
 
       {/* Header strip — always visible */}
-      <div className="media-player-header" onClick={() => setIsExpanded(!expanded)}>
+      <div className="media-player-header" onClick={() => setIsExpanded((previous) => !previous)}>
         <div className="media-player-info">
           <div className="media-player-icon">
             <Radio size={14} />
@@ -241,7 +247,7 @@ export default function MediaPlayer({
           aria-expanded={expanded}
           onClick={(e) => {
             e.stopPropagation();
-            setIsExpanded(!expanded);
+            setIsExpanded((previous) => !previous);
           }}
         >
           {expanded ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
