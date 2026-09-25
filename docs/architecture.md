@@ -97,13 +97,15 @@ Older unscoped completion data is migrated into the guest namespace only. When a
 
 ## Dictionary lookup
 
-Order in `src/lib/dictionaryLookup.ts`:
+Transcript word lookup in `src/lib/dictionaryLookup.ts` keeps this order:
 
 1. Exact headword match on `dictionary_entries.word`
 2. Strip up to 3 Hebrew prefixes (ה, ו, ב, כ, ל, מ/מה, ש)
 3. Conjugated form match via `forms[].hebrew_plain`
 4. Fuzzy match via `pg_trgm` (`match_dictionary_word()` RPC)
 5. OpenAI fallback when steps 1–4 find nothing, or to disambiguate homonyms
+
+“Add to vocabulary” suggestions use the `search_dictionary_suggestions()` RPC and its indexed `dictionary_search_terms` table. It matches headwords, forms, transliterations, and glosses in one ranked query, then verifies likely spelling corrections. The modal shows a selected dictionary result immediately and translates its gloss in the background for non English UI languages. AI lookup is an explicit action and retains the existing translation limits.
 
 Dictionary hits return Pealim lemma, Nekudot, transliteration, and meaning. Non English UI languages get gloss translation via a small OpenAI call.
 

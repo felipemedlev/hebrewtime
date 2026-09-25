@@ -182,19 +182,27 @@ export type DictionarySuggestion = {
   transliteration: string | null;
   partOfSpeech: string;
   meaning: string;
+  matchType: "headword" | "form" | "transliteration" | "gloss" | "fuzzy" | "fuzzy_form";
+  matchedText: string;
 };
 
-const SUGGESTION_SELECT =
-  "pealim_id, word, word_with_nekudot, transliteration, part_of_speech, meaning";
-
-function mapSuggestionRow(row: {
+type SearchResponseRow = {
   pealim_id: number;
   word: string;
   word_with_nekudot: string;
   transliteration: string | null;
   part_of_speech: string;
   meaning: string;
-}): DictionarySuggestion {
+  match_type: DictionarySuggestion["matchType"];
+  matched_text: string;
+};
+
+const SUGGESTION_CACHE_TTL_MS = 5 * 60_000;
+const SUGGESTION_CACHE_MAX = 512;
+const suggestionCache = new Map<string, { expiresAt: number; value: DictionarySuggestion[] }>();
+const pendingSuggestions = new Map<string, Promise<DictionarySuggestion[]>>();
+
+function mapSuggestionRow(row: SearchResponseRow): DictionarySuggestion {
   return {
     pealimId: row.pealim_id,
     word: row.word,
@@ -202,61 +210,9 @@ function mapSuggestionRow(row: {
     transliteration: row.transliteration,
     partOfSpeech: row.part_of_speech,
     meaning: row.meaning,
+    matchType: row.match_type,
+    matchedText: row.matched_text,
   };
-}
-
-function meaningMatchRank(meaning: string, query: string): number {
-  const parts = meaning
-    .toLowerCase()
-    .split(/[,;/|]+/)
-    .map((part) => part.trim())
-    .filter(Boolean);
-
-  if (parts.some((part) => part === query)) return 0;
-  if (parts.some((part) => part.startsWith(query))) return 1;
-  if (parts.some((part) => part.split(/\s+/).includes(query))) return 2;
-  if (meaning.toLowerCase().includes(query)) return 3;
-  return 4;
-}
-
-function rankSuggestions(
-  rows: DictionarySuggestion[],
-  query: string
-): DictionarySuggestion[] {
-  const plain = stripNiqqud(query).toLowerCase();
-  const isLatin = /^[a-z'’\-\s]+$/.test(plain);
-  const seen = new Set<number>();
-  const unique = rows.filter((row) => {
-    if (seen.has(row.pealimId)) return false;
-    seen.add(row.pealimId);
-    return true;
-  });
-
-  return unique.sort((a, b) => {
-    if (isLatin) {
-      const aTranslit = (a.transliteration ?? "").toLowerCase();
-      const bTranslit = (b.transliteration ?? "").toLowerCase();
-      const aTranslitRank =
-        aTranslit === plain ? 0 : aTranslit.startsWith(plain) ? 1 : 2;
-      const bTranslitRank =
-        bTranslit === plain ? 0 : bTranslit.startsWith(plain) ? 1 : 2;
-      const aMeaningRank = meaningMatchRank(a.meaning, plain);
-      const bMeaningRank = meaningMatchRank(b.meaning, plain);
-      const aRank = Math.min(aTranslitRank, aMeaningRank + 0.5);
-      const bRank = Math.min(bTranslitRank, bMeaningRank + 0.5);
-      if (aRank !== bRank) return aRank - bRank;
-      if (aMeaningRank !== bMeaningRank) return aMeaningRank - bMeaningRank;
-      return a.word.localeCompare(b.word, "he");
-    }
-
-    const aWord = a.word.toLowerCase();
-    const bWord = b.word.toLowerCase();
-    const aExact = aWord === plain ? 0 : aWord.startsWith(plain) ? 1 : 2;
-    const bExact = bWord === plain ? 0 : bWord.startsWith(plain) ? 1 : 2;
-    if (aExact !== bExact) return aExact - bExact;
-    if (a.word.length !== b.word.length) return a.word.length - b.word.length;
-    return a.word.localeCompare(b.word, "he");
-  });
 }
 
 export async function searchDictionaryPrefix(
@@ -266,62 +222,42 @@ export async function searchDictionaryPrefix(
 ): Promise<DictionarySuggestion[]> {
   if (!client) return [];
 
-  const plain = stripNiqqud(query.trim());
-  if (!plain) return [];
+  const normalizedQuery = stripNiqqud(query.normalize("NFKC").trim()).replace(/\s+/g, " ");
+  if (!normalizedQuery) return [];
+  const cacheKey = `${normalizedQuery.toLowerCase()}\u0000${Math.max(1, Math.min(20, limit))}`;
+  const now = Date.now();
+  const cached = suggestionCache.get(cacheKey);
+  if (cached && cached.expiresAt > now) return cached.value;
+  suggestionCache.delete(cacheKey);
 
-  const pattern = `${plain}%`;
-  const isLatin = /^[a-zA-Z'’\-\s]+$/.test(plain);
-  const meaningPattern = `%${plain}%`;
+  const pending = pendingSuggestions.get(cacheKey);
+  if (pending) return pending;
 
-  const wordQuery = client
-    .from("dictionary_entries")
-    .select(SUGGESTION_SELECT)
-    .ilike("word", pattern)
-    .order("word")
-    .limit(limit);
+  const request = (async () => {
+    const { data, error } = await client.rpc("search_dictionary_suggestions", {
+      search_query: normalizedQuery,
+      result_limit: Math.max(1, Math.min(20, limit)),
+    });
+    if (error) {
+      console.error("Dictionary suggestion search failed:", error);
+      throw new Error("Dictionary search unavailable");
+    }
+    const value = ((data ?? []) as SearchResponseRow[]).map(mapSuggestionRow);
+    suggestionCache.set(cacheKey, { expiresAt: Date.now() + SUGGESTION_CACHE_TTL_MS, value });
+    while (suggestionCache.size > SUGGESTION_CACHE_MAX) {
+      const oldestKey = suggestionCache.keys().next().value;
+      if (oldestKey === undefined) break;
+      suggestionCache.delete(oldestKey);
+    }
+    return value;
+  })();
 
-  const translitQuery = isLatin
-    ? client
-        .from("dictionary_entries")
-        .select(SUGGESTION_SELECT)
-        .ilike("transliteration", pattern)
-        .order("transliteration")
-        .limit(limit)
-    : null;
-
-  // English (and other Latin) gloss lookup — meaning is often "moist, damp, humid".
-  const meaningQuery =
-    isLatin && plain.length >= 2
-      ? client
-          .from("dictionary_entries")
-          .select(SUGGESTION_SELECT)
-          .ilike("meaning", meaningPattern)
-          .limit(limit * 2)
-      : null;
-
-  const [wordRes, translitRes, meaningRes] = await Promise.all([
-    wordQuery,
-    translitQuery ?? Promise.resolve({ data: null, error: null }),
-    meaningQuery ?? Promise.resolve({ data: null, error: null }),
-  ]);
-
-  if (wordRes.error) {
-    console.error("Dictionary prefix search error:", wordRes.error);
+  pendingSuggestions.set(cacheKey, request);
+  try {
+    return await request;
+  } finally {
+    pendingSuggestions.delete(cacheKey);
   }
-  if (translitRes.error) {
-    console.error("Dictionary transliteration search error:", translitRes.error);
-  }
-  if (meaningRes.error) {
-    console.error("Dictionary meaning search error:", meaningRes.error);
-  }
-
-  const rows = [
-    ...(wordRes.data ?? []),
-    ...(translitRes.data ?? []),
-    ...(meaningRes.data ?? []),
-  ].map((row) => mapSuggestionRow(row as Parameters<typeof mapSuggestionRow>[0]));
-
-  return rankSuggestions(rows, plain).slice(0, limit);
 }
 
 export function isVerbPartOfSpeech(partOfSpeech: string): boolean {

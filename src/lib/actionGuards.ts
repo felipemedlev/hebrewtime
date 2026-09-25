@@ -6,6 +6,7 @@ const RATE_LIMITS = {
   createSpeakSession: { maxRequests: 10, windowMs: 60_000 },
   searchDictionarySuggestions: { maxRequests: 60, windowMs: 60_000 },
   resolveDictionarySuggestion: { maxRequests: 30, windowMs: 60_000 },
+  translateDictionarySuggestion: { maxRequests: 30, windowMs: 60_000 },
 } as const;
 
 type RateLimitAction = keyof typeof RATE_LIMITS;
@@ -34,8 +35,13 @@ export function isValidEmail(email: unknown): boolean {
   return typeof email === "string" && EMAIL_REGEX.test(email);
 }
 
-export function checkRateLimit(userId: unknown, action: unknown): boolean {
-  if (typeof userId !== "string" || !userId || typeof action !== "string" || !(action in RATE_LIMITS)) return false;
+export function checkRateLimitWithRetry(userId: unknown, action: unknown): {
+  allowed: boolean;
+  retryAfterSeconds: number;
+} {
+  if (typeof userId !== "string" || !userId || typeof action !== "string" || !(action in RATE_LIMITS)) {
+    return { allowed: false, retryAfterSeconds: 0 };
+  }
   const config = RATE_LIMITS[action as RateLimitAction];
   const key = `${userId}:${action}`;
   const now = Date.now();
@@ -48,20 +54,26 @@ export function checkRateLimit(userId: unknown, action: unknown): boolean {
       if (now >= storedEntry.resetAt) rateLimitStore.delete(storedKey);
     }
     entry = rateLimitStore.get(key);
-    if (!entry && rateLimitStore.size >= MAX_RATE_LIMIT_ENTRIES) return false;
+    if (!entry && rateLimitStore.size >= MAX_RATE_LIMIT_ENTRIES) {
+      return { allowed: false, retryAfterSeconds: Math.ceil(config.windowMs / 1000) };
+    }
   }
 
   if (!entry || now >= entry.resetAt) {
     rateLimitStore.set(key, { count: 1, resetAt: now + config.windowMs });
-    return true;
+    return { allowed: true, retryAfterSeconds: 0 };
   }
 
   if (entry.count >= config.maxRequests) {
-    return false;
+    return { allowed: false, retryAfterSeconds: Math.max(1, Math.ceil((entry.resetAt - now) / 1000)) };
   }
 
   entry.count += 1;
-  return true;
+  return { allowed: true, retryAfterSeconds: 0 };
+}
+
+export function checkRateLimit(userId: unknown, action: unknown): boolean {
+  return checkRateLimitWithRetry(userId, action).allowed;
 }
 
 export function wrapUserContent(label: string, content: string): string {

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { searchDictionaryPrefix } from "@/lib/dictionaryLookup";
-import { checkRateLimit, clampString, INPUT_LIMITS } from "@/lib/actionGuards";
+import { checkRateLimitWithRetry, clampString, INPUT_LIMITS } from "@/lib/actionGuards";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -18,7 +18,10 @@ export async function GET(request: Request) {
   const safeQuery = clampString(searchParams.get("q") ?? "", INPUT_LIMITS.word);
 
   if (!safeQuery) {
-    return NextResponse.json({ suggestions: [] });
+    return NextResponse.json({ suggestions: [], status: "empty" });
+  }
+  if (!supabaseAdmin) {
+    return NextResponse.json({ suggestions: [], status: "unavailable" }, { status: 503 });
   }
 
   const forwarded = request.headers.get("x-forwarded-for");
@@ -27,10 +30,20 @@ export async function GET(request: Request) {
     request.headers.get("x-real-ip")?.trim() ||
     "anon";
 
-  if (!checkRateLimit(`ip:${ip}`, "searchDictionarySuggestions")) {
-    return NextResponse.json({ suggestions: [], type: "error" }, { status: 429 });
+  const rateLimit = checkRateLimitWithRetry(`ip:${ip}`, "searchDictionarySuggestions");
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { suggestions: [], status: "rate_limited", retryAfterSeconds: rateLimit.retryAfterSeconds },
+      { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds) } }
+    );
   }
 
-  const suggestions = await searchDictionaryPrefix(supabaseAdmin, safeQuery, 8);
-  return NextResponse.json({ suggestions });
+  try {
+    const suggestions = await searchDictionaryPrefix(supabaseAdmin, safeQuery, 8);
+    return NextResponse.json({ suggestions, status: suggestions.length ? "success" : "empty" }, {
+      headers: { "Cache-Control": "private, max-age=0, s-maxage=300, stale-while-revalidate=300" },
+    });
+  } catch {
+    return NextResponse.json({ suggestions: [], status: "unavailable" }, { status: 503 });
+  }
 }
