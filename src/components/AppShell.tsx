@@ -510,6 +510,8 @@ export default function AppShell({
 
   const handleChangeViewMode = useCallback(
     (mode: ViewMode) => {
+      if (mode === "speak" && !entitlements.isAdmin) return;
+
       if (mainRef.current) {
         const currentScroll = mainRef.current.scrollTop;
         setScrollPositions((prev: Record<string, number>) => ({
@@ -525,8 +527,15 @@ export default function AppShell({
         setIsSidebarOpen(false);
       }
     },
-    [viewMode, isMobile]
+    [entitlements.isAdmin, viewMode, isMobile]
   );
+
+  useEffect(() => {
+    if (!entitlements.isAdmin && viewMode === "speak") {
+      setViewMode("episodes");
+      setSpeakSessionActive(false);
+    }
+  }, [entitlements.isAdmin, viewMode]);
 
   useEffect(() => {
     if (mainRef.current) {
@@ -781,7 +790,6 @@ export default function AppShell({
           setAuthInitialMode("login");
           setIsAuthModalOpen(true);
         }}
-        isPremium={entitlements.isPremium}
         isAdmin={entitlements.isAdmin}
         onOpenAdminModal={() => window.open("/admin", "_blank", "noopener,noreferrer")}
         onOpenOnboarding={reopenOnboarding}
@@ -1047,29 +1055,31 @@ export default function AppShell({
           />
         </div>
 
-        <div hidden={viewMode !== "speak"}>
-          <SpeakView
-            isAuthenticated={entitlements.isAuthenticated}
-            isPremium={entitlements.isPremium}
-            episodeTitle={episode?.title ?? null}
-            episodeHebrewText={episode?.hebrew_text?.slice(0, 600) ?? null}
-            onSavePhrase={async (hebrew, translation) => {
-              await addWord({
-                word: hebrew,
-                translation,
-                episodeTitle: t("speakTitle"),
-                episodeUrl: "",
-                entryKind: "phrase",
-              });
-            }}
-            onRequireAuth={() => {
-              setAuthInitialMode("login");
-              setIsAuthModalOpen(true);
-            }}
-            onRequireSubscription={() => showSubscriptionPrompt("speak_limit")}
-            onSessionActiveChange={setSpeakSessionActive}
-          />
-        </div>
+        {entitlements.isAdmin && (
+          <div hidden={viewMode !== "speak"}>
+            <SpeakView
+              isAuthenticated={entitlements.isAuthenticated}
+              isPremium={entitlements.isPremium}
+              episodeTitle={episode?.title ?? null}
+              episodeHebrewText={episode?.hebrew_text?.slice(0, 600) ?? null}
+              onSavePhrase={async (hebrew, translation) => {
+                await addWord({
+                  word: hebrew,
+                  translation,
+                  episodeTitle: t("speakTitle"),
+                  episodeUrl: "",
+                  entryKind: "phrase",
+                });
+              }}
+              onRequireAuth={() => {
+                setAuthInitialMode("login");
+                setIsAuthModalOpen(true);
+              }}
+              onRequireSubscription={() => showSubscriptionPrompt("speak_limit")}
+              onSessionActiveChange={setSpeakSessionActive}
+            />
+          </div>
+        )}
 
         {viewMode === "episodes" &&
           (isEpisodeLoading ? (

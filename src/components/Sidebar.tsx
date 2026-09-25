@@ -41,7 +41,6 @@ type SidebarProps = {
   onClose: () => void;
   onStartReview?: () => void;
   onOpenAuthModal?: () => void;
-  isPremium?: boolean;
   isAdmin?: boolean;
   onOpenAdminModal?: () => void;
   onOpenOnboarding?: () => void;
@@ -64,7 +63,6 @@ export default function Sidebar({
   onClose,
   onStartReview,
   onOpenAuthModal,
-  isPremium = false,
   isAdmin = false,
   onOpenAdminModal,
   onOpenOnboarding,
@@ -256,18 +254,20 @@ export default function Sidebar({
               <Brain size={14} />
               <span className="tab-btn-label">{t("review")}</span>
             </button>
-            <button
-              className={`tab-btn ${viewMode === "speak" ? "active" : ""}`}
-              onClick={() => onChangeViewMode("speak")}
-              role="tab"
-              aria-selected={viewMode === "speak"}
-              id="sidebar-tab-speak"
-              aria-controls="sidebar-panel"
-              title={t("speak")}
-            >
-              <Mic size={14} />
-              <span className="tab-btn-label">{t("speak")}</span>
-            </button>
+            {isAdmin && (
+              <button
+                className={`tab-btn ${viewMode === "speak" ? "active" : ""}`}
+                onClick={() => onChangeViewMode("speak")}
+                role="tab"
+                aria-selected={viewMode === "speak"}
+                id="sidebar-tab-speak"
+                aria-controls="sidebar-panel"
+                title={t("speak")}
+              >
+                <Mic size={14} />
+                <span className="tab-btn-label">{t("speak")}</span>
+              </button>
+            )}
           </div>
 
           {viewMode === "episodes" && levelTracks.length > 0 && (
@@ -361,7 +361,7 @@ export default function Sidebar({
               )}
             </div>
           </div>
-        ) : viewMode === "speak" ? (
+        ) : viewMode === "speak" && isAdmin ? (
           <div className="ep-list" id="sidebar-panel" role="tabpanel" aria-labelledby="sidebar-tab-speak">
             <div className="sidebar-info">
               <p className="sidebar-info-heading">{t("speakTitle")}</p>
@@ -371,13 +371,6 @@ export default function Sidebar({
                     <Mic size={14} /> {t("speakAudioOnly")}
                   </span>
                 </div>
-                {!isPremium && (
-                  <div className="sidebar-stat highlight">
-                    <span className="sidebar-stat-label">
-                      <Clock size={14} /> {t("speakFreeDailyBadge")}
-                    </span>
-                  </div>
-                )}
               </div>
               <p className="sidebar-info-note">{t("speakSidebarHint")}</p>
             </div>

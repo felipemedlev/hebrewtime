@@ -53,7 +53,6 @@ import type {
   SpeakEpisodeContext,
 } from "@/lib/speak/types";
 import {
-  FREE_SPEAK_SESSION_LIMIT_SECONDS,
   SPEAK_EPISODE_SNIPPET_MAX,
 } from "@/lib/speak/types";
 
@@ -1309,13 +1308,17 @@ export async function createSpeakSession(
     return { type: "auth_required" };
   }
 
+  const email = user.email?.toLowerCase() ?? "";
+  const isAdmin = Boolean(email) && adminEmails.includes(email);
+  if (!isAdmin) {
+    return { type: "error", message: "Speaking practice is available to admins only." };
+  }
+
   if (!checkRateLimit(user.id, "createSpeakSession")) {
     return { type: "error", message: "Too many requests. Please wait a moment." };
   }
 
-  const email = user.email?.toLowerCase() ?? "";
-  const isAdmin = Boolean(email) && adminEmails.includes(email);
-  const isPremium = isAdmin || (email ? await isPremiumEmail(email) : false);
+  const isPremium = true;
 
   const safeSpeed = clampSpeechSpeed(speechSpeed);
   const voice = getVoiceId(voiceGender);
@@ -1357,7 +1360,7 @@ export async function createSpeakSession(
     profileResult.data?.conversation_summary ?? ""
   );
   const sessionNotes = sanitizeSessionNotes(profileResult.data?.session_notes);
-  const sessionLimitSeconds = isPremium ? null : FREE_SPEAK_SESSION_LIMIT_SECONDS;
+  const sessionLimitSeconds = null;
   const instructions = buildTeacherInstructions(
     level,
     learnerFacts,
@@ -1366,14 +1369,6 @@ export async function createSpeakSession(
     practiceBlock,
     sessionLimitSeconds
   );
-
-  let speakReserved = false;
-  if (!isPremium) {
-    const reserved = await reserveDailyUsage(user.id, "speak_sessions_count", 1);
-    if (reserved === null) return { type: "error", message: "Usage limit service unavailable." };
-    if (!reserved) return { type: "limit_reached" };
-    speakReserved = true;
-  }
 
   const sessionPayload = {
     session: {
@@ -1395,7 +1390,6 @@ export async function createSpeakSession(
     },
   };
 
-  let upstreamResponseReceived = false;
   try {
     const res = await fetch("https://api.openai.com/v1/realtime/client_secrets", {
       method: "POST",
@@ -1408,11 +1402,8 @@ export async function createSpeakSession(
       cache: "no-store",
       signal: AbortSignal.timeout(20_000),
     });
-    upstreamResponseReceived = true;
-
     if (!res.ok) {
       console.error("OpenAI Realtime client_secrets error:", await res.text());
-      if (speakReserved) await releaseDailyUsage(user.id, "speak_sessions_count");
       return { type: "error", message: "Could not start voice session." };
     }
 
@@ -1434,7 +1425,6 @@ export async function createSpeakSession(
       : 0;
 
     if (!clientSecret || clientSecret.length > 8192) {
-      if (speakReserved) await releaseDailyUsage(user.id, "speak_sessions_count");
       return { type: "error", message: "Invalid voice session response." };
     }
 
@@ -1449,23 +1439,14 @@ export async function createSpeakSession(
       session_notes: sessionNotesToRow(sessionNotes),
     };
 
-    if (!isPremium) {
-      const { error: upsertError } = await supabaseAdmin
-        .from("speak_profiles")
-        .upsert(upsertPayload, { onConflict: "user_id" });
-      if (upsertError) {
-        console.error("Failed to upsert speak profile preferences:", upsertError);
-      }
-    } else {
-      void supabaseAdmin
-        .from("speak_profiles")
-        .upsert(upsertPayload, { onConflict: "user_id" })
-        .then(({ error: upsertError }) => {
-          if (upsertError) {
-            console.error("Failed to upsert speak profile preferences:", upsertError);
-          }
-        });
-    }
+    void supabaseAdmin
+      .from("speak_profiles")
+      .upsert(upsertPayload, { onConflict: "user_id" })
+      .then(({ error: upsertError }) => {
+        if (upsertError) {
+          console.error("Failed to upsert speak profile preferences:", upsertError);
+        }
+      });
 
     return {
       type: "success",
@@ -1481,9 +1462,6 @@ export async function createSpeakSession(
     };
   } catch (err) {
     console.error("createSpeakSession error:", err);
-    if (speakReserved && upstreamResponseReceived) {
-      await releaseDailyUsage(user.id, "speak_sessions_count");
-    }
     return { type: "error", message: "Could not start voice session." };
   }
 }
