@@ -20,6 +20,7 @@ import {
 import type { EpisodeListItem, LevelTrackMeta, FlashcardStats } from "@/lib/types";
 import type { ViewMode } from "@/lib/viewMode";
 import LearningTrackSelector from "./LearningTrackSelector";
+import BrandLogo from "./BrandLogo";
 import { finishedKey } from "@/lib/levelTracks";
 import { useUser } from "@/hooks/useUser";
 import { supabase } from "@/lib/supabase";
@@ -209,8 +210,7 @@ export default function Sidebar({
         <div className="sidebar-header">
           <div className="sidebar-title">
             <div className="sidebar-title-left">
-              <BookOpen size={18} />
-              <span>{t("appName")}</span>
+              <BrandLogo />
             </div>
             <button className="close-mobile-btn" onClick={onClose} aria-label={t("closeSidebar")}>
               <X size={18} />

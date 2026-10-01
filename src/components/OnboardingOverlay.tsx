@@ -4,6 +4,7 @@ import { ArrowRight, BookOpen, Headphones, Languages } from "lucide-react";
 import { useModalAccessibility } from "@/hooks/useModalAccessibility";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { Level } from "@/lib/types";
+import BrandLogo from "./BrandLogo";
 
 type OnboardingOverlayProps = {
   isOpen: boolean;
@@ -41,7 +42,7 @@ export default function OnboardingOverlay({
     <div className="onboarding-overlay">
       <div ref={dialogRef} className="onboarding-container onboarding-container--quick" role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <header className="onboarding-header">
-          <div className="onboarding-brand"><BookOpen size={16} /><span>{t("appName")}</span></div>
+          <div className="onboarding-brand"><BrandLogo /></div>
           <button type="button" className="onboarding-skip-btn" onClick={onDismiss}>{t("skipForNow")}</button>
         </header>
 

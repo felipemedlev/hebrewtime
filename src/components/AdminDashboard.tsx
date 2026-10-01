@@ -127,7 +127,7 @@ export default function AdminDashboard() {
         <div className="admin-shell admin-error">
           <p>Sign in with an admin account to open this dashboard.</p>
           <Link href="/" className="admin-link-btn">
-            <ArrowLeft size={16} /> Back to Hebrew Time
+            <ArrowLeft size={16} /> Back to HebrewTales
           </Link>
         </div>
       </div>
@@ -140,7 +140,7 @@ export default function AdminDashboard() {
         <div className="admin-shell admin-error">
           <p>Your account does not have admin access.</p>
           <Link href="/" className="admin-link-btn">
-            <ArrowLeft size={16} /> Back to Hebrew Time
+            <ArrowLeft size={16} /> Back to HebrewTales
           </Link>
         </div>
       </div>
@@ -152,7 +152,7 @@ export default function AdminDashboard() {
       <div className="admin-shell">
         <header className="admin-header">
           <div className="admin-header-left">
-            <span className="admin-eyebrow">Hebrew Time</span>
+            <span className="admin-eyebrow">HebrewTales</span>
             <h1 className="admin-title">Admin Dashboard</h1>
             <p className="admin-subtitle">
               Monitor platform usage, review learner activity, and manage premium access.

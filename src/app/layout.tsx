@@ -7,8 +7,11 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const notoSansHebrew = Noto_Serif_Hebrew({ subsets: ["hebrew", "latin"], weight: ["400", "500", "600"], variable: "--font-hebrew" });
 
 export const metadata: Metadata = {
-  title: "Hebrew Time",
-  description: "Bilingual reader for Hebrew Time podcast.",
+  title: "HebrewTales",
+  description: "Read and listen to Hebrew stories, explore translations, and build your vocabulary.",
+  icons: {
+    icon: { url: "/brand/hebrewtales-mark.svg", type: "image/svg+xml" },
+  },
 };
 
 export default function RootLayout({

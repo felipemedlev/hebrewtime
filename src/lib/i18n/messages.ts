@@ -4,7 +4,7 @@ export type MessageKey = keyof typeof en;
 
 const en = {
   // Common
-  appName: "Hebrew Time",
+  appName: "HebrewTales",
   close: "Close",
   dismiss: "Dismiss",
   email: "Email",
@@ -360,8 +360,8 @@ const en = {
   shareResults: "Share results",
   copied: "Copied!",
   shared: "Shared!",
-  shareStatsText: "Hebrew Time: {percent}% practice accuracy, {today} practiced today, {learned} words learned",
-  shareSessionText: "Hebrew Time: {percent}% on {mode} — {correct}/{total} correct",
+  shareStatsText: "HebrewTales: {percent}% practice accuracy, {today} practiced today, {learned} words learned",
+  shareSessionText: "HebrewTales: {percent}% on {mode} — {correct}/{total} correct",
   sessionScore: "Score",
   bestStreak: "Best streak",
   bothModalities: "Both",
@@ -372,7 +372,7 @@ const en = {
   continueBtn: "Continue",
 
   // Onboarding
-  onboardingWelcome: "Welcome to Hebrew Time",
+  onboardingWelcome: "Welcome to HebrewTales",
   onboardingSubtitle: "Learn Hebrew through real podcast transcripts — read, listen, and build vocabulary at your own pace.",
   onboardingFeatures: "What's inside",
   onboardingBilingualTitle: "Bilingual Reading",
@@ -425,7 +425,7 @@ const en = {
 type Messages = Partial<Record<MessageKey, string>>;
 
 const ru: Messages = {
-  appName: "Hebrew Time",
+  appName: "HebrewTales",
   close: "Закрыть",
   dismiss: "Скрыть",
   setup: "Настройка",
@@ -747,8 +747,8 @@ const ru: Messages = {
   shareResults: "Поделиться",
   copied: "Скопировано!",
   shared: "Отправлено!",
-  shareStatsText: "Hebrew Time: {percent}% точность, {today} сегодня, {learned} слов выучено",
-  shareSessionText: "Hebrew Time: {percent}% в «{mode}» — {correct}/{total} верно",
+  shareStatsText: "HebrewTales: {percent}% точность, {today} сегодня, {learned} слов выучено",
+  shareSessionText: "HebrewTales: {percent}% в «{mode}» — {correct}/{total} верно",
   sessionScore: "Счёт",
   bestStreak: "Лучшая серия",
   bothModalities: "Оба",
@@ -771,7 +771,7 @@ const ru: Messages = {
   progressSyncError: "Не удалось синхронизировать прогресс уроков.",
   progressSaveError: "Не удалось сохранить прогресс урока. Попробуйте снова.",
   savingProgress: "Сохранение…",
-  onboardingWelcome: "Добро пожаловать в Hebrew Time",
+  onboardingWelcome: "Добро пожаловать в HebrewTales",
   onboardingQuickTitle: "Сделайте небольшой шаг сегодня",
   onboardingQuickSubtitle: "Выберите язык и уровень, затем прочитайте короткий раздел. Всё можно изменить позже.",
   onboardingSetupLabel: "Быстрая настройка",
@@ -816,7 +816,7 @@ const ru: Messages = {
 };
 
 const es: Messages = {
-  appName: "Hebrew Time",
+  appName: "HebrewTales",
   close: "Cerrar",
   dismiss: "Descartar",
   setup: "Configuración",
@@ -1137,8 +1137,8 @@ const es: Messages = {
   shareResults: "Compartir",
   copied: "¡Copiado!",
   shared: "¡Compartido!",
-  shareStatsText: "Hebrew Time: {percent}% precisión, {today} hoy, {learned} palabras aprendidas",
-  shareSessionText: "Hebrew Time: {percent}% en {mode} — {correct}/{total} correctas",
+  shareStatsText: "HebrewTales: {percent}% precisión, {today} hoy, {learned} palabras aprendidas",
+  shareSessionText: "HebrewTales: {percent}% en {mode} — {correct}/{total} correctas",
   sessionScore: "Puntuación",
   bestStreak: "Mejor racha",
   bothModalities: "Ambos",
@@ -1148,7 +1148,7 @@ const es: Messages = {
   meaningHint: "Pista",
   continueBtn: "Continuar",
   hebrewParagraph: "Párrafo hebreo {count}",
-  onboardingWelcome: "Bienvenido a Hebrew Time",
+  onboardingWelcome: "Bienvenido a HebrewTales",
   onboardingQuickTitle: "Empieza con un paso pequeño hoy",
   onboardingQuickSubtitle: "Elige un idioma y un nivel, y lee una sección breve. Puedes cambiarlo cuando quieras.",
   onboardingSetupLabel: "Configuración rápida",
@@ -1207,7 +1207,7 @@ const es: Messages = {
 };
 
 const fr: Messages = {
-  appName: "Hebrew Time",
+  appName: "HebrewTales",
   close: "Fermer",
   dismiss: "Ignorer",
   setup: "Configuration",
@@ -1527,8 +1527,8 @@ const fr: Messages = {
   shareResults: "Partager",
   copied: "Copié !",
   shared: "Partagé !",
-  shareStatsText: "Hebrew Time : {percent}% précision, {today} aujourd'hui, {learned} mots appris",
-  shareSessionText: "Hebrew Time : {percent}% en {mode} — {correct}/{total} correctes",
+  shareStatsText: "HebrewTales : {percent}% précision, {today} aujourd'hui, {learned} mots appris",
+  shareSessionText: "HebrewTales : {percent}% en {mode} — {correct}/{total} correctes",
   sessionScore: "Score",
   bestStreak: "Meilleure série",
   bothModalities: "Les deux",
@@ -1538,7 +1538,7 @@ const fr: Messages = {
   meaningHint: "Indice",
   continueBtn: "Continuer",
   hebrewParagraph: "Paragraphe hébreu {count}",
-  onboardingWelcome: "Bienvenue sur Hebrew Time",
+  onboardingWelcome: "Bienvenue sur HebrewTales",
   onboardingQuickTitle: "Commencez doucement aujourd’hui",
   onboardingQuickSubtitle: "Choisissez une langue et un niveau, puis lisez une courte section. Vous pourrez changer ces choix à tout moment.",
   onboardingSetupLabel: "Configuration rapide",
