@@ -63,7 +63,7 @@ Browser → Next.js (Server Components + API routes)
 | Hook | Role |
 |------|------|
 | `useVocabulary.ts` | Vocabulary sync to Supabase |
-| `useFlashcards.ts` | FSRS review scheduling; session queue picks newest due cards first and deprioritizes cards reviewed in the last 30 minutes |
+| `useFlashcards.ts` | FSRS review scheduling; session queue supports current order or shuffled due cards and deprioritizes cards reviewed in the last 30 minutes |
 | `useEntitlements.ts` | Auth/premium/admin status |
 | `useFinishedEpisodes.ts` | Per-level finished state (guest/account scoped localStorage + Supabase) and explicit legacy import |
 | `useOnboarding.ts` | Guest-first setup visibility, persisted completion, and reopen callback |
@@ -88,6 +88,8 @@ Episode translations use `episodes.translations` JSONB (paragraph arrays per lan
 ## Progress and resume behavior
 
 Lesson completion and bookmarks are scoped by the current Supabase user id. Guests use a separate local namespace; changing accounts clears the active in-memory state before loading the new account. A bookmark is versioned (`hebrewtime-bookmarks-v1:<scope>`) and stores level, episode, paragraph index, audio seconds, scroll position, and `updatedAt`. It is written after reading/audio interaction and restored after audio metadata loads without autoplay.
+
+Flashcard sessions are versioned browser records scoped by the current account and direction (`hebrewtime-flashcard-session-v1:<scope>:<direction>`). They store the exact card ids, order choice, current position, and card reveal state. An unfinished forward or reverse session is restored after vocabulary and flashcard progress load, and is removed only when completed or explicitly ended. The order preference is stored separately per account, with current order as the default and shuffled order selecting from the full due pool before applying the session limit.
 
 Older unscoped completion data is migrated into the guest namespace only. When an authenticated user has legacy data available, the interface offers a one-time explicit import; it is never silently attached to an account. Failed completion writes roll back the optimistic UI and expose a retryable save error.
 

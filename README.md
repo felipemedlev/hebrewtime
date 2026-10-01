@@ -1,6 +1,6 @@
 # HebrewTime
 
-HebrewTime is a multilingual web reader for the Hebrew Time podcast and AI generated learning tracks. Learners read Hebrew with side by side translations in **English**, **Russian**, **Spanish**, or **French**, click words for Pealim backed dictionary lookup, save vocabulary, review with FSRS flashcards, and **practice speaking Hebrew** with an AI teacher (OpenAI Realtime voice).
+HebrewTime is a multilingual web reader for the Hebrew Time podcast and AI generated learning tracks. Learners read Hebrew with side by side translations in **English**, **Russian**, **Spanish**, or **French**, click words for Pealim backed dictionary lookup, save vocabulary, review with FSRS flashcards, and **practice speaking Hebrew** with an AI teacher (OpenAI Realtime voice). Flashcard sessions can follow the current saved word order or shuffle due cards, and unfinished sessions resume when the learner returns to the app.
 
 ## Learning tracks
 

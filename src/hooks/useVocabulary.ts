@@ -9,12 +9,13 @@ export function useVocabulary(isPremium = false) {
   const [vocabWords, setVocabWords] = useState<VocabWord[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const { user } = useUser();
+  const userId = user?.id;
   const loadIdRef = useRef(0);
 
   // Load from Supabase on mount or when user changes
   useEffect(() => {
     const loadId = ++loadIdRef.current;
-    if (!user) {
+    if (!userId) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setVocabWords([]);
       setIsLoaded(true);
@@ -27,7 +28,7 @@ export function useVocabulary(isPremium = false) {
     supabase
       .from("vocabulary")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .order("saved_at", { ascending: false })
       .then(({ data, error }) => {
         if (loadId !== loadIdRef.current) return;
@@ -56,7 +57,7 @@ export function useVocabulary(isPremium = false) {
         setVocabWords([]);
         setIsLoaded(true);
       });
-  }, [user]);
+  }, [userId]);
 
   const addWord = useCallback(
     async (word: Omit<VocabWord, "id" | "savedAt">): Promise<{ added: boolean; message: string; type?: "auth_required" | "duplicate" | "success" | "error" | "limit_reached" }> => {

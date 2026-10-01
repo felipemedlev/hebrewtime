@@ -25,6 +25,7 @@ import OnboardingOverlay from "./OnboardingOverlay";
 import { useFinishedEpisodes } from "@/hooks/useFinishedEpisodes";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { useUsageTracking } from "@/hooks/useUsageTracking";
+import { hasFlashcardSession } from "@/lib/flashcardSession";
 import { useReviewPracticeStats } from "@/hooks/useReviewPracticeStats";
 import { generateExamplePhrases, generateFillInExercises } from "@/app/actions";
 import type { FillInExercise } from "@/lib/types";
@@ -128,6 +129,7 @@ export default function AppShell({
   const { entitlements, isLoading: isLoadingEntitlements } = useEntitlements();
   const { vocabWords, addWord, deleteWord, updateWord } = useVocabulary(entitlements.isPremium);
   const {
+    forward,
     reverse,
     learnedCards,
     dueCards,
@@ -153,6 +155,18 @@ export default function AppShell({
     savingKey: progressSavingKey,
   } = useFinishedEpisodes();
   useUsageTracking();
+
+  useEffect(() => {
+    if (
+      viewMode !== "episodes" ||
+      !user?.id ||
+      (!hasFlashcardSession("forward", user.id) && !hasFlashcardSession("reverse", user.id))
+    ) {
+      return;
+    }
+    const timer = window.setTimeout(() => setViewMode("flashcards"), 0);
+    return () => window.clearTimeout(timer);
+  }, [user?.id, viewMode]);
 
   useEffect(() => {
     if (shouldShowOnboarding) {
@@ -1029,12 +1043,16 @@ export default function AppShell({
 
         <div hidden={viewMode !== "flashcards"}>
           <ReviewView
-            key={`review-${reviewStartSignal}-${reviewStartMode}`}
+            key={`review-account-${user?.id ?? "guest"}`}
+            userId={user?.id}
             vocabWords={vocabWords}
+            allCards={forward.flashcards}
             learnedCards={learnedCards}
             dueCards={dueCards}
             sessionQueue={sessionQueue}
+            reverseAllCards={reverse.flashcards}
             reverseLearnedCards={reverse.learnedCards}
+            reverseDueCards={reverse.dueCards}
             reverseSessionQueue={reverse.sessionQueue}
             reverseStats={reverse.stats}
             isLoaded={isProgressLoaded}

@@ -123,13 +123,14 @@ export type FlashcardDirectionState = ReturnType<typeof buildFlashcardSets>;
 
 export function useFlashcards(vocabWords: VocabWord[]) {
   const { user } = useUser();
+  const userId = user?.id;
   const [progresses, setProgresses] = useState<FlashcardProgress[]>([]);
   const [isProgressLoaded, setIsProgressLoaded] = useState(false);
   const loadIdRef = useRef(0);
 
   const loadProgress = useCallback(async (options?: { silent?: boolean }) => {
     const loadId = ++loadIdRef.current;
-    if (!user) {
+    if (!userId) {
       setProgresses([]);
       setIsProgressLoaded(true);
       return;
@@ -144,7 +145,7 @@ export function useFlashcards(vocabWords: VocabWord[]) {
       const { data, error } = await supabase
         .from("flashcard_progress")
         .select("*")
-        .eq("user_id", user.id);
+        .eq("user_id", userId);
 
       if (error) {
         console.error("Error fetching flashcard progress:", error);
@@ -157,7 +158,7 @@ export function useFlashcards(vocabWords: VocabWord[]) {
     } finally {
       if (loadId === loadIdRef.current) setIsProgressLoaded(true);
     }
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
     loadProgress();
@@ -178,14 +179,14 @@ export function useFlashcards(vocabWords: VocabWord[]) {
       vocabId: string,
       rating: FlashcardRating,
       direction: FlashcardDirection = "forward"
-    ) => {
-      if (!user) return;
+    ): Promise<boolean> => {
+      if (!userId) return false;
       const mutationLoadId = loadIdRef.current;
 
       const directionSet =
         direction === "reverse" ? reverse.flashcards : forward.flashcards;
       const currentItem = directionSet.find((c) => c.vocabWord.id === vocabId);
-      if (!currentItem) return;
+      if (!currentItem) return false;
 
       const prevProg = currentItem.progress;
       const now = new Date();
@@ -193,7 +194,7 @@ export function useFlashcards(vocabWords: VocabWord[]) {
 
       const updatedProgress: FlashcardProgress = {
         id: prevProg?.id || `temp-${direction}-${vocabId}`,
-        user_id: user.id,
+        user_id: userId,
         vocab_id: vocabId,
         direction,
         ease_factor: prevProg?.ease_factor ?? 2.5,
@@ -225,7 +226,7 @@ export function useFlashcards(vocabWords: VocabWord[]) {
         .from("flashcard_progress")
         .upsert(
           {
-            user_id: user.id,
+            user_id: userId,
             vocab_id: vocabId,
             direction,
             ease_factor: prevProg?.ease_factor ?? 2.5,
@@ -244,11 +245,12 @@ export function useFlashcards(vocabWords: VocabWord[]) {
         .select()
         .single();
 
-      if (mutationLoadId !== loadIdRef.current) return;
+      if (mutationLoadId !== loadIdRef.current) return false;
 
       if (error) {
         console.error("Failed to save flashcard review progress:", error);
         loadProgress({ silent: true });
+        return false;
       } else if (data) {
         setProgresses((prev) => {
           const normalized = normalizeProgress(data as FlashcardProgress);
@@ -265,13 +267,14 @@ export function useFlashcards(vocabWords: VocabWord[]) {
           return [...prev, normalized];
         });
       }
+      return true;
     },
-    [user, forward.flashcards, reverse.flashcards, loadProgress]
+    [userId, forward.flashcards, reverse.flashcards, loadProgress]
   );
 
   const unlearnWord = useCallback(
     async (vocabId: string, direction: FlashcardDirection = "forward") => {
-      if (!user) return;
+      if (!userId) return;
       const mutationLoadId = loadIdRef.current;
 
       setProgresses((prev) =>
@@ -287,7 +290,7 @@ export function useFlashcards(vocabWords: VocabWord[]) {
       const { error } = await supabase
         .from("flashcard_progress")
         .delete()
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .eq("vocab_id", vocabId)
         .eq("direction", direction);
 
@@ -296,7 +299,7 @@ export function useFlashcards(vocabWords: VocabWord[]) {
         if (mutationLoadId === loadIdRef.current) loadProgress({ silent: true });
       }
     },
-    [user, loadProgress]
+    [userId, loadProgress]
   );
 
   return {

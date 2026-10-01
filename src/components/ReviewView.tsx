@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Brain, BookOpen } from "lucide-react";
 import type {
   VocabWord,
@@ -18,13 +18,18 @@ import FillInView from "./FillInView";
 import MatchingView from "./MatchingView";
 import ReverseCardsView from "./ReverseCardsView";
 import ReviewStatsView from "./ReviewStatsView";
+import { hasFlashcardSession } from "@/lib/flashcardSession";
 
 type ReviewViewProps = {
+  userId?: string | null;
   vocabWords: VocabWord[];
+  allCards: FlashcardItem[];
   learnedCards: FlashcardItem[];
   dueCards: FlashcardItem[];
   sessionQueue: FlashcardItem[];
+  reverseAllCards: FlashcardItem[];
   reverseLearnedCards: FlashcardItem[];
+  reverseDueCards: FlashcardItem[];
   reverseSessionQueue: FlashcardItem[];
   reverseStats: FlashcardStats;
   isLoaded: boolean;
@@ -32,7 +37,7 @@ type ReviewViewProps = {
     vocabId: string,
     rating: FlashcardRating,
     direction?: "forward" | "reverse"
-  ) => Promise<void>;
+  ) => Promise<boolean>;
   unlearnWord: (
     vocabId: string,
     direction?: "forward" | "reverse"
@@ -58,12 +63,16 @@ type ReviewViewProps = {
 };
 
 export default function ReviewView({
+  userId,
   vocabWords,
+  allCards,
   learnedCards,
   dueCards,
   sessionQueue,
   reverseLearnedCards,
   reverseSessionQueue,
+  reverseAllCards,
+  reverseDueCards,
   reverseStats,
   isLoaded,
   submitReview,
@@ -82,10 +91,29 @@ export default function ReviewView({
   onStartReading,
 }: ReviewViewProps) {
   const t = useT();
-  const [reviewMode, setReviewMode] = useState<ReviewMode>(() =>
-    startSignal > 0 ? "flashcards" : "hub"
-  );
-  const [flashcardStartSignal] = useState(startSignal);
+  const [reviewMode, setReviewMode] = useState<ReviewMode>(() => {
+    if (startSignal > 0 || hasFlashcardSession("forward", userId)) return "flashcards";
+    if (hasFlashcardSession("reverse", userId)) return "reverse";
+    return "hub";
+  });
+
+  useEffect(() => {
+    if (startSignal <= 0) return;
+    const timer = window.setTimeout(() => setReviewMode("flashcards"), 0);
+    return () => window.clearTimeout(timer);
+  }, [startSignal]);
+
+  useEffect(() => {
+    if (!userId || reviewMode !== "hub") return;
+    const nextMode = hasFlashcardSession("forward", userId)
+      ? "flashcards"
+      : hasFlashcardSession("reverse", userId)
+        ? "reverse"
+        : null;
+    if (!nextMode) return;
+    const timer = window.setTimeout(() => setReviewMode(nextMode), 0);
+    return () => window.clearTimeout(timer);
+  }, [reviewMode, userId]);
 
   if (!isLoaded && vocabWords.length === 0) {
     return (
@@ -118,13 +146,15 @@ export default function ReviewView({
     return (
       <FlashcardsView
         vocabWords={vocabWords}
+        allCards={allCards}
         learnedCards={learnedCards}
+        dueCards={dueCards}
         sessionQueue={sessionQueue}
         isLoaded={isLoaded}
         submitReview={(vocabId, rating) => submitReview(vocabId, rating, "forward")}
         unlearnWord={(vocabId) => unlearnWord(vocabId, "forward")}
         stats={stats}
-        startSignal={flashcardStartSignal}
+        startSignal={startSignal}
         sessionLimit={startMode === "quick" ? 5 : undefined}
         generateExamples={generateExamples}
         regenerateExample={regenerateExample}
@@ -133,6 +163,7 @@ export default function ReviewView({
         onStartReading={onStartReading}
         onBackToHub={() => setReviewMode("hub")}
         showBackToHub
+        userId={userId}
       />
     );
   }
@@ -141,7 +172,9 @@ export default function ReviewView({
     return (
       <ReverseCardsView
         vocabWords={vocabWords}
+        allCards={reverseAllCards}
         learnedCards={reverseLearnedCards}
+        dueCards={reverseDueCards}
         sessionQueue={reverseSessionQueue}
         isLoaded={isLoaded}
         submitReview={(vocabId, rating) => submitReview(vocabId, rating, "reverse")}
@@ -152,6 +185,7 @@ export default function ReviewView({
         isPremium={isPremium}
         onRequireSubscription={onRequireSubscription}
         onBack={() => setReviewMode("hub")}
+        userId={userId}
       />
     );
   }

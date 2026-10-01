@@ -298,6 +298,32 @@
   box-shadow: var(--shadow-btn-active);
 }
 
+.flashcard-order-choice {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 10px 14px;
+  margin: 16px 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.flashcard-order-choice label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-main);
+  cursor: pointer;
+}
+
+.flashcard-save-error {
+  margin: 8px 0 0;
+  color: var(--danger, #c24141);
+  font-size: 13px;
+  text-align: center;
+}
+
 /* Active Session Layout */
 .flashcard-session-active {
   display: flex;
