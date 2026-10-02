@@ -41,11 +41,11 @@ function buildFlashcardSets(
     (p) => (p.direction ?? "forward") === direction
   );
 
-  const flashcards: FlashcardItem[] = vocabWords.map((word) => {
-    const prog =
-      directionProgresses.find((p) => p.vocab_id === word.id) || null;
-    return { vocabWord: word, progress: prog };
-  });
+  const progressByVocabId = new Map(directionProgresses.map((progress) => [progress.vocab_id, progress]));
+  const flashcards: FlashcardItem[] = vocabWords.map((word) => ({
+    vocabWord: word,
+    progress: progressByVocabId.get(word.id) ?? null,
+  }));
 
   const learnedCards = flashcards.filter(
     (card) => card.progress?.is_learned === true
@@ -192,82 +192,58 @@ export function useFlashcards(vocabWords: VocabWord[]) {
       const now = new Date();
       const fsrsUpdate = computeNextProgress(prevProg, rating, now);
 
-      const updatedProgress: FlashcardProgress = {
-        id: prevProg?.id || `temp-${direction}-${vocabId}`,
-        user_id: userId,
-        vocab_id: vocabId,
-        direction,
-        ease_factor: prevProg?.ease_factor ?? 2.5,
-        interval_days: fsrsUpdate.interval_days,
-        repetitions: fsrsUpdate.repetitions,
-        next_review_at: fsrsUpdate.next_review_at,
-        is_learned: fsrsUpdate.is_learned,
-        last_reviewed_at: fsrsUpdate.last_reviewed_at,
-        created_at: prevProg?.created_at || fsrsUpdate.last_reviewed_at,
-        stability: fsrsUpdate.stability,
-        difficulty: fsrsUpdate.difficulty,
-        state: fsrsUpdate.state,
-        lapses: fsrsUpdate.lapses,
-      };
+      try {
+        const { data, error } = await supabase
+          .from("flashcard_progress")
+          .upsert(
+            {
+              user_id: userId,
+              vocab_id: vocabId,
+              direction,
+              ease_factor: prevProg?.ease_factor ?? 2.5,
+              interval_days: fsrsUpdate.interval_days,
+              repetitions: fsrsUpdate.repetitions,
+              next_review_at: fsrsUpdate.next_review_at,
+              is_learned: fsrsUpdate.is_learned,
+              last_reviewed_at: fsrsUpdate.last_reviewed_at,
+              stability: fsrsUpdate.stability,
+              difficulty: fsrsUpdate.difficulty,
+              state: fsrsUpdate.state,
+              lapses: fsrsUpdate.lapses,
+            },
+            { onConflict: "user_id,vocab_id,direction" }
+          )
+          .select()
+          .abortSignal(AbortSignal.timeout(15_000))
+          .single();
 
-      setProgresses((prev) => {
-        const index = prev.findIndex(
-          (p) => p.vocab_id === vocabId && (p.direction ?? "forward") === direction
-        );
-        if (index >= 0) {
-          const next = [...prev];
-          next[index] = updatedProgress;
-          return next;
+        if (mutationLoadId !== loadIdRef.current) return false;
+
+        if (error) {
+          console.error("Failed to save flashcard review progress:", error);
+          loadProgress({ silent: true });
+          return false;
+        } else if (data) {
+          setProgresses((prev) => {
+            const normalized = normalizeProgress(data as FlashcardProgress);
+            const index = prev.findIndex(
+              (p) =>
+                p.vocab_id === vocabId &&
+                (p.direction ?? "forward") === direction
+            );
+            if (index >= 0) {
+              const next = [...prev];
+              next[index] = normalized;
+              return next;
+            }
+            return [...prev, normalized];
+          });
         }
-        return [...prev, updatedProgress];
-      });
-
-      const { data, error } = await supabase
-        .from("flashcard_progress")
-        .upsert(
-          {
-            user_id: userId,
-            vocab_id: vocabId,
-            direction,
-            ease_factor: prevProg?.ease_factor ?? 2.5,
-            interval_days: fsrsUpdate.interval_days,
-            repetitions: fsrsUpdate.repetitions,
-            next_review_at: fsrsUpdate.next_review_at,
-            is_learned: fsrsUpdate.is_learned,
-            last_reviewed_at: fsrsUpdate.last_reviewed_at,
-            stability: fsrsUpdate.stability,
-            difficulty: fsrsUpdate.difficulty,
-            state: fsrsUpdate.state,
-            lapses: fsrsUpdate.lapses,
-          },
-          { onConflict: "user_id,vocab_id,direction" }
-        )
-        .select()
-        .single();
-
-      if (mutationLoadId !== loadIdRef.current) return false;
-
-      if (error) {
-        console.error("Failed to save flashcard review progress:", error);
-        loadProgress({ silent: true });
+        return Boolean(data);
+      } catch {
+        if (mutationLoadId === loadIdRef.current) void loadProgress({ silent: true });
         return false;
-      } else if (data) {
-        setProgresses((prev) => {
-          const normalized = normalizeProgress(data as FlashcardProgress);
-          const index = prev.findIndex(
-            (p) =>
-              p.vocab_id === vocabId &&
-              (p.direction ?? "forward") === direction
-          );
-          if (index >= 0) {
-            const next = [...prev];
-            next[index] = normalized;
-            return next;
-          }
-          return [...prev, normalized];
-        });
       }
-      return true;
     },
     [userId, forward.flashcards, reverse.flashcards, loadProgress]
   );

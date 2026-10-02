@@ -299,22 +299,83 @@
 }
 
 .flashcard-order-choice {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: center;
-  gap: 10px 14px;
-  margin: 16px 0;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  margin: var(--space-2) 0 0;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: var(--text-base-sm);
 }
 
-.flashcard-order-choice label {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--text-main);
+.flashcard-order-choice legend {
+  width: 100%;
+  padding: 0;
+  margin-bottom: var(--space-2);
+  text-align: center;
+}
+
+.flashcard-order-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-hover);
+}
+
+.flashcard-order-option {
+  position: relative;
+  min-width: 0;
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.flashcard-order-option input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  margin: 0;
+}
+
+.flashcard-order-option-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  height: 100%;
+  padding: var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--leading-snug);
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.flashcard-order-option-content svg {
+  flex-shrink: 0;
+}
+
+.flashcard-order-option input:checked + .flashcard-order-option-content {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text-main);
+  box-shadow: var(--shadow-sm);
+}
+
+.flashcard-order-option input:focus-visible + .flashcard-order-option-content {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.rating-btn:disabled {
+  opacity: 0.5;
+  cursor: wait;
 }
 
 .flashcard-save-error {
@@ -379,7 +440,7 @@
   height: 100%;
   position: relative;
   transform-style: preserve-3d;
-  transition: transform var(--dur-slowest) var(--ease-standard);
+  transition: transform 220ms var(--ease-standard);
 }
 
 .flashcard-card-inner.is-flipped {
@@ -473,10 +534,18 @@
   opacity: 0.6;
 }
 
-/* On touch devices, hide the hint entirely to avoid tap confusion */
+/* Shorter flips keep touch interactions responsive. */
 @media (hover: none) {
-  .flashcard-hint-click {
-    display: none;
+  .flashcard-card-inner {
+    transition-duration: 160ms;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flashcard-card-inner,
+  .flashcard-review-progress-fill,
+  .flashcard-order-option-content {
+    transition: none;
   }
 }
 

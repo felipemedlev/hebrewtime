@@ -145,6 +145,7 @@ export default function ReviewView({
   if (reviewMode === "flashcards") {
     return (
       <FlashcardsView
+        key={userId ?? "guest"}
         vocabWords={vocabWords}
         allCards={allCards}
         learnedCards={learnedCards}
@@ -171,6 +172,7 @@ export default function ReviewView({
   if (reviewMode === "reverse") {
     return (
       <ReverseCardsView
+        key={userId ?? "guest"}
         vocabWords={vocabWords}
         allCards={reverseAllCards}
         learnedCards={reverseLearnedCards}

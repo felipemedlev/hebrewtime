@@ -25,6 +25,8 @@ import type {
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import ExamplePhrasesPanel from "./ExamplePhrasesPanel";
 import DictionaryDetailsModal from "./DictionaryDetailsModal";
+import FlashcardOrderControl from "./FlashcardOrderControl";
+import { useFlashcardRating } from "@/hooks/useFlashcardRating";
 import { recordLearningEvent } from "@/lib/analytics";
 import {
   buildSessionQueue,
@@ -95,8 +97,7 @@ export default function ReverseCardsView({
   const [regeneratingIndex, setRegeneratingIndex] = useState<number | null>(null);
   const [detailsPealimId, setDetailsPealimId] = useState<number | null>(null);
   const [order, setOrder] = useState<FlashcardOrder>(() => readFlashcardOrder(userId));
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [saveError, setSaveError] = useState(false);
+  const { isSubmitting, saveError, setSaveError, submitRating } = useFlashcardRating();
   const restoredSessionRef = useRef(false);
   const reviewQueue = sessionActive ? activeSessionCards : sessionQueue;
   const currentWord = reviewQueue[currentIndex]?.vocabWord;
@@ -125,18 +126,23 @@ export default function ReverseCardsView({
 
   useEffect(() => {
     if (restoredSessionRef.current || !isLoaded || allCards.length === 0) return;
-    restoredSessionRef.current = true;
     const saved = readFlashcardSession("reverse", userId);
-    if (!saved) return;
+    if (!saved) {
+      restoredSessionRef.current = true;
+      return;
+    }
     const cardsById = new Map(allCards.map((card) => [card.vocabWord.id, card]));
     const restoredCards = saved.cardIds
       .map((id) => cardsById.get(id))
       .filter((card): card is FlashcardItem => Boolean(card));
     if (restoredCards.length === 0) {
+      restoredSessionRef.current = true;
       clearFlashcardSession("reverse", userId);
       return;
     }
     const timer = window.setTimeout(() => {
+      // Mark restored only when applied, so a cancelled effect can retry.
+      restoredSessionRef.current = true;
       setActiveSessionCards(restoredCards);
       setCurrentIndex(Math.min(saved.currentIndex, restoredCards.length - 1));
       setIsFlipped(saved.isFlipped);
@@ -149,7 +155,7 @@ export default function ReverseCardsView({
   }, [allCards, isLoaded, userId]);
 
   useEffect(() => {
-    if (!sessionActive || activeSessionCards.length === 0 || !restoredSessionRef.current) return;
+    if (isSubmitting || !sessionActive || activeSessionCards.length === 0 || !restoredSessionRef.current) return;
     const snapshot: FlashcardSessionSnapshot = {
       version: 1,
       direction: "reverse",
@@ -160,7 +166,7 @@ export default function ReverseCardsView({
       order,
     };
     writeFlashcardSession(snapshot, userId);
-  }, [activeSessionCards, currentIndex, isFlipped, order, sessionActive, showExamples, userId]);
+  }, [activeSessionCards, currentIndex, isFlipped, isSubmitting, order, sessionActive, showExamples, userId]);
 
   const handleEndSession = () => {
     setSessionActive(false);
@@ -176,34 +182,38 @@ export default function ReverseCardsView({
   };
 
   const handleRate = async (rating: FlashcardRating) => {
-    if (!reviewQueue[currentIndex]) return;
-    if (isSubmitting) return;
-    setIsSubmitting(true);
-    setSaveError(false);
+    const card = reviewQueue[currentIndex];
+    if (!card || !isFlipped) return;
 
-    const saved = await submitReview(reviewQueue[currentIndex].vocabWord.id, rating);
-    if (!saved) {
-      setSaveError(true);
-      setIsSubmitting(false);
-      return;
-    }
-    setIsFlipped(false);
-    setShowExamples(false);
-    setDetailsPealimId(null);
-
-    if (currentIndex + 1 < reviewQueue.length) {
-      setCurrentIndex((index) => index + 1);
-    } else {
-      recordLearningEvent("review_completed", {
-        language: lang,
-        modality: "reverse",
-        count: reviewQueue.length,
-      });
-      setSessionActive(false);
-      setActiveSessionCards([]);
-      clearFlashcardSession("reverse", userId);
-    }
-    setIsSubmitting(false);
+    await submitRating({
+      save: () => submitReview(card.vocabWord.id, rating),
+      isLastCard: currentIndex + 1 === reviewQueue.length,
+      advance: () => {
+        setCurrentIndex(currentIndex + 1);
+        setIsFlipped(false);
+        setShowExamples(false);
+        setDetailsPealimId(null);
+      },
+      rollback: () => {
+        setCurrentIndex(currentIndex);
+        setIsFlipped(true);
+        setShowExamples(showExamples);
+        setDetailsPealimId(null);
+      },
+      complete: () => {
+        recordLearningEvent("review_completed", {
+          language: lang,
+          modality: "reverse",
+          count: reviewQueue.length,
+        });
+        setSessionActive(false);
+        setActiveSessionCards([]);
+        setIsFlipped(false);
+        setShowExamples(false);
+        setDetailsPealimId(null);
+        clearFlashcardSession("reverse", userId);
+      },
+    });
   };
 
   const handleToggleExamples = async () => {
@@ -249,7 +259,7 @@ export default function ReverseCardsView({
 
   return (
     <div className="flashcards-container reverse-cards-container">
-      <button type="button" className="review-back-btn" onClick={onBack}>
+      <button type="button" className="review-back-btn" onClick={onBack} disabled={isSubmitting}>
         <ArrowLeft size={16} />
         {t("backToHub")}
       </button>
@@ -336,10 +346,10 @@ export default function ReverseCardsView({
           {sessionActive ? (
             <div className="flashcard-session-active">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px" }}>
-                <span className="flashcard-session-label">
-                  {t("cardsInSession", { current: currentIndex + 1, total: reviewQueue.length })}
+                <span className="flashcard-session-label" role="status">
+                  {isSubmitting ? t("savingProgress") : t("cardsInSession", { current: currentIndex + 1, total: reviewQueue.length })}
                 </span>
-                <button type="button" className="flashcard-examples-toggle-btn compact" onClick={handleEndSession}>
+                <button type="button" className="flashcard-examples-toggle-btn compact" onClick={handleEndSession} disabled={isSubmitting}>
                   {t("endSession")}
                 </button>
               </div>
@@ -362,16 +372,19 @@ export default function ReverseCardsView({
 
                 <div
                   className="flashcard-card-scene"
-                  key={currentIndex}
                   onClick={handleFlip}
                   role="button"
                   tabIndex={0}
                   aria-label={t("tapToFlip")}
-                  onKeyDown={(e) =>
-                    e.key === "Enter" || e.key === " " ? handleFlip() : undefined
-                  }
+                  onKeyDown={(e) => {
+                    if (e.target !== e.currentTarget) return;
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleFlip();
+                    }
+                  }}
                 >
-                  <div className={`flashcard-card-inner ${isFlipped ? "is-flipped" : ""}`}>
+                  <div key={currentIndex} className={`flashcard-card-inner ${isFlipped ? "is-flipped" : ""}`}>
                     <div className="flashcard-card-front reverse-card-front">
                       <span className="flashcard-badge-side">{t("translation")}</span>
                       <h2 className="flashcard-translation-word">
@@ -474,7 +487,7 @@ export default function ReverseCardsView({
                         <span className="rating-btn-lbl">{t("easy")}</span>
                       </button>
                     </div>
-                    {saveError && <p className="flashcard-save-error">{t("reviewSaveError")}</p>}
+                    {saveError && <p className="flashcard-save-error" role="alert">{t("reviewSaveError")}</p>}
                     <div className="flashcard-pre-reveal-actions" style={{ marginTop: 0 }}>
                       {currentWord?.dictionaryPealimId && (
                         <button
@@ -530,33 +543,14 @@ export default function ReverseCardsView({
                       wordLabel: stats.due === 1 ? t("word") : t("words"),
                     })}
                   </p>
-                  <div className="flashcard-order-choice">
-                    <span>{t("flashcardOrder")}</span>
-                    <label>
-                      <input
-                        type="radio"
-                        name={`reverse-flashcard-order-${userId ?? "guest"}`}
-                        checked={order === "chronological"}
-                        onChange={() => {
-                          setOrder("chronological");
-                          writeFlashcardOrder("chronological", userId);
-                        }}
-                      />
-                      {t("chronologicalOrder")}
-                    </label>
-                    <label>
-                      <input
-                        type="radio"
-                        name={`reverse-flashcard-order-${userId ?? "guest"}`}
-                        checked={order === "shuffled"}
-                        onChange={() => {
-                          setOrder("shuffled");
-                          writeFlashcardOrder("shuffled", userId);
-                        }}
-                      />
-                      {t("shuffledOrder")}
-                    </label>
-                  </div>
+                  <FlashcardOrderControl
+                    order={order}
+                    name={`reverse-flashcard-order-${userId ?? "guest"}`}
+                    onChange={(nextOrder) => {
+                      setOrder(nextOrder);
+                      writeFlashcardOrder(nextOrder, userId);
+                    }}
+                  />
                   <button className="flashcard-start-btn" onClick={startSession}>
                     {t("startReverseSession")} ({Math.min(stats.due, 20)})
                   </button>
