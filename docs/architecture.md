@@ -50,9 +50,9 @@ Browser → Next.js (Server Components + API routes)
 | `ReviewStatsView.tsx` | Practice stats dashboard with hero ring, modality cards, weak words, share |
 | `StatRing.tsx` | SVG progress ring for stats hero and session recap |
 | `SessionRecapScreen.tsx` | Fill-in / matching session complete screen with score ring and share |
-| `FlashcardsView.tsx` | FSRS forward card sessions |
+| `FlashcardsView.tsx` | FSRS forward card sessions with resumable early exit and rating recap |
 | `TranslationModal.tsx` | Compact word translation popup |
-| `DictionaryDetailsModal.tsx` | Pealim conjugation tables |
+| `DictionaryDetailsModal.tsx` | Pealim conjugations by section; desktop tables and mobile form lists in a viewport sheet |
 | `ExamplePhrasesPanel.tsx` | Shared example phrase UI |
 | `OnboardingOverlay.tsx` | Short first-visit language/track setup, available to guests and returning users from Settings |
 | `SpeakView.tsx` | Hebrew speaking practice via OpenAI Realtime (WebRTC) |
@@ -110,6 +110,12 @@ Transcript word lookup in `src/lib/dictionaryLookup.ts` keeps this order:
 Dictionary hits return Pealim lemma, Nekudot, transliteration, and meaning. Non English UI languages get gloss translation via a small OpenAI call.
 
 Saved words store `dictionary_pealim_id` when available, enabling conjugation modals later.
+
+Conjugation details render through a portal to `document.body`, with a stable-height mobile sheet, section selectors, and independently scrolling content. Mobile form lists replace wide tables. `useModalAccessibility` locks the caller's scrolling ancestors as well as the body, preserves scrollbar space, and moves/restores focus without scrolling the underlying view.
+
+### Forward flashcard sessions
+
+Active sessions show a compact progress header and an explicit End Session action. Dashboard stats and navigation tabs are hidden during review and recap. Progress counts rated cards, beginning at zero. Ending early opens a recap of the current session's rating counts; Continue Session keeps the same queue, card index, and answer state while the view remains mounted. Returning to practice discards the remaining in-memory session. Rating the last card always opens a completion recap, including for Premium users; only full completion emits `review_completed`. Reviews retain the existing optimistic background persistence. Mobile ratings use one row, reference actions sit together, and example phrases appear below the controls so they do not push the ratings away from the card.
 
 ### Practice stats summary
 

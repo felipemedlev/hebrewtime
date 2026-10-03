@@ -22,9 +22,32 @@ export function useModalAccessibility(isOpen: boolean, onClose: () => void) {
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
+    // The app scrolls inside main-content, so locking only body leaves it moving
+    // behind the dialog. Preserve scrollbar space and the caller's scroll position.
+    const scrollContainers: { element: HTMLElement; overflowY: string; scrollbarGutter: string }[] = [];
+    // Safari does not focus buttons on tap; use the app scroller in that case.
+    let ancestor = previousFocusRef.current && previousFocusRef.current !== document.body && previousFocusRef.current !== document.documentElement
+      ? previousFocusRef.current.parentElement
+      : document.querySelector<HTMLElement>(".main-content");
+    while (ancestor && ancestor !== document.body) {
+      const style = window.getComputedStyle(ancestor);
+      if (/auto|scroll/.test(style.overflowY)) {
+        scrollContainers.push({
+          element: ancestor,
+          overflowY: ancestor.style.overflowY,
+          scrollbarGutter: ancestor.style.scrollbarGutter,
+        });
+        const scrollbarWidth = ancestor.offsetWidth - ancestor.clientWidth
+          - parseFloat(style.borderLeftWidth) - parseFloat(style.borderRightWidth);
+        if (scrollbarWidth > 0) ancestor.style.scrollbarGutter = "stable";
+        ancestor.style.overflowY = "hidden";
+      }
+      ancestor = ancestor.parentElement;
+    }
+
     const focusTimer = window.setTimeout(() => {
       const firstFocusable = dialogRef.current?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
-      firstFocusable?.focus();
+      firstFocusable?.focus({ preventScroll: true });
     }, 0);
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -60,7 +83,11 @@ export function useModalAccessibility(isOpen: boolean, onClose: () => void) {
       window.clearTimeout(focusTimer);
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = previousOverflow;
-      previousFocusRef.current?.focus();
+      for (const { element, overflowY, scrollbarGutter } of scrollContainers) {
+        element.style.overflowY = overflowY;
+        element.style.scrollbarGutter = scrollbarGutter;
+      }
+      previousFocusRef.current?.focus({ preventScroll: true });
     };
   }, [isOpen]);
 
