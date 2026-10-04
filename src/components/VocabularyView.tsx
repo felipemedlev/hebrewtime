@@ -42,7 +42,6 @@ export default function VocabularyView({
   onRequireSubscription,
   generateExamples,
   regenerateExample,
-  onStartReading,
 }: VocabularyViewProps) {
   const t = useT();
   const { user } = useUser();
@@ -159,12 +158,6 @@ export default function VocabularyView({
           <h2 className="vocab-page-title">{t("myVocabulary")}</h2>
           {vocabWords.length > 0 && (
             <span className="vocab-count-badge">{vocabWords.length}</span>
-          )}
-          {onStartReading && (
-            <button type="button" className="empty-state-btn primary" onClick={onStartReading}>
-              <BookOpen size={16} />
-              {t("startReading")}
-            </button>
           )}
         </div>
 
