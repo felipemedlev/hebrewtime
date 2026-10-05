@@ -565,7 +565,7 @@ export default function AddVocabWordModal({
     >
       <div
         ref={dialogRef}
-        className="modal-content translation-modal add-vocab-modal"
+        className={`modal-content translation-modal add-vocab-modal${listOpen ? " is-suggesting" : ""}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

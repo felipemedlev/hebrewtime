@@ -53,6 +53,34 @@ describe("dictionary suggestion RPC", () => {
     expect(rpc).toHaveBeenCalledTimes(1);
   });
 
+  it("uses dictionary entries when the suggestion function is not installed", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: { code: "PGRST202", message: "Could not find the function public.search_dictionary_suggestions" },
+    });
+    const row = {
+      pealim_id: 42,
+      word: "מבחן",
+      word_with_nekudot: "מִבְחָן",
+      transliteration: "mivhan",
+      part_of_speech: "Noun",
+      meaning: "test, examination",
+    };
+    const builder = {
+      select: () => builder,
+      ilike: () => builder,
+      order: () => builder,
+      limit: () => Promise.resolve({ data: [row], error: null }),
+    };
+    const from = vi.fn(() => builder);
+    const client = { rpc, from } as unknown as SupabaseClient;
+
+    const result = await searchDictionaryPrefix(client, `missing-fn-${Date.now()}`);
+
+    expect(from).toHaveBeenCalledWith("dictionary_entries");
+    expect(result[0]).toMatchObject({ pealimId: 42, matchType: "headword", word: "מבחן" });
+  });
+
   it("surfaces database failures instead of disguising them as no matches", async () => {
     const rpc = vi.fn().mockResolvedValue({ data: null, error: new Error("database offline") });
     const client = { rpc } as unknown as SupabaseClient;

@@ -194,6 +194,16 @@
   overscroll-behavior: contain;
 }
 
+.add-vocab-modal.is-suggesting {
+  overflow: visible;
+}
+
+.modal-overlay:has(.add-vocab-modal.is-suggesting) {
+  align-items: flex-start;
+  overflow-y: auto;
+  padding-top: var(--space-4);
+}
+
 .add-vocab-modal .modal-body {
   flex-direction: column;
   align-items: stretch;
@@ -363,7 +373,7 @@
 }
 
 .add-vocab-suggestion-list {
-  max-height: min(260px, 45dvh);
+  max-height: min(420px, calc(100dvh - 18rem));
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -588,7 +598,7 @@
   }
 
   .add-vocab-suggestion-list {
-    max-height: min(220px, 35dvh);
+    max-height: min(420px, calc(100dvh - 16rem));
   }
 
   .add-vocab-suggestion-meta {

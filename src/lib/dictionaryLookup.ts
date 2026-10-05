@@ -199,8 +199,156 @@ type SearchResponseRow = {
 
 const SUGGESTION_CACHE_TTL_MS = 5 * 60_000;
 const SUGGESTION_CACHE_MAX = 512;
+const SUGGESTION_SELECT =
+  "pealim_id, word, word_with_nekudot, transliteration, part_of_speech, meaning";
 const suggestionCache = new Map<string, { expiresAt: number; value: DictionarySuggestion[] }>();
 const pendingSuggestions = new Map<string, Promise<DictionarySuggestion[]>>();
+let loggedMissingSuggestionSearch = false;
+
+type EntrySuggestionRow = {
+  pealim_id: number;
+  word: string;
+  word_with_nekudot: string;
+  transliteration: string | null;
+  part_of_speech: string;
+  meaning: string;
+};
+
+function isMissingSuggestionSearch(error: { code?: string; message?: string }): boolean {
+  return error.code === "PGRST202" || error.code === "42883" || error.code === "42P01"
+    || /search_dictionary_suggestions|dictionary_search_terms/i.test(error.message ?? "");
+}
+
+function mapEntrySuggestion(
+  row: EntrySuggestionRow,
+  matchType: DictionarySuggestion["matchType"]
+): DictionarySuggestion {
+  const matchedText = matchType === "transliteration"
+    ? row.transliteration ?? row.word
+    : matchType === "gloss"
+      ? row.meaning
+      : row.word;
+  return {
+    pealimId: row.pealim_id,
+    word: row.word,
+    wordWithNekudot: row.word_with_nekudot,
+    transliteration: row.transliteration,
+    partOfSpeech: row.part_of_speech,
+    meaning: row.meaning,
+    matchType,
+    matchedText,
+  };
+}
+
+function meaningMatchRank(meaning: string, query: string): number {
+  const parts = meaning
+    .toLowerCase()
+    .split(/[,;/|]+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.some((part) => part === query)) return 0;
+  if (parts.some((part) => part.startsWith(query))) return 1;
+  if (parts.some((part) => part.split(/\s+/).includes(query))) return 2;
+  if (meaning.toLowerCase().includes(query)) return 3;
+  return 4;
+}
+
+function rankSuggestions(rows: DictionarySuggestion[], query: string): DictionarySuggestion[] {
+  const plain = stripNiqqud(query).toLowerCase();
+  const isLatin = /^[a-z'’\-\s]+$/.test(plain);
+  const seen = new Set<number>();
+  const unique = rows.filter((row) => {
+    if (seen.has(row.pealimId)) return false;
+    seen.add(row.pealimId);
+    return true;
+  });
+
+  return unique.sort((a, b) => {
+    if (isLatin) {
+      const aTranslit = (a.transliteration ?? "").toLowerCase();
+      const bTranslit = (b.transliteration ?? "").toLowerCase();
+      const aTranslitRank = aTranslit === plain ? 0 : aTranslit.startsWith(plain) ? 1 : 2;
+      const bTranslitRank = bTranslit === plain ? 0 : bTranslit.startsWith(plain) ? 1 : 2;
+      const aMeaningRank = meaningMatchRank(a.meaning, plain);
+      const bMeaningRank = meaningMatchRank(b.meaning, plain);
+      const aRank = Math.min(aTranslitRank, aMeaningRank + 0.5);
+      const bRank = Math.min(bTranslitRank, bMeaningRank + 0.5);
+      if (aRank !== bRank) return aRank - bRank;
+      if (aMeaningRank !== bMeaningRank) return aMeaningRank - bMeaningRank;
+      return a.word.localeCompare(b.word, "he");
+    }
+
+    const aWord = a.word.toLowerCase();
+    const bWord = b.word.toLowerCase();
+    const aExact = aWord === plain ? 0 : aWord.startsWith(plain) ? 1 : 2;
+    const bExact = bWord === plain ? 0 : bWord.startsWith(plain) ? 1 : 2;
+    if (aExact !== bExact) return aExact - bExact;
+    if (a.word.length !== b.word.length) return a.word.length - b.word.length;
+    return a.word.localeCompare(b.word, "he");
+  });
+}
+
+async function searchDictionaryEntries(
+  client: SupabaseClient,
+  plain: string,
+  limit: number
+): Promise<DictionarySuggestion[]> {
+  const pattern = `${plain}%`;
+  const isLatin = /^[a-zA-Z'’\-\s]+$/.test(plain);
+  const meaningPattern = `%${plain}%`;
+
+  const wordQuery = client
+    .from("dictionary_entries")
+    .select(SUGGESTION_SELECT)
+    .ilike("word", pattern)
+    .order("word")
+    .limit(limit);
+
+  const translitQuery = isLatin
+    ? client
+        .from("dictionary_entries")
+        .select(SUGGESTION_SELECT)
+        .ilike("transliteration", pattern)
+        .order("transliteration")
+        .limit(limit)
+    : null;
+
+  const meaningQuery = isLatin && plain.length >= 2
+    ? client
+        .from("dictionary_entries")
+        .select(SUGGESTION_SELECT)
+        .ilike("meaning", meaningPattern)
+        .limit(limit * 2)
+    : null;
+
+  const [wordRes, translitRes, meaningRes] = await Promise.all([
+    wordQuery,
+    translitQuery ?? Promise.resolve({ data: null, error: null }),
+    meaningQuery ?? Promise.resolve({ data: null, error: null }),
+  ]);
+
+  if (wordRes.error || translitRes.error || meaningRes.error) {
+    console.error("Dictionary entry search error:", wordRes.error ?? translitRes.error ?? meaningRes.error);
+    throw new Error("Dictionary search unavailable");
+  }
+
+  return rankSuggestions([
+    ...((wordRes.data ?? []) as EntrySuggestionRow[]).map((row) => mapEntrySuggestion(row, "headword")),
+    ...((translitRes.data ?? []) as EntrySuggestionRow[]).map((row) => mapEntrySuggestion(row, "transliteration")),
+    ...((meaningRes.data ?? []) as EntrySuggestionRow[]).map((row) => mapEntrySuggestion(row, "gloss")),
+  ], plain).slice(0, limit);
+}
+
+function rememberSuggestions(cacheKey: string, value: DictionarySuggestion[]): DictionarySuggestion[] {
+  suggestionCache.set(cacheKey, { expiresAt: Date.now() + SUGGESTION_CACHE_TTL_MS, value });
+  while (suggestionCache.size > SUGGESTION_CACHE_MAX) {
+    const oldestKey = suggestionCache.keys().next().value;
+    if (oldestKey === undefined) break;
+    suggestionCache.delete(oldestKey);
+  }
+  return value;
+}
 
 function mapSuggestionRow(row: SearchResponseRow): DictionarySuggestion {
   return {
@@ -234,22 +382,25 @@ export async function searchDictionaryPrefix(
   if (pending) return pending;
 
   const request = (async () => {
+    const boundedLimit = Math.max(1, Math.min(20, limit));
     const { data, error } = await client.rpc("search_dictionary_suggestions", {
       search_query: normalizedQuery,
-      result_limit: Math.max(1, Math.min(20, limit)),
+      result_limit: boundedLimit,
     });
+    if (error && isMissingSuggestionSearch(error)) {
+      if (!loggedMissingSuggestionSearch) {
+        loggedMissingSuggestionSearch = true;
+        console.error("Dictionary suggestion function is not installed. Using dictionary_entries search.");
+      }
+      const fallback = await searchDictionaryEntries(client, normalizedQuery, boundedLimit);
+      return rememberSuggestions(cacheKey, fallback);
+    }
     if (error) {
       console.error("Dictionary suggestion search failed:", error);
       throw new Error("Dictionary search unavailable");
     }
     const value = ((data ?? []) as SearchResponseRow[]).map(mapSuggestionRow);
-    suggestionCache.set(cacheKey, { expiresAt: Date.now() + SUGGESTION_CACHE_TTL_MS, value });
-    while (suggestionCache.size > SUGGESTION_CACHE_MAX) {
-      const oldestKey = suggestionCache.keys().next().value;
-      if (oldestKey === undefined) break;
-      suggestionCache.delete(oldestKey);
-    }
-    return value;
+    return rememberSuggestions(cacheKey, value);
   })();
 
   pendingSuggestions.set(cacheKey, request);
