@@ -15,6 +15,8 @@ import {
   TrendingUp,
   CalendarClock,
   ArrowLeft,
+  LogOut,
+  ArrowRight,
 } from "lucide-react";
 import type {
   VocabWord,
@@ -107,9 +109,21 @@ export default function FlashcardsView({
   const [order, setOrder] = useState<FlashcardOrder>(() => readFlashcardOrder(userId));
   const { isSubmitting, saveError, setSaveError, submitRating } = useFlashcardRating();
   const restoredSessionRef = useRef(false);
+  const [sessionSummary, setSessionSummary] = useState<"ended" | "completed" | null>(null);
+  const [sessionRatings, setSessionRatings] = useState<FlashcardRating[]>([]);
+  const summaryRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
   const lastStartedSignalRef = useRef(0);
   const reviewQueue = sessionActive ? activeSessionCards : sessionQueue;
   const currentWord = reviewQueue[currentIndex]?.vocabWord;
+
+  useEffect(() => {
+    if (sessionSummary) summaryRef.current?.focus({ preventScroll: true });
+  }, [sessionSummary]);
+
+  useEffect(() => {
+    if (sessionActive) cardRef.current?.focus({ preventScroll: true });
+  }, [sessionActive, currentIndex]);
 
   useEffect(() => {
     if (!sessionActive) return;
@@ -146,6 +160,8 @@ export default function FlashcardsView({
     setShowExamples(false);
     setDetailsPealimId(null);
     setSaveError(false);
+    setSessionSummary(null);
+    setSessionRatings([]);
     setSessionActive(true);
     setViewTab("session");
     writeFlashcardOrder(sessionOrder, userId);
@@ -205,48 +221,67 @@ export default function FlashcardsView({
     writeFlashcardSession(snapshot, userId);
   }, [activeSessionCards, currentIndex, isFlipped, isSubmitting, order, sessionActive, sessionLimit, showExamples, userId]);
 
-  const handleEndSession = () => {
-    setSessionActive(false);
-    setActiveSessionCards([]);
-    setCurrentIndex(0);
-    setIsFlipped(false);
-    setShowExamples(false);
-    clearFlashcardSession("forward", userId);
-  };
-
   const handleRate = async (rating: FlashcardRating) => {
     const card = reviewQueue[currentIndex];
-    if (!card || !isFlipped) return;
+    if (!card || !isFlipped || isSubmitting) return;
 
     await submitRating({
       save: () => submitReview(card.vocabWord.id, rating),
       isLastCard: currentIndex + 1 === reviewQueue.length,
       advance: () => {
+        setSessionRatings((prev) => [...prev, rating]);
         setCurrentIndex(currentIndex + 1);
         setIsFlipped(false);
         setShowExamples(false);
         setDetailsPealimId(null);
       },
       rollback: () => {
+        setSessionRatings((prev) => prev.slice(0, -1));
         setCurrentIndex(currentIndex);
         setIsFlipped(true);
         setShowExamples(showExamples);
         setDetailsPealimId(null);
       },
       complete: () => {
+        setSessionRatings((prev) => [...prev, rating]);
         recordLearningEvent("review_completed", {
           language: lang,
           modality: "flashcards",
           count: reviewQueue.length,
         });
         setSessionActive(false);
-        setActiveSessionCards([]);
+        setSessionSummary("completed");
         setIsFlipped(false);
         setShowExamples(false);
         setDetailsPealimId(null);
         clearFlashcardSession("forward", userId);
       },
     });
+  };
+
+  const endSession = () => {
+    if (isSubmitting) return;
+    setSessionActive(false);
+    setShowExamples(false);
+    setDetailsPealimId(null);
+    setSessionSummary("ended");
+  };
+
+  const continueSession = () => {
+    setSessionSummary(null);
+    setSessionActive(true);
+  };
+
+  const leaveSummary = () => {
+    setSessionSummary(null);
+    setSessionRatings([]);
+    setActiveSessionCards([]);
+    setCurrentIndex(0);
+    setIsFlipped(false);
+    setShowExamples(false);
+    setDetailsPealimId(null);
+    clearFlashcardSession("forward", userId);
+    if (onBackToHub) onBackToHub();
   };
 
   const handleToggleExamples = async () => {
@@ -307,15 +342,15 @@ export default function FlashcardsView({
   }
 
   return (
-    <div className="flashcards-container">
-      {showBackToHub && onBackToHub && (
+    <div className="flashcards-container forward-flashcards">
+      {!sessionActive && !sessionSummary && showBackToHub && onBackToHub && (
         <button type="button" className="review-back-btn" onClick={onBackToHub} disabled={isSubmitting}>
           <ArrowLeft size={16} />
           {t("backToHub")}
         </button>
       )}
       {/* Stats dashboard */}
-      <div className="flashcards-stats-dashboard">
+      {!sessionActive && !sessionSummary && <div className="flashcards-stats-dashboard">
         <div className="flashcard-stat-tile highlight-due">
           <Flame size={14} className="flashcard-stat-icon-due" />
           <span className="stat-label">{t("due")}</span>
@@ -376,10 +411,10 @@ export default function FlashcardsView({
             <span className="progress-percent">{stats.progressPercent}%</span>
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* Tabs */}
-      {!sessionActive && (
+      {!sessionActive && !sessionSummary && (
         <div className="vocab-filters-bar">
           <div className="vocab-view-tabs">
             <button 
@@ -405,11 +440,15 @@ export default function FlashcardsView({
         <div className="flashcards-session-wrapper">
           {sessionActive ? (
             <div className="flashcard-session-active">
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px" }}>
-                <span className="flashcard-session-label" role="status">
-                  {isSubmitting ? t("savingProgress") : t("cardsInSession", { current: currentIndex + 1, total: reviewQueue.length })}
-                </span>
-                <button type="button" className="flashcard-examples-toggle-btn compact" onClick={handleEndSession} disabled={isSubmitting}>
+              <div className="flashcard-session-header">
+                <div className="flashcard-session-position">
+                  <span>{t("flashcards")}</span>
+                  <span className="flashcard-session-label" aria-live="polite" aria-atomic="true">
+                    {isSubmitting ? t("savingProgress") : t("cardsInSession", { current: currentIndex + 1, total: reviewQueue.length })}
+                  </span>
+                </div>
+                <button type="button" className="flashcard-end-btn" onClick={endSession} disabled={isSubmitting}>
+                  <LogOut size={15} aria-hidden="true" />
                   {t("endSession")}
                 </button>
               </div>
@@ -418,15 +457,15 @@ export default function FlashcardsView({
                 <div
                   className="flashcard-review-progress"
                   role="progressbar"
-                  aria-valuenow={currentIndex + 1}
-                  aria-valuemin={1}
+                  aria-valuenow={currentIndex}
+                  aria-valuemin={0}
                   aria-valuemax={reviewQueue.length}
-                  aria-label={t("cardsInSession", { current: currentIndex + 1, total: reviewQueue.length })}
+                  aria-label={t("flashcardReviewedCount", { count: currentIndex, total: reviewQueue.length })}
                 >
                   <div
                     className="flashcard-review-progress-fill"
                     style={{
-                      width: `${((currentIndex + 1) / reviewQueue.length) * 100}%`,
+                      width: `${(currentIndex / reviewQueue.length) * 100}%`,
                     }}
                   />
                 </div>
@@ -434,21 +473,22 @@ export default function FlashcardsView({
                 {/* 3D Flip Card Container */}
                 <div
                   className="flashcard-card-scene"
-                onClick={handleFlip}
+                  ref={cardRef}
+                  key={currentIndex}
+                  onClick={handleFlip}
                 role="button"
                 tabIndex={0}
                 aria-label={t("tapToFlip")}
                 onKeyDown={(e) => {
-                  if (e.target !== e.currentTarget) return;
-                  if (e.key === "Enter" || e.key === " ") {
+                  if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
                     e.preventDefault();
                     handleFlip();
                   }
                 }}
               >
-                <div key={currentIndex} className={`flashcard-card-inner ${isFlipped ? "is-flipped" : ""}`}>
+                <div className={`flashcard-card-inner ${isFlipped ? "is-flipped" : ""}`}>
                   {/* Front Side (Hebrew word) */}
-                  <div className="flashcard-card-front">
+                  <div className="flashcard-card-front" aria-hidden={isFlipped} inert={isFlipped}>
                     <span className="flashcard-badge-side">{t("hebrew")}</span>
                     <h2 className="font-serif flashcard-hebrew-word" dir="rtl" lang="he">
                       {reviewQueue[currentIndex].vocabWord.wordWithNekudot || reviewQueue[currentIndex].vocabWord.word}
@@ -462,7 +502,7 @@ export default function FlashcardsView({
                   </div>
 
                   {/* Back Side (Translation & Details) */}
-                  <div className="flashcard-card-back" onClick={(e) => e.stopPropagation()}>
+                  <div className="flashcard-card-back" aria-hidden={!isFlipped} inert={!isFlipped} onClick={(e) => e.stopPropagation()}>
                     <span className="flashcard-badge-side back">{t("translation")}</span>
                     <h3 className="flashcard-translation-word">
                       {reviewQueue[currentIndex].vocabWord.translation}
@@ -498,32 +538,12 @@ export default function FlashcardsView({
                 </div>
               </div>
 
-              {/* Example phrases panel (below card) */}
-              {showExamples && currentWord && (
-                <ExamplePhrasesPanel
-                  word={currentWord}
-                  variant="flashcard"
-                  onGenerate={handleGenerate}
-                  onRegenerate={handleRegenerate}
-                  isGenerating={isGenerating}
-                  regeneratingIndex={regeneratingIndex}
-                />
-              )}
-
               {/* FSRS Interactive Rating Panel */}
               <div className={`flashcard-rating-panel ${isFlipped ? "revealed" : ""}`}>
                 {!isFlipped ? (
                   <div className="flashcard-pre-reveal-actions">
                     <button className="flashcard-reveal-btn" onClick={handleFlip}>
                       {t("showAnswer")}
-                    </button>
-                    <button
-                      className={`flashcard-examples-toggle-btn${showExamples ? " active" : ""}`}
-                      onClick={handleToggleExamples}
-                      disabled={isGenerating}
-                    >
-                      <MessageSquare size={14} />
-                      {showExamples ? t("hideExamples") : t("showExamples")}
                     </button>
                   </div>
                 ) : (
@@ -543,28 +563,86 @@ export default function FlashcardsView({
                       </button>
                     </div>
                     {saveError && <p className="flashcard-save-error" role="alert">{t("reviewSaveError")}</p>}
-                    <div className="flashcard-pre-reveal-actions" style={{ marginTop: 0 }}>
-                      {currentWord?.dictionaryPealimId && (
-                        <button
-                          type="button"
-                          className="flashcard-examples-toggle-btn compact"
-                          onClick={() => setDetailsPealimId(currentWord.dictionaryPealimId!)}
-                        >
-                          <BookOpen size={14} />
-                          {t("viewConjugations")}
-                        </button>
-                      )}
-                      <button
-                        className={`flashcard-examples-toggle-btn compact${showExamples ? " active" : ""}`}
-                        onClick={handleToggleExamples}
-                        disabled={isGenerating}
-                      >
-                        <MessageSquare size={14} />
-                        {showExamples ? t("hideExamples") : t("showExamples")}
-                      </button>
-                    </div>
                   </div>
                 )}
+              </div>
+              <div className="flashcard-reference-actions">
+                {isFlipped && currentWord?.dictionaryPealimId && (
+                  <button
+                    type="button"
+                    className="flashcard-examples-toggle-btn compact"
+                    aria-haspopup="dialog"
+                    onClick={() => setDetailsPealimId(currentWord.dictionaryPealimId!)}
+                  >
+                    <BookOpen size={14} aria-hidden="true" />
+                    {t("viewConjugations")}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className={`flashcard-examples-toggle-btn compact${showExamples ? " active" : ""}`}
+                  onClick={handleToggleExamples}
+                  disabled={isGenerating}
+                  aria-expanded={showExamples}
+                  aria-controls="flashcard-session-examples"
+                >
+                  <MessageSquare size={14} aria-hidden="true" />
+                  {showExamples ? t("hideExamples") : t("showExamples")}
+                </button>
+              </div>
+              {showExamples && currentWord && (
+                <div id="flashcard-session-examples" className="flashcard-session-examples">
+                  <ExamplePhrasesPanel
+                    word={currentWord}
+                    variant="flashcard"
+                    onGenerate={handleGenerate}
+                    onRegenerate={handleRegenerate}
+                    isGenerating={isGenerating}
+                    regeneratingIndex={regeneratingIndex}
+                  />
+                </div>
+              )}
+            </div>
+          ) : sessionSummary ? (
+            <div className="flashcard-start-screen flashcard-session-summary" ref={summaryRef} tabIndex={-1} aria-labelledby="flashcard-summary-title">
+              <div className="flashcard-illustration-circle fc-session-done">
+                {sessionSummary === "completed" ? <Check size={26} /> : <Brain size={26} />}
+              </div>
+              <h2 id="flashcard-summary-title">
+                {sessionSummary === "completed" ? t("sessionComplete") : t("flashcardSessionEnded")}
+              </h2>
+              <p>{t("flashcardReviewedCount", { count: sessionSummary === "completed" ? activeSessionCards.length : currentIndex, total: activeSessionCards.length })}</p>
+              {sessionRatings.length > 0 && sessionRatings.length === (sessionSummary === "completed" ? activeSessionCards.length : currentIndex) && (
+                <dl className="flashcard-recap-ratings">
+                  {([0, 1, 3, 5] as const).map((rating, index) => (
+                    <div key={rating}>
+                      <dt>{t((["again", "hard", "good", "easy"] as const)[index])}</dt>
+                      <dd>{sessionRatings.filter((value) => value === rating).length}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+              <p>
+                {sessionSummary === "ended" ? t("flashcardResumeHint") : t("flashcardCompleteHint")}
+              </p>
+              <div className="flashcard-summary-actions">
+                {sessionSummary === "ended" ? (
+                  <button type="button" className="flashcard-start-btn" onClick={continueSession}>
+                    {t("flashcardContinueSession")} <ArrowRight size={16} aria-hidden="true" />
+                  </button>
+                ) : isPremium && sessionQueue.length > 0 ? (
+                  <button type="button" className="flashcard-start-btn" onClick={startSession}>
+                    {t("flashcardReviewMore")} <ArrowRight size={16} aria-hidden="true" />
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className={sessionSummary === "completed" && !(isPremium && sessionQueue.length > 0) ? "flashcard-start-btn" : "flashcard-summary-secondary"}
+                  onClick={leaveSummary}
+                >
+                  <ArrowLeft size={16} aria-hidden="true" />
+                  {onBackToHub ? t("backToHub") : t("flashcardBackToReview")}
+                </button>
               </div>
             </div>
           ) : (

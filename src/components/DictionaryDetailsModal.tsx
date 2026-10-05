@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useState } from "react";
+import { createPortal } from "react-dom";
 import { X, Loader2, Volume2 } from "lucide-react";
 import { getDictionaryEntryDetails } from "@/app/actions";
 import { useModalAccessibility } from "@/hooks/useModalAccessibility";
@@ -106,8 +107,9 @@ function ConjugationTable({ forms }: { forms: DictionaryForm[] }) {
 }
 
 function FormCell({ form }: { form: DictionaryForm }) {
+  const t = useT();
   return (
-    <div>
+    <div className="dictionary-details-form-cell">
       <div className="dictionary-details-cell-hebrew font-serif" dir="rtl" lang="he">
         {form.hebrew_with_nekudot}
       </div>
@@ -120,11 +122,63 @@ function FormCell({ form }: { form: DictionaryForm }) {
           type="button"
           className="dictionary-details-cell-audio"
           onClick={() => playAudio(form.audio_url!)}
-          aria-label="Play"
+          aria-label={t("playAudio")}
         >
           <Volume2 size={12} />
         </button>
       )}
+    </div>
+  );
+}
+
+function ConjugationSections({ entry }: { entry: DictionaryEntryDetails }) {
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const sectionId = useId();
+  const t = useT();
+  const sections = (entry.conjugation_sections.length > 0
+    ? entry.conjugation_sections
+    : [{ title: "Forms", subtitle: null, form_ids: entry.forms.map((form) => form.form_id) }]
+  ).filter((section) => formsInSection(entry, section).length > 0);
+  const selectedSection = sections[selectedIndex];
+  if (!selectedSection) return null;
+  const forms = formsInSection(entry, selectedSection);
+
+  return (
+    <div className="dictionary-details-conjugations">
+      {sections.length > 1 && (
+        <nav className="dictionary-details-section-nav" aria-label={t("viewConjugations")}>
+          {sections.map((section, index) => (
+            <button
+              key={`${section.title}-${section.subtitle ?? ""}`}
+              type="button"
+              aria-pressed={index === selectedIndex}
+              aria-controls={sectionId}
+              onClick={() => setSelectedIndex(index)}
+            >
+              {section.title}
+            </button>
+          ))}
+        </nav>
+      )}
+      <section id={sectionId} className="dictionary-details-section" aria-labelledby={`${sectionId}-title`}>
+        <h4 id={`${sectionId}-title`} className="dictionary-details-section-title">{selectedSection.title}</h4>
+        {selectedSection.subtitle && (
+          <p className="dictionary-details-section-subtitle">{selectedSection.subtitle}</p>
+        )}
+        <div className="dictionary-details-desktop-forms">
+          <ConjugationTable forms={forms} />
+        </div>
+        <ul className="dictionary-details-mobile-forms">
+          {forms.map((form) => (
+            <li key={form.form_id}>
+              <span className="dictionary-details-form-label">
+                {[form.row_label, form.column_label].filter((label) => label && label !== "—").join(" · ") || form.form_id}
+              </span>
+              <FormCell form={form} />
+            </li>
+          ))}
+        </ul>
+      </section>
     </div>
   );
 }
@@ -137,9 +191,7 @@ export default function DictionaryDetailsModal({
   const t = useT();
   const { dialogRef, titleId } = useModalAccessibility(isOpen, onClose);
   const [entry, setEntry] = useState<DictionaryEntryDetails | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [loadError, setLoadError] = useState(false);
-  const requestIdRef = useRef(0);
+  const [loadState, setLoadState] = useState<{ pealimId: number | null; status: "loading" | "loaded" | "error" }>({ pealimId: null, status: "loading" });
 
   useEffect(() => {
     if (!isOpen || !pealimId) {
@@ -151,42 +203,38 @@ export default function DictionaryDetailsModal({
       return;
     }
 
-    const requestId = ++requestIdRef.current;
+    let cancelled = false;
     queueMicrotask(() => {
-      if (requestId !== requestIdRef.current) return;
-      setIsLoading(true);
-      setLoadError(false);
+      if (cancelled) return;
+      setLoadState({ pealimId, status: "loading" });
       setEntry(null);
     });
 
     void getDictionaryEntryDetails(pealimId).then((res) => {
-      if (requestId !== requestIdRef.current) return;
+      if (cancelled) return;
       if (res.type === "success" && res.entry) {
         entryCache.set(pealimId, res.entry);
         setEntry(res.entry);
-        setLoadError(false);
+        setLoadState({ pealimId, status: "loaded" });
       } else {
-        setLoadError(true);
+        setLoadState({ pealimId, status: "error" });
       }
-      setIsLoading(false);
+    }).catch(() => {
+      if (cancelled) return;
+      setLoadState({ pealimId, status: "error" });
     });
+
+    return () => { cancelled = true; };
   }, [isOpen, pealimId]);
 
   const cachedEntry = pealimId ? entryCache.get(pealimId) ?? null : null;
   const displayedEntry = entry?.pealim_id === pealimId ? entry : cachedEntry;
-  const displayedLoading = cachedEntry ? false : isLoading;
-  const displayedLoadError = cachedEntry ? false : loadError;
+  const displayedLoading = !cachedEntry && (loadState.pealimId !== pealimId || loadState.status === "loading");
+  const displayedLoadError = !cachedEntry && loadState.pealimId === pealimId && loadState.status === "error";
 
   if (!isOpen || !pealimId) return null;
 
-  const sections =
-    displayedEntry && displayedEntry.conjugation_sections.length > 0
-      ? displayedEntry.conjugation_sections
-      : displayedEntry
-        ? [{ title: "Forms", subtitle: null, form_ids: displayedEntry.forms.map((f) => f.form_id) }]
-        : [];
-
-  return (
+  return createPortal(
     <div
       className="modal-overlay dictionary-details-overlay"
       onClick={(e) => {
@@ -202,6 +250,7 @@ export default function DictionaryDetailsModal({
       >
         <div className="modal-header">
           <div>
+            <p className="dictionary-details-eyebrow">{t("viewConjugations")}</p>
             <h3 id={titleId} className="modal-title font-serif" dir="rtl" lang="he">
               {displayedEntry?.word_with_nekudot || "…"}
             </h3>
@@ -225,7 +274,7 @@ export default function DictionaryDetailsModal({
               </div>
             )}
           </div>
-          <button onClick={onClose} className="close-btn" aria-label={t("close")}>
+          <button type="button" onClick={onClose} className="close-btn" aria-label={t("close")}>
             <X size={18} />
           </button>
         </div>
@@ -252,6 +301,8 @@ export default function DictionaryDetailsModal({
                 </p>
               )}
 
+              <ConjugationSections key={displayedEntry.pealim_id} entry={displayedEntry} />
+
               {displayedEntry.notes.length > 0 && (
                 <div className="dictionary-details-notes">
                   {displayedEntry.notes.map((note, i) => (
@@ -261,23 +312,6 @@ export default function DictionaryDetailsModal({
                   ))}
                 </div>
               )}
-
-              {sections.map((section) => {
-                const sectionForms = formsInSection(displayedEntry, section);
-                if (sectionForms.length === 0) return null;
-                return (
-                  <div
-                    key={`${section.title}-${section.subtitle ?? ""}`}
-                    className="dictionary-details-section"
-                  >
-                    <h4 className="dictionary-details-section-title">{section.title}</h4>
-                    {section.subtitle && (
-                      <p className="dictionary-details-section-subtitle">{section.subtitle}</p>
-                    )}
-                    <ConjugationTable forms={sectionForms} />
-                  </div>
-                );
-              })}
 
               {displayedEntry.forms.length === 0 && (
                 <p className="dictionary-details-empty">{t("noConjugationForms")}</p>
@@ -292,6 +326,7 @@ export default function DictionaryDetailsModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

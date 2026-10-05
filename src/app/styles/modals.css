@@ -189,7 +189,9 @@
 
 .add-vocab-modal {
   max-width: 440px;
-  overflow: visible;
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .add-vocab-modal .modal-body {
@@ -315,6 +317,26 @@
   flex-shrink: 0;
 }
 
+.add-vocab-search-clear {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.add-vocab-search-clear:hover,
+.add-vocab-search-clear:focus-visible {
+  background: var(--overlay-5);
+  color: var(--text-main);
+}
+
 .add-vocab-search-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -333,13 +355,17 @@
   left: 0;
   right: 0;
   z-index: 20;
-  max-height: 260px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-menu);
+  overflow: hidden;
+}
+
+.add-vocab-suggestion-list {
+  max-height: min(260px, 45dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .add-vocab-suggestions-status {
@@ -351,6 +377,27 @@
   color: var(--text-muted);
 }
 
+.add-vocab-suggestions-status button,
+.add-vocab-meaning-fallback button,
+.add-vocab-ai-lookup-btn {
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.add-vocab-suggestions-status button,
+.add-vocab-meaning-fallback button {
+  min-height: 36px;
+  padding: 4px 8px;
+}
+
+.add-vocab-search-error { color: var(--text-secondary); }
+
 .add-vocab-suggestion {
   display: flex;
   flex-direction: column;
@@ -358,6 +405,7 @@
   gap: 2px;
   width: 100%;
   padding: 10px var(--space-3);
+  min-height: 60px;
   border: none;
   border-bottom: 1px solid var(--overlay-4);
   background: transparent;
@@ -417,6 +465,44 @@
   color: var(--text-muted);
   flex-shrink: 0;
   text-transform: lowercase;
+}
+
+.add-vocab-suggestion-match {
+  flex-shrink: 0;
+  color: var(--accent);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.add-vocab-ai-lookup-btn {
+  display: inline-flex;
+  align-self: flex-start;
+  min-height: 40px;
+  margin-top: var(--space-2);
+  padding: 0 var(--space-2);
+}
+
+.add-vocab-ai-lookup-btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.add-vocab-result-source {
+  display: inline-block;
+  margin-bottom: var(--space-1);
+  color: var(--text-muted);
+  font-size: var(--text-xs, 12px);
+}
+
+.add-vocab-meaning-status,
+.add-vocab-meaning-fallback {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs, 12px);
 }
 
 .add-vocab-error {
@@ -489,4 +575,23 @@
 .add-vocab-result-verbform {
   font-size: var(--text-base-sm);
   color: var(--text-muted);
+}
+
+@media (max-width: 480px) {
+  .add-vocab-modal {
+    width: 100%;
+    max-height: calc(100dvh - 1rem);
+  }
+
+  .add-vocab-modal-body {
+    padding-inline: var(--space-4);
+  }
+
+  .add-vocab-suggestion-list {
+    max-height: min(220px, 35dvh);
+  }
+
+  .add-vocab-suggestion-meta {
+    flex-wrap: wrap;
+  }
 }

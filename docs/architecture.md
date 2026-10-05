@@ -50,9 +50,9 @@ Browser → Next.js (Server Components + API routes)
 | `ReviewStatsView.tsx` | Practice stats dashboard with hero ring, modality cards, weak words, share |
 | `StatRing.tsx` | SVG progress ring for stats hero and session recap |
 | `SessionRecapScreen.tsx` | Fill-in / matching session complete screen with score ring and share |
-| `FlashcardsView.tsx` | FSRS forward card sessions |
+| `FlashcardsView.tsx` | FSRS forward card sessions with resumable early exit and rating recap |
 | `TranslationModal.tsx` | Compact word translation popup |
-| `DictionaryDetailsModal.tsx` | Pealim conjugation tables |
+| `DictionaryDetailsModal.tsx` | Pealim conjugations by section; desktop tables and mobile form lists in a viewport sheet |
 | `ExamplePhrasesPanel.tsx` | Shared example phrase UI |
 | `OnboardingOverlay.tsx` | Short first-visit language/track setup, available to guests and returning users from Settings |
 | `SpeakView.tsx` | Hebrew speaking practice via OpenAI Realtime (WebRTC) |
@@ -89,7 +89,7 @@ Episode translations use `episodes.translations` JSONB (paragraph arrays per lan
 
 Lesson completion and bookmarks are scoped by the current Supabase user id. Guests use a separate local namespace; changing accounts clears the active in-memory state before loading the new account. A bookmark is versioned (`hebrewtime-bookmarks-v1:<scope>`) and stores level, episode, paragraph index, audio seconds, scroll position, and `updatedAt`. It is written after reading/audio interaction and restored after audio metadata loads without autoplay.
 
-Flashcard sessions are versioned browser records scoped by the current account and direction (`hebrewtime-flashcard-session-v1:<scope>:<direction>`). They store the exact card ids, order choice, current position, and card reveal state. An unfinished forward or reverse session is restored after vocabulary and flashcard progress load, and is removed only when completed or explicitly ended. The order preference is stored separately per account, with current order as the default and shuffled order selecting from the full due pool before applying the session limit.
+Flashcard sessions are versioned browser records scoped by the current account and direction (`hebrewtime-flashcard-session-v1:<scope>:<direction>`). They store the exact card ids, order choice, current position, and card reveal state. An unfinished forward or reverse session is restored after vocabulary and flashcard progress load. Reverse sessions are removed when completed or explicitly ended. Forward sessions stay stored while the early exit recap is open, and are removed when completed or when the learner leaves that recap. The order preference is stored separately per account, with current order as the default and shuffled order selecting from the full due pool before applying the session limit.
 
 Older unscoped completion data is migrated into the guest namespace only. When an authenticated user has legacy data available, the interface offers a one-time explicit import; it is never silently attached to an account. Failed completion writes roll back the optimistic UI and expose a retryable save error.
 
@@ -99,7 +99,7 @@ Older unscoped completion data is migrated into the guest namespace only. When a
 
 ## Dictionary lookup
 
-Order in `src/lib/dictionaryLookup.ts`:
+Transcript word lookup in `src/lib/dictionaryLookup.ts` keeps this order:
 
 1. Exact headword match on `dictionary_entries.word`
 2. Strip up to 3 Hebrew prefixes (ה, ו, ב, כ, ל, מ/מה, ש)
@@ -107,9 +107,17 @@ Order in `src/lib/dictionaryLookup.ts`:
 4. Fuzzy match via `pg_trgm` (`match_dictionary_word()` RPC)
 5. OpenAI fallback when steps 1–4 find nothing, or to disambiguate homonyms
 
+“Add to vocabulary” suggestions use the `search_dictionary_suggestions()` RPC and its indexed `dictionary_search_terms` table. It matches headwords, forms, transliterations, and glosses in one ranked query, then verifies likely spelling corrections. The modal shows a selected dictionary result immediately and translates its gloss in the background for non English UI languages. AI lookup is an explicit action and retains the existing translation limits.
+
 Dictionary hits return Pealim lemma, Nekudot, transliteration, and meaning. Non English UI languages get gloss translation via a small OpenAI call.
 
 Saved words store `dictionary_pealim_id` when available, enabling conjugation modals later.
+
+Conjugation details render through a portal to `document.body`, with a stable-height mobile sheet, section selectors, and independently scrolling content. Mobile form lists replace wide tables. `useModalAccessibility` locks the caller's scrolling ancestors as well as the body, preserves scrollbar space, and moves/restores focus without scrolling the underlying view.
+
+### Forward flashcard sessions
+
+Active sessions use a compact progress header and an End Session action. Dashboard stats and navigation tabs stay hidden during review and the recap. The header shows the current card, including a restored position, and a saving label while a rating is saved. The progress bar counts cards already rated and stays at the restored position. Ending early opens a recap. Continue Session keeps the same queue, card index, and answer state. Leaving the recap clears the stored session. Finishing the last card opens a completion recap and clears the stored session. Only full completion emits `review_completed`. Each rating waits for a successful save, shows an error, and returns to the same card if the save fails. Shuffle and the saved order stay on the start screen. On small screens the ratings stay in one row, reference actions sit together, and example phrases appear below the controls.
 
 ### Practice stats summary
 
