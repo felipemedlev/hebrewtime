@@ -138,7 +138,7 @@
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  font-size: var(--text-sm);
+  font-size: max(var(--form-control-min-font-size), var(--text-sm));
   background: var(--surface);
 }
 
@@ -155,7 +155,7 @@
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  font-size: var(--text-sm);
+  font-size: max(var(--form-control-min-font-size), var(--text-sm));
 }
 
 .admin-grant-btn,

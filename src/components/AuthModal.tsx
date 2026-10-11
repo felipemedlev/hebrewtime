@@ -127,7 +127,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                style={{ padding: "10px 12px", borderRadius: "8px", border: "1px solid var(--border)", outline: "none", width: "100%", fontSize: "14px" }}
+                style={{ padding: "10px 12px", borderRadius: "8px", border: "1px solid var(--border)", outline: "none", width: "100%", fontSize: "max(var(--form-control-min-font-size), 14px)" }}
                 disabled={isLoading}
               />
             </div>
@@ -142,7 +142,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   minLength={6}
-                  style={{ padding: "10px 12px", borderRadius: "8px", border: "1px solid var(--border)", outline: "none", width: "100%", fontSize: "14px" }}
+                  style={{ padding: "10px 12px", borderRadius: "8px", border: "1px solid var(--border)", outline: "none", width: "100%", fontSize: "max(var(--form-control-min-font-size), 14px)" }}
                   disabled={isLoading}
                 />
 

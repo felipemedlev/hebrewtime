@@ -224,7 +224,7 @@
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: var(--surface);
-  font-size: var(--text-base);
+  font-size: max(var(--form-control-min-font-size), var(--text-base));
   outline: none;
   font-family: inherit;
   transition: all var(--dur-base);

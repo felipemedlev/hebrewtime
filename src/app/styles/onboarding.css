@@ -51,6 +51,7 @@
   color: var(--text-main);
   padding: var(--space-2) var(--space-3);
   font: inherit;
+  font-size: max(var(--form-control-min-font-size), 1em);
 }
 .onboarding-track-description {
   margin: 0;

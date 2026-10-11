@@ -410,6 +410,7 @@
   background: transparent;
   color: inherit;
   font: inherit;
+  font-size: max(var(--form-control-min-font-size), 1em);
   cursor: pointer;
   outline: none;
 }

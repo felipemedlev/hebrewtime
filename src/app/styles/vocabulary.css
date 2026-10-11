@@ -165,7 +165,7 @@
   border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--surface);
-  font-size: 13px;
+  font-size: max(var(--form-control-min-font-size), 13px);
   outline: none;
   color: var(--text);
 }
@@ -178,7 +178,7 @@
   border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--surface);
-  font-size: 13px;
+  font-size: max(var(--form-control-min-font-size), 13px);
   cursor: pointer;
   outline: none;
   appearance: auto;

@@ -130,7 +130,7 @@ function UpdatePasswordForm() {
                   border: "1px solid var(--border)",
                   outline: "none",
                   width: "100%",
-                  fontSize: "14px",
+                  fontSize: "max(var(--form-control-min-font-size), 14px)",
                 }}
                 disabled={isLoading}
               />
@@ -153,7 +153,7 @@ function UpdatePasswordForm() {
                   border: "1px solid var(--border)",
                   outline: "none",
                   width: "100%",
-                  fontSize: "14px",
+                  fontSize: "max(var(--form-control-min-font-size), 14px)",
                 }}
                 disabled={isLoading}
               />

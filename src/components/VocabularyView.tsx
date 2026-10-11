@@ -275,7 +275,7 @@ export default function VocabularyView({
                         onChange={(e) => setEditValues({ ...editValues, pronunciation: e.target.value })}
                         onKeyDown={(e) => e.key === "Enter" && saveEdit(vw.id)}
                         className="vocab-edit-input"
-                        style={{ fontSize: "14px", width: "100%", maxWidth: "120px" }}
+                        style={{ fontSize: "max(var(--form-control-min-font-size), 14px)", width: "100%", maxWidth: "120px" }}
                         placeholder={t("pronunciation")}
                       />
                     ) : vw.pronunciation ? (
@@ -295,7 +295,7 @@ export default function VocabularyView({
                         onChange={(e) => setEditValues({ ...editValues, translation: e.target.value })}
                         onKeyDown={(e) => e.key === "Enter" && saveEdit(vw.id)}
                         className="vocab-edit-input"
-                        style={{ fontSize: "14px" }}
+                        style={{ fontSize: "max(var(--form-control-min-font-size), 14px)" }}
                       />
                     ) : (
                       <span className="vocab-translation-text">{vw.translation}</span>
@@ -501,7 +501,7 @@ export default function VocabularyView({
                         onChange={(e) => setEditValues({ ...editValues, translation: e.target.value })}
                         onKeyDown={(e) => e.key === "Enter" && saveEdit(vw.id)}
                         className="vocab-edit-input"
-                        style={{ fontSize: "14px", width: "100%", marginBottom: "8px" }}
+                        style={{ fontSize: "max(var(--form-control-min-font-size), 14px)", width: "100%", marginBottom: "8px" }}
                         placeholder={t("translation")}
                       />
                     ) : (
@@ -514,7 +514,7 @@ export default function VocabularyView({
                         onChange={(e) => setEditValues({ ...editValues, pronunciation: e.target.value })}
                         onKeyDown={(e) => e.key === "Enter" && saveEdit(vw.id)}
                         className="vocab-edit-input"
-                        style={{ fontSize: "13px" }}
+                        style={{ fontSize: "max(var(--form-control-min-font-size), 13px)" }}
                         placeholder={t("pronunciation")}
                       />
                     ) : vw.pronunciation ? (

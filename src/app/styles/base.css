@@ -134,6 +134,7 @@
   --text-4xl: 24px;
   --text-5xl: 28px;
   --text-6xl: 38px;
+  --form-control-min-font-size: 0px;
 
   --font-weight-normal: 400;
   --font-weight-medium: 500;
@@ -262,6 +263,11 @@ html, body {
 }
 
 .skip-link:focus { transform: translateY(0); }
+
+/* Keep form text readable before focus to prevent automatic iPhone zoom. */
+@media (max-width: 800px), (pointer: coarse) {
+  :root { --form-control-min-font-size: 16px; }
+}
 
 @media (max-width: 800px) {
   button, input, select { min-height: 44px; }
