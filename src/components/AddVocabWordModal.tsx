@@ -1,6 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { DictionarySuggestionSearch } from "@/lib/dictionarySuggestionSearch";
+import { normalizeDictionarySearch } from "@/lib/dictionarySearch";
+import { getSuggestionPosition } from "@/lib/suggestionPosition";
 import { X, Loader2, Search } from "lucide-react";
 import { translateDictionarySuggestion, translateWord } from "@/app/actions";
 import { supabase } from "@/lib/supabase";
@@ -51,6 +55,7 @@ function suggestionsEqual(a: DictionarySuggestion[], b: DictionarySuggestion[]) 
       item.word === b[index]?.word &&
       item.wordWithNekudot === b[index]?.wordWithNekudot &&
       item.meaning === b[index]?.meaning &&
+      item.partOfSpeech === b[index]?.partOfSpeech &&
       item.transliteration === b[index]?.transliteration &&
       item.matchType === b[index]?.matchType &&
       item.matchedText === b[index]?.matchedText
@@ -77,6 +82,10 @@ export default function AddVocabWordModal({
   const [isSearching, setIsSearching] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSuggesting, setIsSuggesting] = useState(false);
+  const [isCompleting, setIsCompleting] = useState(false);
+  const [completionFailed, setCompletionFailed] = useState(false);
+  const [suggestionSearch] = useState(() => new DictionarySuggestionSearch());
+  const [popupPosition, setPopupPosition] = useState<ReturnType<typeof getSuggestionPosition> | null>(null);
   const [suggestions, setSuggestions] = useState<DictionarySuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestionStatus, setSuggestionStatus] = useState<"idle" | "loading" | "empty" | "error" | "rate_limited">("idle");
@@ -91,11 +100,13 @@ export default function AddVocabWordModal({
   const suggestTimerRef = useRef<number | null>(null);
   const blurCloseTimerRef = useRef<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const searchRowRef = useRef<HTMLDivElement>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
+  const suggestionsRef = useRef<DictionarySuggestion[]>([]);
   const listboxRef = useRef<HTMLDivElement>(null);
   const phraseHebrewRef = useRef<HTMLTextAreaElement>(null);
   const showSuggestionsRef = useRef(false);
   const skipSuggestRef = useRef<string | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
 
   const clearSuggestionDebounce = () => {
     if (suggestTimerRef.current !== null) {
@@ -105,62 +116,37 @@ export default function AddVocabWordModal({
   };
 
   const executeSuggestionSearch = useCallback(async (rawQuery: string) => {
-    const plain = stripNiqqud(cleanSearchQuery(rawQuery));
-    if (plain.length < MIN_QUERY_LEN) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      setIsSuggesting(false);
-      setSuggestionStatus("idle");
-      setActiveIndex(-1);
-      return;
-    }
-
-    const requestId = ++requestIdRef.current;
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-    setIsSuggesting(true);
+    const plain = normalizeDictionarySearch(cleanSearchQuery(rawQuery));
+    if (plain.length < MIN_QUERY_LEN) return;
+    const requestId = requestIdRef.current;
+    setIsSuggesting(!suggestionSearch.getCached(plain));
     setSuggestionStatus("loading");
+    setCompletionFailed(false);
     setShowSuggestions(true);
-    setActiveIndex(-1);
 
-    try {
-      const res = await fetch(`/api/dictionary/suggest?q=${encodeURIComponent(plain)}`, {
-        signal: controller.signal,
-        cache: "no-store",
-      });
-      const data = await res.json() as {
-        suggestions?: DictionarySuggestion[];
-        status?: string;
-        retryAfterSeconds?: number;
-      };
-      if (requestId !== requestIdRef.current || controller.signal.aborted || !isOpen) return;
-
-      if (res.status === 429 || data.status === "rate_limited") {
-        setSuggestions([]);
-        setSuggestionStatus("rate_limited");
-        setRetryAfterSeconds(data.retryAfterSeconds ?? (Number(res.headers.get("Retry-After")) || 1));
-        return;
-      }
-      if (!res.ok || data.status === "unavailable") {
-        setSuggestions([]);
-        setSuggestionStatus("error");
-        return;
-      }
-
-      const next = data.suggestions ?? [];
-      setSuggestions((prev) => (suggestionsEqual(prev, next) ? prev : next));
-      setSuggestionStatus(next.length ? "idle" : "empty");
-      setRetryAfterSeconds(0);
-    } catch (err) {
-      if ((err as Error).name === "AbortError") return;
+    await suggestionSearch.search(plain, (update) => {
       if (requestId !== requestIdRef.current || !isOpen) return;
-      setSuggestions([]);
-      setSuggestionStatus("error");
-    } finally {
-      if (requestId === requestIdRef.current) setIsSuggesting(false);
-    }
-  }, [isOpen]);
+      const previous = suggestionsRef.current;
+      suggestionsRef.current = update.suggestions;
+      setActiveIndex((index) => {
+        const selectedId = previous[index]?.pealimId;
+        return selectedId === undefined ? -1 : update.suggestions.findIndex((item) => item.pealimId === selectedId);
+      });
+      setSuggestions((prev) => suggestionsEqual(prev, update.suggestions) ? prev : update.suggestions);
+      setIsSuggesting(false);
+      setIsCompleting(update.isCompleting);
+      setCompletionFailed(update.completionFailed === true);
+      setRetryAfterSeconds(update.error?.retryAfterSeconds ?? 0);
+      setSuggestionStatus(update.error
+        ? update.error.rateLimited ? "rate_limited" : "error"
+        : update.suggestions.length || update.isCompleting ? "idle" : "empty");
+    });
+  }, [isOpen, suggestionSearch]);
+
+  const retrySuggestions = () => {
+    inputRef.current?.focus({ preventScroll: true });
+    void executeSuggestionSearch(query);
+  };
 
   const handleRequestClose = () => {
     if (showSuggestionsRef.current) {
@@ -169,10 +155,10 @@ export default function AddVocabWordModal({
       inputRef.current?.focus();
       return;
     }
-    onClose();
+    closeModal();
   };
 
-  const { dialogRef, titleId } = useModalAccessibility(isOpen, handleRequestClose);
+  const { dialogRef, titleId } = useModalAccessibility(isOpen, handleRequestClose, inputRef);
 
   useEffect(() => {
     showSuggestionsRef.current = showSuggestions;
@@ -195,14 +181,14 @@ export default function AddVocabWordModal({
 
   const closeModal = () => {
     clearSuggestionDebounce();
-    abortRef.current?.abort();
+    suggestionSearch.cancel();
     requestIdRef.current += 1;
     onClose();
   };
 
   useEffect(() => {
     if (!isOpen) {
-      abortRef.current?.abort();
+      suggestionSearch.cancel();
       setMode("word");
       setQuery("");
       setPhraseHebrew("");
@@ -211,6 +197,9 @@ export default function AddVocabWordModal({
       setIsSearching(false);
       setIsSaving(false);
       setIsSuggesting(false);
+      setIsCompleting(false);
+      setCompletionFailed(false);
+      suggestionsRef.current = [];
       setSuggestions([]);
       setShowSuggestions(false);
       setSuggestionStatus("idle");
@@ -223,7 +212,7 @@ export default function AddVocabWordModal({
       skipSuggestRef.current = null;
       requestIdRef.current += 1;
     }
-  }, [isOpen]);
+  }, [isOpen, suggestionSearch]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -234,15 +223,23 @@ export default function AddVocabWordModal({
       return;
     }
 
-    const plain = stripNiqqud(cleanSearchQuery(query));
+    const plain = normalizeDictionarySearch(cleanSearchQuery(query));
     if (plain.length < MIN_QUERY_LEN) {
-      abortRef.current?.abort();
+      suggestionSearch.cancel();
       requestIdRef.current += 1;
+      suggestionsRef.current = [];
       setSuggestions([]);
       setShowSuggestions(false);
       setIsSuggesting(false);
+      setIsCompleting(false);
+      setCompletionFailed(false);
       setSuggestionStatus("idle");
       setActiveIndex(-1);
+      return;
+    }
+
+    if (suggestionSearch.getCached(plain)) {
+      void executeSuggestionSearch(query);
       return;
     }
 
@@ -254,22 +251,25 @@ export default function AddVocabWordModal({
     return () => {
       clearSuggestionDebounce();
     };
-  }, [query, isOpen, mode, executeSuggestionSearch]);
+  }, [query, isOpen, mode, executeSuggestionSearch, suggestionSearch]);
 
   const switchToPhraseMode = (hebrewSeed = "") => {
     clearSuggestionDebounce();
     skipSuggestRef.current = null;
-    abortRef.current?.abort();
+    suggestionSearch.cancel();
     requestIdRef.current += 1;
     setMode("phrase");
     setQuery("");
     setResult(null);
     setError(null);
+    suggestionsRef.current = [];
     setSuggestions([]);
     setShowSuggestions(false);
     setSuggestionStatus("idle");
     setActiveIndex(-1);
     setIsSuggesting(false);
+    setIsCompleting(false);
+    setCompletionFailed(false);
     setIsSearching(false);
     if (hebrewSeed) {
       setPhraseHebrew(hebrewSeed);
@@ -279,27 +279,32 @@ export default function AddVocabWordModal({
 
   const handleQueryChange = (value: string) => {
     skipSuggestRef.current = null;
-    abortRef.current?.abort();
+    suggestionSearch.cancel();
     requestIdRef.current += 1;
+    clearSuggestionDebounce();
+    setIsCompleting(false);
+    setCompletionFailed(false);
+    setRetryAfterSeconds(0);
     setQuery(value);
     setResult(null);
     setMeaningStatus("ready");
     setError(null);
+    suggestionsRef.current = [];
     setSuggestions([]);
     setActiveIndex(-1);
-    setSuggestionStatus(stripNiqqud(cleanSearchQuery(value)).length >= MIN_QUERY_LEN ? "loading" : "idle");
-    setIsSuggesting(stripNiqqud(cleanSearchQuery(value)).length >= MIN_QUERY_LEN);
-    setShowSuggestions(stripNiqqud(cleanSearchQuery(value)).length >= MIN_QUERY_LEN);
+    setSuggestionStatus(normalizeDictionarySearch(cleanSearchQuery(value)).length >= MIN_QUERY_LEN ? "loading" : "idle");
+    setIsSuggesting(normalizeDictionarySearch(cleanSearchQuery(value)).length >= MIN_QUERY_LEN);
+    setShowSuggestions(normalizeDictionarySearch(cleanSearchQuery(value)).length >= MIN_QUERY_LEN);
   };
 
   useEffect(() => {
     return () => {
-      abortRef.current?.abort();
+      suggestionSearch.cancel();
       if (blurCloseTimerRef.current !== null) {
         window.clearTimeout(blurCloseTimerRef.current);
       }
     };
-  }, []);
+  }, [suggestionSearch]);
 
   const applyLookupResult = (payload: LookupResult, source: "dictionary" | "ai" = "dictionary") => {
     setResult(payload);
@@ -307,6 +312,7 @@ export default function AddVocabWordModal({
     setMeaningStatus("ready");
     setError(null);
     setShowSuggestions(false);
+    suggestionsRef.current = [];
     setSuggestions([]);
     setActiveIndex(-1);
   };
@@ -314,13 +320,16 @@ export default function AddVocabWordModal({
   const handleSelectSuggestion = async (suggestion: DictionarySuggestion) => {
     clearSuggestionDebounce();
     skipSuggestRef.current = suggestion.word;
-    abortRef.current?.abort();
+    suggestionSearch.cancel();
     const requestId = ++requestIdRef.current;
     setQuery(suggestion.word);
     setShowSuggestions(false);
+    suggestionsRef.current = [];
     setSuggestions([]);
     setActiveIndex(-1);
     setIsSuggesting(false);
+    setIsCompleting(false);
+    setCompletionFailed(false);
     setSuggestionStatus("idle");
     setIsSearching(false);
     setResult(null);
@@ -365,7 +374,7 @@ export default function AddVocabWordModal({
       return;
     }
 
-    if (!cleanSearchQuery(query)) return;
+    if (!normalizeDictionarySearch(cleanSearchQuery(query))) return;
     setResult(null);
     setError(null);
     setShowSuggestions(true);
@@ -376,7 +385,7 @@ export default function AddVocabWordModal({
     clearSuggestionDebounce();
     const cleanWord = cleanSearchQuery(query);
     if (!cleanWord || isSearching) return;
-    abortRef.current?.abort();
+    suggestionSearch.cancel();
     const requestId = ++requestIdRef.current;
     setIsSearching(true);
     setResult(null);
@@ -465,7 +474,7 @@ export default function AddVocabWordModal({
       });
 
       if (saveRes.type !== "auth_required") {
-    closeModal();
+        closeModal();
       }
     } finally {
       setIsSaving(false);
@@ -531,7 +540,10 @@ export default function AddVocabWordModal({
   };
 
   const handleInputBlur = () => {
+    if (blurCloseTimerRef.current !== null) window.clearTimeout(blurCloseTimerRef.current);
     blurCloseTimerRef.current = window.setTimeout(() => {
+      const focused = document.activeElement;
+      if (focused && (popupRef.current?.contains(focused) || searchRowRef.current?.contains(focused))) return;
       setShowSuggestions(false);
       setActiveIndex(-1);
     }, 120);
@@ -542,33 +554,66 @@ export default function AddVocabWordModal({
       window.clearTimeout(blurCloseTimerRef.current);
       blurCloseTimerRef.current = null;
     }
-    if (suggestions.length > 0 && stripNiqqud(cleanSearchQuery(query)).length >= MIN_QUERY_LEN) {
+    if (suggestionsRef.current.length > 0 && normalizeDictionarySearch(cleanSearchQuery(query)).length >= MIN_QUERY_LEN) {
       setShowSuggestions(true);
     }
   };
 
-  if (!isOpen) return null;
-
   const listOpen = showSuggestions && !isSearching;
   const showEmptyHint =
     listOpen &&
+    !isCompleting &&
     suggestionStatus === "empty" &&
     suggestions.length === 0 &&
-    stripNiqqud(cleanSearchQuery(query)).length >= MIN_QUERY_LEN;
+    normalizeDictionarySearch(cleanSearchQuery(query)).length >= MIN_QUERY_LEN;
 
-  return (
+  useLayoutEffect(() => {
+    if (!isOpen || !listOpen || mode !== "word") return;
+    const row = searchRowRef.current;
+    if (!row) return;
+    const updatePosition = () => {
+      const viewport = window.visualViewport;
+      const next = getSuggestionPosition(row.getBoundingClientRect(), {
+        top: viewport?.offsetTop ?? 0,
+        left: viewport?.offsetLeft ?? 0,
+        width: viewport?.width ?? window.innerWidth,
+        height: viewport?.height ?? window.innerHeight,
+      });
+      setPopupPosition((previous) => previous && Object.keys(next).every(
+        (key) => previous[key as keyof typeof next] === next[key as keyof typeof next]
+      ) ? previous : next);
+    };
+    updatePosition();
+    const observer = new ResizeObserver(updatePosition);
+    observer.observe(row);
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    window.visualViewport?.addEventListener("resize", updatePosition);
+    window.visualViewport?.addEventListener("scroll", updatePosition);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+      window.visualViewport?.removeEventListener("resize", updatePosition);
+      window.visualViewport?.removeEventListener("scroll", updatePosition);
+    };
+  }, [isOpen, listOpen, mode]);
+
+  if (!isOpen) return null;
+
+  return createPortal(
     <div
-      className="modal-overlay"
+      ref={dialogRef}
+      className="modal-overlay add-vocab-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
       onClick={(e) => {
         if (e.target === e.currentTarget) closeModal();
       }}
     >
       <div
-        ref={dialogRef}
-        className={`modal-content translation-modal add-vocab-modal${listOpen ? " is-suggesting" : ""}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
+        className="modal-content translation-modal add-vocab-modal"
       >
         <div className="modal-header">
           <h3 id={titleId} className="modal-title" style={{ fontSize: "18px" }}>
@@ -588,7 +633,7 @@ export default function AddVocabWordModal({
               className={`add-vocab-mode-btn${mode === "word" ? " is-active" : ""}`}
               onClick={() => {
                 clearSuggestionDebounce();
-                abortRef.current?.abort();
+                suggestionSearch.cancel();
                 requestIdRef.current += 1;
                 setMode("word");
                 window.setTimeout(() => inputRef.current?.focus(), 0);
@@ -610,7 +655,7 @@ export default function AddVocabWordModal({
           {mode === "word" ? (
           <form className="add-vocab-search-form" onSubmit={handleLookup}>
             <div className="add-vocab-search-field">
-              <div className="add-vocab-search-row">
+              <div ref={searchRowRef} className="add-vocab-search-row">
                 <label htmlFor="add-vocab-word-search" className="sr-only">{t("dictionarySearchLabel")}</label>
                 <input
                   ref={inputRef}
@@ -625,7 +670,6 @@ export default function AddVocabWordModal({
                   placeholder={t("searchHebrewWordPlaceholder")}
                   aria-describedby="add-vocab-word-search-hint"
                   dir="auto"
-                  autoFocus
                   autoComplete="off"
                   spellCheck={false}
                   role="combobox"
@@ -654,92 +698,13 @@ export default function AddVocabWordModal({
                 <button
                   type="submit"
                   className="add-vocab-search-btn"
-                  disabled={isSearching || !query.trim()}
+                  disabled={isSearching || !normalizeDictionarySearch(cleanSearchQuery(query))}
                   aria-label={t("lookUpWord")}
                 >
                   {isSearching || isSuggesting ? <Loader2 className="spinner" size={16} /> : <Search size={16} />}
                 </button>
               </div>
 
-              {listOpen && (suggestions.length > 0 || isSuggesting || showEmptyHint || suggestionStatus === "error" || suggestionStatus === "rate_limited") && (
-                <div
-                  className="add-vocab-suggestions"
-                >
-                  {isSuggesting && (
-                    <div className="add-vocab-suggestions-status" role="status" aria-live="polite">
-                      <Loader2 className="spinner" size={14} />
-                      <span>{t("searchingDictionary")}</span>
-                    </div>
-                  )}
-
-                  {showEmptyHint && (
-                    <div className="add-vocab-suggestions-status" role="status" aria-live="polite">
-                      {t("noDictionaryMatches")}
-                    </div>
-                  )}
-
-                  {suggestionStatus === "error" && !isSuggesting && (
-                    <div className="add-vocab-suggestions-status add-vocab-search-error" role="status">
-                      <span>{t("dictionaryUnavailable")}</span>
-                      <button type="button" onClick={() => void executeSuggestionSearch(query)}>{t("tryAgain")}</button>
-                    </div>
-                  )}
-
-                  {suggestionStatus === "rate_limited" && !isSuggesting && (
-                    <div className="add-vocab-suggestions-status" role="status">
-                      {retryAfterSeconds > 0
-                        ? t("dictionaryRateLimited", { count: retryAfterSeconds })
-                        : <><span>{t("dictionaryRateLimitReady")}</span><button type="button" onClick={() => void executeSuggestionSearch(query)}>{t("tryAgain")}</button></>}
-                    </div>
-                  )}
-
-                  <div ref={listboxRef} id={listboxId} className="add-vocab-suggestion-list" role="listbox" aria-label={t("dictionarySuggestions")}>
-                  {suggestions.map((suggestion, index) => (
-                    <button
-                      key={suggestion.pealimId}
-                      id={`${listboxId}-option-${index}`}
-                      type="button"
-                      role="option"
-                      aria-selected={index === activeIndex}
-                      className={`add-vocab-suggestion${
-                        index === activeIndex ? " is-active" : ""
-                      }`}
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => void handleSelectSuggestion(suggestion)}
-                    >
-                      <span className="add-vocab-suggestion-main">
-                        <span className="add-vocab-suggestion-hebrew font-serif" dir="rtl" lang="he">
-                          {suggestion.wordWithNekudot || suggestion.word}
-                        </span>
-                        {suggestion.transliteration && (
-                          <span className="add-vocab-suggestion-translit">
-                            {suggestion.transliteration}
-                          </span>
-                        )}
-                      </span>
-                      <span className="add-vocab-suggestion-meta">
-                        <span className="add-vocab-suggestion-meaning">
-                          {suggestion.meaning}
-                        </span>
-                        {(suggestion.matchType === "fuzzy" || suggestion.matchType === "fuzzy_form") && (
-                          <span className="add-vocab-suggestion-match">{t("possibleSpellingMatch")}</span>
-                        )}
-                        {(suggestion.matchType === "form" || suggestion.matchType === "fuzzy_form") && suggestion.matchedText !== suggestion.word && (
-                          <span className="add-vocab-suggestion-match font-serif" dir="rtl" lang="he">
-                            {t("matchedForm", { word: suggestion.matchedText })}
-                          </span>
-                        )}
-                        {suggestion.partOfSpeech && (
-                          <span className="add-vocab-suggestion-pos">
-                            {suggestion.partOfSpeech}
-                          </span>
-                        )}
-                      </span>
-                    </button>
-                  ))}
-                  </div>
-                </div>
-              )}
               <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
                 {suggestionStatus === "idle" && suggestions.length > 0
                   ? t("dictionaryResultsCount", { count: suggestions.length })
@@ -773,7 +738,6 @@ export default function AddVocabWordModal({
               value={phraseHebrew}
               onChange={(e) => setPhraseHebrew(e.target.value.normalize("NFC"))}
               placeholder={t("phraseHebrewPlaceholder")}
-              autoFocus
             />
 
             <label className="add-vocab-field-label" htmlFor="add-vocab-phrase-translation">
@@ -883,6 +847,95 @@ export default function AddVocabWordModal({
           </div>
         )}
       </div>
-    </div>
+      {listOpen && (suggestions.length > 0 || isSuggesting || isCompleting || showEmptyHint || suggestionStatus === "error" || suggestionStatus === "rate_limited") && (
+        <div
+          ref={popupRef}
+          className="add-vocab-suggestions"
+          style={popupPosition ?? { visibility: "hidden" }}
+        >
+          {isSuggesting && (
+            <div className="add-vocab-suggestions-status" role="status" aria-live="polite">
+              <Loader2 className="spinner" size={14} />
+              <span>{t("searchingDictionary")}</span>
+            </div>
+          )}
+
+          {isCompleting && (
+            <div className="add-vocab-suggestions-status" role="status" aria-live="polite">
+              <Loader2 className="spinner" size={14} />
+              <span>{t("completingDictionary")}</span>
+            </div>
+          )}
+
+          {showEmptyHint && (
+            <div className="add-vocab-suggestions-status" role="status" aria-live="polite">
+              {t("noDictionaryMatches")}
+            </div>
+          )}
+
+          {suggestionStatus === "error" && !isSuggesting && (
+            <div className="add-vocab-suggestions-status add-vocab-search-error" role="status">
+              <span>{t(completionFailed ? "dictionaryCompletionFailed" : "dictionaryUnavailable")}</span>
+              <button type="button" onClick={retrySuggestions}>{t("tryAgain")}</button>
+            </div>
+          )}
+
+          {suggestionStatus === "rate_limited" && !isSuggesting && (
+            <div className="add-vocab-suggestions-status" role="status">
+              {retryAfterSeconds > 0
+                ? t("dictionaryRateLimited", { count: retryAfterSeconds })
+                : <><span>{t("dictionaryRateLimitReady")}</span><button type="button" onClick={retrySuggestions}>{t("tryAgain")}</button></>}
+            </div>
+          )}
+
+          <div ref={listboxRef} id={listboxId} className="add-vocab-suggestion-list" role="listbox" aria-label={t("dictionarySuggestions")}>
+          {suggestions.map((suggestion, index) => (
+            <button
+              key={suggestion.pealimId}
+              id={`${listboxId}-option-${index}`}
+              type="button"
+              role="option"
+              aria-selected={index === activeIndex}
+              className={`add-vocab-suggestion${
+                index === activeIndex ? " is-active" : ""
+              }`}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => void handleSelectSuggestion(suggestion)}
+            >
+              <span className="add-vocab-suggestion-main">
+                <span className="add-vocab-suggestion-hebrew font-serif" dir="rtl" lang="he">
+                  {suggestion.wordWithNekudot || suggestion.word}
+                </span>
+                {suggestion.transliteration && (
+                  <span className="add-vocab-suggestion-translit">
+                    {suggestion.transliteration}
+                  </span>
+                )}
+              </span>
+              <span className="add-vocab-suggestion-meta">
+                <span className="add-vocab-suggestion-meaning">
+                  {suggestion.meaning}
+                </span>
+                {(suggestion.matchType === "fuzzy" || suggestion.matchType === "fuzzy_form") && (
+                  <span className="add-vocab-suggestion-match">{t("possibleSpellingMatch")}</span>
+                )}
+                {(suggestion.matchType === "form" || suggestion.matchType === "fuzzy_form") && suggestion.matchedText !== suggestion.word && (
+                  <span className="add-vocab-suggestion-match font-serif" dir="rtl" lang="he">
+                    {t("matchedForm", { word: suggestion.matchedText })}
+                  </span>
+                )}
+                {suggestion.partOfSpeech && (
+                  <span className="add-vocab-suggestion-pos">
+                    {suggestion.partOfSpeech}
+                  </span>
+                )}
+              </span>
+            </button>
+          ))}
+          </div>
+        </div>
+      )}
+    </div>,
+    document.body
   );
 }

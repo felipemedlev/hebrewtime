@@ -1,0 +1,58 @@
+{
+  "source": "disposable PGlite database with synthetic dictionary fixtures",
+  "checks": [
+    "migration idempotence",
+    "17 query result and ranking comparisons",
+    "client and database normalization equivalence",
+    "existing dictionary fixture suite",
+    "direct mode, permissions, and skipped spelling work",
+    "prefix and spelling index plans"
+  ],
+  "timings": {
+    "direct": {
+      "samples": 50,
+      "p50Ms": 1.12,
+      "p95Ms": 13.11
+    },
+    "complete": {
+      "samples": 50,
+      "p50Ms": 62.44,
+      "p95Ms": 471.44
+    }
+  },
+  "plans": {
+    "prefix": [
+      "Index Scan using dictionary_search_terms_prefix_c_idx on dictionary_search_terms  (cost=0.29..8.31 rows=1 width=4) (actual time=0.032..0.035 rows=1.00 loops=1)",
+      "  Index Cond: (((normalized_term)::text >= 'mivhan'::text COLLATE \"C\") AND ((normalized_term)::text < 'mivhao'::text COLLATE \"C\"))",
+      "  Index Searches: 1",
+      "  Buffers: shared hit=8",
+      "Planning Time: 0.052 ms",
+      "Execution Time: 0.082 ms"
+    ],
+    "spelling": [
+      "HashAggregate  (cost=7255.61..7305.64 rows=5003 width=4) (actual time=0.400..0.416 rows=1.00 loops=1)",
+      "  Group Key: t.pealim_id",
+      "  Batches: 1  Memory Usage: 129kB",
+      "  Buffers: shared hit=436",
+      "  ->  Nested Loop  (cost=16.18..7222.09 rows=13409 width=4) (actual time=0.098..0.382 rows=21.00 loops=1)",
+      "        Buffers: shared hit=436",
+      "        ->  Function Scan on unnest q  (cost=0.00..0.67 rows=67 width=32) (actual time=0.005..0.022 rows=67.00 loops=1)",
+      "        ->  Bitmap Heap Scan on dictionary_search_terms t  (cost=16.17..105.78 rows=200 width=252) (actual time=0.004..0.004 rows=0.31 loops=67)",
+      "              Recheck Cond: (delete_keys @> ARRAY[q.value])",
+      "              Heap Blocks: exact=168",
+      "              Buffers: shared hit=436",
+      "              ->  Bitmap Index Scan on dictionary_search_terms_delete_keys_idx  (cost=0.00..16.12 rows=200 width=0) (actual time=0.002..0.002 rows=2.51 loops=67)",
+      "                    Index Cond: (delete_keys @> ARRAY[q.value])",
+      "                    Index Searches: 67",
+      "                    Buffers: shared hit=268",
+      "Planning:",
+      "  Buffers: shared hit=1",
+      "Planning Time: 0.198 ms",
+      "Execution Time: 0.432 ms"
+    ]
+  },
+  "rowCounts": {
+    "entries": 5003,
+    "terms": 40027
+  }
+}

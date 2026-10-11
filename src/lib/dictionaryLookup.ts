@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { normalizeDictionarySearch, type DictionarySearchMode } from "./dictionarySearch";
 import type { DictionaryEntry, DictionaryForm, ConjugationSection } from "@/lib/types";
 
 const NIQQUD_RE = /[\u0591-\u05C7]/g;
@@ -201,9 +202,21 @@ const SUGGESTION_CACHE_TTL_MS = 5 * 60_000;
 const SUGGESTION_CACHE_MAX = 512;
 const SUGGESTION_SELECT =
   "pealim_id, word, word_with_nekudot, transliteration, part_of_speech, meaning";
-const suggestionCache = new Map<string, { expiresAt: number; value: DictionarySuggestion[] }>();
-const pendingSuggestions = new Map<string, Promise<DictionarySuggestion[]>>();
-let loggedMissingSuggestionSearch = false;
+type SuggestionStore = {
+  cache: Map<string, { expiresAt: number; value: DictionarySuggestion[] }>;
+  pending: Map<string, Promise<DictionarySuggestion[]>>;
+  missingUntil: Partial<Record<DictionarySearchMode, number>>;
+};
+const suggestionStores = new WeakMap<SupabaseClient, SuggestionStore>();
+
+function getSuggestionStore(client: SupabaseClient): SuggestionStore {
+  let store = suggestionStores.get(client);
+  if (!store) {
+    store = { cache: new Map(), pending: new Map(), missingUntil: {} };
+    suggestionStores.set(client, store);
+  }
+  return store;
+}
 
 type EntrySuggestionRow = {
   pealim_id: number;
@@ -215,8 +228,7 @@ type EntrySuggestionRow = {
 };
 
 function isMissingSuggestionSearch(error: { code?: string; message?: string }): boolean {
-  return error.code === "PGRST202" || error.code === "42883" || error.code === "42P01"
-    || /search_dictionary_suggestions|dictionary_search_terms/i.test(error.message ?? "");
+  return error.code === "PGRST202" || error.code === "42883" || error.code === "42P01";
 }
 
 function mapEntrySuggestion(
@@ -340,7 +352,8 @@ async function searchDictionaryEntries(
   ], plain).slice(0, limit);
 }
 
-function rememberSuggestions(cacheKey: string, value: DictionarySuggestion[]): DictionarySuggestion[] {
+function rememberSuggestions(store: SuggestionStore, cacheKey: string, value: DictionarySuggestion[]): DictionarySuggestion[] {
+  const suggestionCache = store.cache;
   suggestionCache.set(cacheKey, { expiresAt: Date.now() + SUGGESTION_CACHE_TTL_MS, value });
   while (suggestionCache.size > SUGGESTION_CACHE_MAX) {
     const oldestKey = suggestionCache.keys().next().value;
@@ -366,13 +379,17 @@ function mapSuggestionRow(row: SearchResponseRow): DictionarySuggestion {
 export async function searchDictionaryPrefix(
   client: SupabaseClient | null,
   query: string,
-  limit = 8
+  limit = 8,
+  mode: DictionarySearchMode = "complete"
 ): Promise<DictionarySuggestion[]> {
   if (!client) return [];
 
-  const normalizedQuery = stripNiqqud(query.normalize("NFKC").trim()).replace(/\s+/g, " ");
+  const normalizedQuery = normalizeDictionarySearch(query);
   if (!normalizedQuery) return [];
-  const cacheKey = `${normalizedQuery.toLowerCase()}\u0000${Math.max(1, Math.min(20, limit))}`;
+  const store = getSuggestionStore(client);
+  const suggestionCache = store.cache;
+  const pendingSuggestions = store.pending;
+  const cacheKey = `${mode}\u0000${normalizedQuery}\u0000${Math.max(1, Math.min(20, limit))}`;
   const now = Date.now();
   const cached = suggestionCache.get(cacheKey);
   if (cached && cached.expiresAt > now) return cached.value;
@@ -383,24 +400,27 @@ export async function searchDictionaryPrefix(
 
   const request = (async () => {
     const boundedLimit = Math.max(1, Math.min(20, limit));
-    const { data, error } = await client.rpc("search_dictionary_suggestions", {
+    if ((store.missingUntil[mode] ?? 0) > Date.now()) {
+      return rememberSuggestions(store, cacheKey, await searchDictionaryEntries(client, normalizedQuery, boundedLimit));
+    }
+    const rpcName = mode === "direct" ? "search_dictionary_suggestions_direct" : "search_dictionary_suggestions";
+    const { data, error } = await client.rpc(rpcName, {
       search_query: normalizedQuery,
       result_limit: boundedLimit,
     });
     if (error && isMissingSuggestionSearch(error)) {
-      if (!loggedMissingSuggestionSearch) {
-        loggedMissingSuggestionSearch = true;
-        console.error("Dictionary suggestion function is not installed. Using dictionary_entries search.");
-      }
+      // Avoid waiting for the same missing function on every keystroke during rollout.
+      store.missingUntil[mode] = Date.now() + 60_000;
       const fallback = await searchDictionaryEntries(client, normalizedQuery, boundedLimit);
-      return rememberSuggestions(cacheKey, fallback);
+      return rememberSuggestions(store, cacheKey, fallback);
     }
     if (error) {
       console.error("Dictionary suggestion search failed:", error);
       throw new Error("Dictionary search unavailable");
     }
+    delete store.missingUntil[mode];
     const value = ((data ?? []) as SearchResponseRow[]).map(mapSuggestionRow);
-    return rememberSuggestions(cacheKey, value);
+    return rememberSuggestions(store, cacheKey, value);
   })();
 
   pendingSuggestions.set(cacheKey, request);

@@ -88,6 +88,7 @@ hebrewtime/
 | [`docs/speak.md`](docs/speak.md) | Speak with AI: session flow, prompts, memory, how to extend |
 | [`pipeline/README.md`](pipeline/README.md) | Content generation workflow, CLI flags, how to add a new level |
 | [`docs/dictionary_entries.md`](docs/dictionary_entries.md) | Pealim dictionary schema and JSONB shapes |
+| [`docs/dictionary_search.md`](docs/dictionary_search.md) | Vocabulary search stages, performance checks, and migration rollout |
 
 ## Artifact hygiene
 

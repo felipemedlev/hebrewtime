@@ -107,7 +107,9 @@ Transcript word lookup in `src/lib/dictionaryLookup.ts` keeps this order:
 4. Fuzzy match via `pg_trgm` (`match_dictionary_word()` RPC)
 5. OpenAI fallback when steps 1–4 find nothing, or to disambiguate homonyms
 
-“Add to vocabulary” suggestions use the `search_dictionary_suggestions()` RPC and its indexed `dictionary_search_terms` table. It matches headwords, forms, transliterations, and glosses in one ranked query, then verifies likely spelling corrections. The modal shows a selected dictionary result immediately and translates its gloss in the background for non English UI languages. AI lookup is an explicit action and retains the existing translation limits.
+“Add to vocabulary” first calls `search_dictionary_suggestions_direct()` for ranked headwords, forms, transliterations, glosses, and Hebrew prefixes. If result slots remain and spelling correction is eligible, a second request calls `search_dictionary_suggestions()`. Direct results stay selectable during that request. Both use the indexed `dictionary_search_terms` table. The complete query skips spelling work when direct matches fill the list and uses individual GIN lookups before validating unique spelling terms. Migration 18 installs this behavior. See [`dictionary_search.md`](dictionary_search.md) for verification and rollout.
+
+The modal keeps successful searches in memory for five minutes, with a limit of 128 queries, and shows cached results without waiting for the debounce or making another request. The dialog renders at the page root. Its popup sits outside the scrolling card, within the dialog focus scope, and adjusts to the input position and visual viewport. Long result text wraps. The modal shows a selected dictionary result immediately and translates its gloss in the background for non English UI languages. AI lookup is an explicit action and retains the existing translation limits.
 
 Dictionary hits return Pealim lemma, Nekudot, transliteration, and meaning. Non English UI languages get gloss translation via a small OpenAI call.
 

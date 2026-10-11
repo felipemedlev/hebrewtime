@@ -23,8 +23,9 @@ Run migrations in [`supabase/migrations/`](../supabase/migrations/) **in numeric
 | 15 | `15_speak_drop_scene.sql` | Drops `speak_profiles.scene` |
 | 16 | `16_security_and_atomic_usage.sql` | Atomic daily quota reservations/releases and vocabulary ownership checks for review writes |
 | 17 | `17_dictionary_search.sql` | Indexed dictionary terms for headwords, forms, transliterations, glosses, and typo-tolerant suggestions |
+| 18 | `18_dictionary_search_performance.sql` | Direct suggestions first, indexed spelling completion, and explicit prefix bounds |
 
-**Fresh install:** run 01 through 17 in order.
+**Fresh install:** run 01 through 18 in order.
 
 **Existing project:** skip migrations you have already applied. Migration 09 is important if your project still has premium only RLS on vocabulary/flashcards.
 

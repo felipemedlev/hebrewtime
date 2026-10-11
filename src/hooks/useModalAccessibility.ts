@@ -1,11 +1,15 @@
 "use client";
 
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useId, useRef, type RefObject } from "react";
 
 const FOCUSABLE_SELECTOR =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-export function useModalAccessibility(isOpen: boolean, onClose: () => void) {
+export function useModalAccessibility(
+  isOpen: boolean,
+  onClose: () => void,
+  initialFocusRef?: RefObject<HTMLElement | null>
+) {
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
@@ -47,7 +51,7 @@ export function useModalAccessibility(isOpen: boolean, onClose: () => void) {
 
     const focusTimer = window.setTimeout(() => {
       const firstFocusable = dialogRef.current?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
-      firstFocusable?.focus({ preventScroll: true });
+      (initialFocusRef?.current ?? firstFocusable)?.focus({ preventScroll: true });
     }, 0);
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -89,7 +93,7 @@ export function useModalAccessibility(isOpen: boolean, onClose: () => void) {
       }
       previousFocusRef.current?.focus({ preventScroll: true });
     };
-  }, [isOpen]);
+  }, [isOpen, initialFocusRef]);
 
   return { dialogRef, titleId };
 }

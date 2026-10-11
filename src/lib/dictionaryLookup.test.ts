@@ -1,6 +1,8 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { searchDictionaryPrefix } from "./dictionaryLookup";
+
+afterEach(() => vi.useRealTimers());
 
 function suggestionRow(overrides: Record<string, unknown> = {}) {
   return {
@@ -17,6 +19,30 @@ function suggestionRow(overrides: Record<string, unknown> = {}) {
 }
 
 describe("dictionary suggestion RPC", () => {
+  it("keeps direct and complete server caches separate", async () => {
+    const rpc = vi.fn().mockResolvedValueOnce({ data: [suggestionRow({ match_type: "headword" })], error: null })
+      .mockResolvedValueOnce({ data: [suggestionRow()], error: null });
+    const client = { rpc } as unknown as SupabaseClient;
+    expect((await searchDictionaryPrefix(client, "test", 8, "direct"))[0].matchType).toBe("headword");
+    expect((await searchDictionaryPrefix(client, "test"))[0].matchType).toBe("fuzzy");
+    await searchDictionaryPrefix(client, "test", 8, "direct");
+    expect(rpc).toHaveBeenCalledTimes(2);
+    expect(rpc.mock.calls[0][0]).toBe("search_dictionary_suggestions_direct");
+  });
+
+  it("expires successful server results and never caches failures", async () => {
+    vi.useFakeTimers();
+    const rpc = vi.fn().mockResolvedValueOnce({ data: [suggestionRow()], error: null })
+      .mockResolvedValueOnce({ data: null, error: { code: "57014", message: "search_dictionary_suggestions timed out" } })
+      .mockResolvedValueOnce({ data: [suggestionRow()], error: null });
+    const client = { rpc } as unknown as SupabaseClient;
+    await searchDictionaryPrefix(client, "cache fixture");
+    vi.advanceTimersByTime(5 * 60_000);
+    await expect(searchDictionaryPrefix(client, "cache fixture")).rejects.toThrow("Dictionary search unavailable");
+    await searchDictionaryPrefix(client, "cache fixture");
+    expect(rpc).toHaveBeenCalledTimes(3);
+  });
+
   it("normalizes input and maps spelling match details to the client shape", async () => {
     const rpc = vi.fn().mockResolvedValue({ data: [suggestionRow()], error: null });
     const client = { rpc } as unknown as SupabaseClient;

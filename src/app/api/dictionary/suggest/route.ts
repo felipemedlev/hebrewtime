@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { needsDictionaryCompletion } from "@/lib/dictionarySearch";
 import { searchDictionaryPrefix } from "@/lib/dictionaryLookup";
 import { checkRateLimitWithRetry, clampString, INPUT_LIMITS } from "@/lib/actionGuards";
 
@@ -15,6 +16,7 @@ const supabaseAdmin =
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
+  const mode = searchParams.get("mode") === "direct" ? "direct" : "complete";
   const safeQuery = clampString(searchParams.get("q") ?? "", INPUT_LIMITS.word);
 
   if (!safeQuery) {
@@ -39,8 +41,12 @@ export async function GET(request: Request) {
   }
 
   try {
-    const suggestions = await searchDictionaryPrefix(supabaseAdmin, safeQuery, 8);
-    return NextResponse.json({ suggestions, status: suggestions.length ? "success" : "empty" }, {
+    const suggestions = await searchDictionaryPrefix(supabaseAdmin, safeQuery, 8, mode);
+    return NextResponse.json({
+      suggestions,
+      status: suggestions.length ? "success" : "empty",
+      ...(mode === "direct" ? { needsCompletion: needsDictionaryCompletion(safeQuery, suggestions.length) } : {}),
+    }, {
       headers: { "Cache-Control": "private, max-age=0, s-maxage=300, stale-while-revalidate=300" },
     });
   } catch {

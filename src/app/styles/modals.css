@@ -192,16 +192,22 @@
   max-height: calc(100dvh - 2rem);
   overflow-y: auto;
   overscroll-behavior: contain;
+  animation: none;
 }
 
-.add-vocab-modal.is-suggesting {
-  overflow: visible;
+.add-vocab-overlay {
+  animation: none;
+  /* A backdrop filter creates a containing block for the fixed popup. */
+  backdrop-filter: none;
 }
 
-.modal-overlay:has(.add-vocab-modal.is-suggesting) {
-  align-items: flex-start;
-  overflow-y: auto;
-  padding-top: var(--space-4);
+.add-vocab-overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  backdrop-filter: blur(var(--space-1));
+  pointer-events: none;
+  z-index: -1;
 }
 
 .add-vocab-modal .modal-body {
@@ -360,11 +366,10 @@
 }
 
 .add-vocab-suggestions {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  right: 0;
+  position: fixed;
   z-index: 20;
+  display: flex;
+  flex-direction: column;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -373,13 +378,15 @@
 }
 
 .add-vocab-suggestion-list {
-  max-height: min(420px, calc(100dvh - 18rem));
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
 
 .add-vocab-suggestions-status {
   display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-3) var(--space-3);
@@ -436,12 +443,15 @@
 
 .add-vocab-suggestion-main {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-3);
 }
 
 .add-vocab-suggestion-hebrew {
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-size: var(--text-lg, 18px);
   color: var(--text-main);
   line-height: 1.3;
@@ -451,11 +461,13 @@
   font-size: var(--text-xs, 12px);
   color: var(--text-muted);
   font-style: italic;
-  flex-shrink: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .add-vocab-suggestion-meta {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-3);
@@ -465,20 +477,21 @@
   font-size: var(--text-base-sm);
   color: var(--text-secondary);
   line-height: 1.35;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .add-vocab-suggestion-pos {
   font-size: 11px;
   color: var(--text-muted);
-  flex-shrink: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
   text-transform: lowercase;
 }
 
 .add-vocab-suggestion-match {
-  flex-shrink: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
   color: var(--accent);
   font-size: 11px;
   line-height: 1.35;
@@ -595,10 +608,6 @@
 
   .add-vocab-modal-body {
     padding-inline: var(--space-4);
-  }
-
-  .add-vocab-suggestion-list {
-    max-height: min(420px, calc(100dvh - 16rem));
   }
 
   .add-vocab-suggestion-meta {

@@ -1,0 +1,129 @@
+{
+  "source": "disposable PGlite database with synthetic dictionary fixtures",
+  "checks": [
+    "migration idempotence",
+    "17 query result and ranking comparisons",
+    "client and database normalization equivalence",
+    "existing dictionary fixture suite",
+    "direct mode, permissions, and skipped spelling work",
+    "prefix and spelling index plans"
+  ],
+  "timings": {
+    "direct": {
+      "samples": 50,
+      "p50Ms": 0.97,
+      "p95Ms": 11.2,
+      "perQueryMeanMs": {
+        "מבחןקודקס": 1.12,
+        "test": 11.21,
+        "mivhancodxe": 0.67,
+        "codex": 1.04,
+        "tx": 0.62
+      }
+    },
+    "complete": {
+      "samples": 50,
+      "p50Ms": 60.49,
+      "p95Ms": 439.5,
+      "perQueryMeanMs": {
+        "מבחןקודקס": 364.19,
+        "test": 12.34,
+        "mivhancodxe": 437.87,
+        "codex": 60.56,
+        "tx": 0.97
+      }
+    }
+  },
+  "plans": {
+    "prefix": [
+      "Index Scan using dictionary_search_terms_prefix_c_idx on dictionary_search_terms  (cost=0.29..8.31 rows=1 width=4) (actual time=0.021..0.024 rows=1.00 loops=1)",
+      "  Index Cond: (((normalized_term)::text >= 'mivhan'::text COLLATE \"C\") AND ((normalized_term)::text < 'mivhao'::text COLLATE \"C\"))",
+      "  Index Searches: 1",
+      "  Buffers: shared hit=8",
+      "Planning Time: 0.039 ms",
+      "Execution Time: 0.068 ms"
+    ],
+    "spelling": [
+      "HashAggregate  (cost=7255.61..7305.64 rows=5003 width=4) (actual time=0.398..0.407 rows=1.00 loops=1)",
+      "  Group Key: t.pealim_id",
+      "  Batches: 1  Memory Usage: 129kB",
+      "  Buffers: shared hit=436",
+      "  ->  Nested Loop  (cost=16.18..7222.09 rows=13409 width=4) (actual time=0.091..0.382 rows=21.00 loops=1)",
+      "        Buffers: shared hit=436",
+      "        ->  Function Scan on unnest q  (cost=0.00..0.67 rows=67 width=32) (actual time=0.004..0.023 rows=67.00 loops=1)",
+      "        ->  Bitmap Heap Scan on dictionary_search_terms t  (cost=16.17..105.78 rows=200 width=251) (actual time=0.004..0.004 rows=0.31 loops=67)",
+      "              Recheck Cond: (delete_keys @> ARRAY[q.value])",
+      "              Heap Blocks: exact=168",
+      "              Buffers: shared hit=436",
+      "              ->  Bitmap Index Scan on dictionary_search_terms_delete_keys_idx  (cost=0.00..16.12 rows=200 width=0) (actual time=0.003..0.003 rows=2.51 loops=67)",
+      "                    Index Cond: (delete_keys @> ARRAY[q.value])",
+      "                    Index Searches: 67",
+      "                    Buffers: shared hit=268",
+      "Planning:",
+      "  Buffers: shared hit=1",
+      "Planning Time: 0.166 ms",
+      "Execution Time: 0.424 ms"
+    ],
+    "completeCandidates": [
+      "Subquery Scan on best  (cost=2704.34..2704.67 rows=22 width=68) (actual time=544.136..544.141 rows=1.00 loops=1)",
+      "  Buffers: shared hit=1574, temp read=54054 written=819",
+      "  CTE query_deletes",
+      "    ->  ProjectSet  (cost=0.00..0.35 rows=67 width=32) (actual time=0.002..0.082 rows=67.00 loops=1)",
+      "          ->  Result  (cost=0.00..0.01 rows=1 width=0) (actual time=0.000..0.001 rows=1.00 loops=1)",
+      "  CTE candidates",
+      "    ->  Unique  (cost=2679.48..2680.32 rows=67 width=35) (actual time=543.962..543.971 rows=1.00 loops=1)",
+      "          Buffers: shared hit=1574, temp read=54054 written=819",
+      "          ->  Sort  (cost=2679.48..2679.65 rows=67 width=35) (actual time=543.961..543.965 rows=21.00 loops=1)",
+      "                Sort Key: t.pealim_id, t.kind, t.term, t.normalized_term",
+      "                Sort Method: quicksort  Memory: 18kB",
+      "                Buffers: shared hit=1574, temp read=54054 written=819",
+      "                ->  Nested Loop  (cost=0.00..2677.45 rows=67 width=35) (actual time=41.876..543.928 rows=21.00 loops=1)",
+      "                      Join Filter: (t.delete_keys @> ARRAY[q.value])",
+      "                      Rows Removed by Join Filter: 664150",
+      "                      Buffers: shared hit=1574, temp read=54054 written=819",
+      "                      ->  CTE Scan on query_deletes q  (cost=0.00..1.34 rows=67 width=32) (actual time=0.003..0.197 rows=67.00 loops=1)",
+      "                            Storage: Memory  Maximum Storage: 19kB",
+      "                      ->  Materialize  (cost=0.00..2475.61 rows=200 width=282) (actual time=0.001..1.516 rows=9913.00 loops=67)",
+      "                            Storage: Disk  Maximum Storage: 6549kB",
+      "                            Buffers: shared hit=1574, temp read=54054 written=819",
+      "                            ->  Seq Scan on dictionary_search_terms t  (cost=0.00..2474.61 rows=200 width=282) (actual time=0.006..5.623 rows=9913.00 loops=1)",
+      "                                  Filter: ((pealim_id <> ALL ('{}'::integer[])) AND (normalized_term <> 'mivhancodxe'::text) AND (char_length(normalized_term) >= 9) AND (char_length(normalized_term) <= 13))",
+      "                                  Rows Removed by Filter: 30114",
+      "                                  Buffers: shared hit=1574",
+      "  CTE distinct_terms",
+      "    ->  HashAggregate  (cost=1.51..2.18 rows=67 width=32) (actual time=0.015..0.015 rows=1.00 loops=1)",
+      "          Group Key: c_1.normalized_term",
+      "          Batches: 1  Memory Usage: 32kB",
+      "          ->  CTE Scan on candidates c_1  (cost=0.00..1.34 rows=67 width=32) (actual time=0.000..0.008 rows=1.00 loops=1)",
+      "                Storage: Memory  Maximum Storage: 17kB",
+      "  CTE verified_terms",
+      "    ->  CTE Scan on distinct_terms d  (cost=0.00..18.26 rows=22 width=32) (actual time=0.158..0.159 rows=1.00 loops=1)",
+      "          Filter: (dictionary_edit_distance('mivhancodxe'::text, normalized_term) <= 2)",
+      "          Storage: Memory  Maximum Storage: 17kB",
+      "  ->  Unique  (cost=3.24..3.35 rows=22 width=108) (actual time=544.135..544.136 rows=1.00 loops=1)",
+      "        Buffers: shared hit=1574, temp read=54054 written=819",
+      "        ->  Sort  (cost=3.24..3.29 rows=22 width=108) (actual time=544.134..544.135 rows=1.00 loops=1)",
+      "              Sort Key: c.pealim_id, (CASE WHEN (c.kind = 'headword'::text) THEN 0 WHEN (c.kind = 'form'::text) THEN 1 WHEN (c.kind = 'transliteration'::text) THEN 2 ELSE 3 END), (char_length(c.normalized_term)), c.normalized_term",
+      "              Sort Method: quicksort  Memory: 17kB",
+      "              Buffers: shared hit=1574, temp read=54054 written=819",
+      "              ->  Hash Join  (cost=0.72..2.75 rows=22 width=108) (actual time=544.130..544.132 rows=1.00 loops=1)",
+      "                    Hash Cond: (c.normalized_term = v.normalized_term)",
+      "                    Buffers: shared hit=1574, temp read=54054 written=819",
+      "                    ->  CTE Scan on candidates c  (cost=0.00..1.34 rows=67 width=100) (actual time=543.964..543.964 rows=1.00 loops=1)",
+      "                          Storage: Memory  Maximum Storage: 17kB",
+      "                          Buffers: shared hit=1574, temp read=54054 written=819",
+      "                    ->  Hash  (cost=0.44..0.44 rows=22 width=32) (actual time=0.162..0.162 rows=1.00 loops=1)",
+      "                          Buckets: 1024  Batches: 1  Memory Usage: 5kB",
+      "                          ->  CTE Scan on verified_terms v  (cost=0.00..0.44 rows=22 width=32) (actual time=0.159..0.160 rows=1.00 loops=1)",
+      "                                Storage: Memory  Maximum Storage: 17kB",
+      "Planning:",
+      "  Buffers: shared hit=1",
+      "Planning Time: 0.237 ms",
+      "Execution Time: 544.233 ms"
+    ]
+  },
+  "rowCounts": {
+    "entries": 5003,
+    "terms": 40027
+  }
+}
