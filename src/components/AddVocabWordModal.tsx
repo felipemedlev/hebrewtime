@@ -101,7 +101,9 @@ export default function AddVocabWordModal({
   const blurCloseTimerRef = useRef<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const searchRowRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
+  const popupInteractionRef = useRef(false);
   const suggestionsRef = useRef<DictionarySuggestion[]>([]);
   const listboxRef = useRef<HTMLDivElement>(null);
   const phraseHebrewRef = useRef<HTMLTextAreaElement>(null);
@@ -152,7 +154,7 @@ export default function AddVocabWordModal({
     if (showSuggestionsRef.current) {
       setShowSuggestions(false);
       setActiveIndex(-1);
-      inputRef.current?.focus();
+      inputRef.current?.focus({ preventScroll: true });
       return;
     }
     closeModal();
@@ -166,9 +168,17 @@ export default function AddVocabWordModal({
 
   useEffect(() => {
     if (activeIndex < 0) return;
-    listboxRef.current
-      ?.querySelector<HTMLElement>(`#${CSS.escape(`${listboxId}-option-${activeIndex}`)}`)
-      ?.scrollIntoView({ block: "nearest" });
+    const option = listboxRef.current
+      ?.querySelector<HTMLElement>(`#${CSS.escape(`${listboxId}-option-${activeIndex}`)}`);
+    const popup = popupRef.current;
+    if (!option || !popup) return;
+    const bounds = popup.getBoundingClientRect();
+    const item = option.getBoundingClientRect();
+    const top = bounds.top + popup.clientTop;
+    const bottom = top + popup.clientHeight;
+    // Scroll only the results. scrollIntoView also moves the dialog on mobile.
+    if (item.top < top) popup.scrollTop += item.top - top;
+    else if (item.bottom > bottom) popup.scrollTop += item.bottom - bottom;
   }, [activeIndex, listboxId]);
 
   useEffect(() => {
@@ -317,7 +327,7 @@ export default function AddVocabWordModal({
     setActiveIndex(-1);
   };
 
-  const handleSelectSuggestion = async (suggestion: DictionarySuggestion) => {
+  const handleSelectSuggestion = async (suggestion: DictionarySuggestion, fromPointer = false) => {
     clearSuggestionDebounce();
     skipSuggestRef.current = suggestion.word;
     suggestionSearch.cancel();
@@ -348,6 +358,12 @@ export default function AddVocabWordModal({
       dictionaryPealimId: suggestion.pealimId,
     });
 
+    if (fromPointer && window.matchMedia("(max-width: 768px), (pointer: coarse)").matches) {
+      inputRef.current?.blur();
+    } else {
+      inputRef.current?.focus({ preventScroll: true });
+    }
+
     if (lang !== "en") {
       try {
         const translated = await translateDictionarySuggestion(suggestion.pealimId, lang);
@@ -362,7 +378,6 @@ export default function AddVocabWordModal({
         if (requestId === requestIdRef.current && isOpen) setMeaningStatus("failed");
       }
     }
-    if (requestId === requestIdRef.current) inputRef.current?.focus();
   };
 
   const handleLookup = async (event?: React.FormEvent) => {
@@ -544,12 +559,15 @@ export default function AddVocabWordModal({
     blurCloseTimerRef.current = window.setTimeout(() => {
       const focused = document.activeElement;
       if (focused && (popupRef.current?.contains(focused) || searchRowRef.current?.contains(focused))) return;
+      // Safari can blur the input to body during a touch scroll of the list.
+      if (popupInteractionRef.current && focused === document.body) return;
       setShowSuggestions(false);
       setActiveIndex(-1);
     }, 120);
   };
 
   const handleInputFocus = () => {
+    popupInteractionRef.current = false;
     if (blurCloseTimerRef.current !== null) {
       window.clearTimeout(blurCloseTimerRef.current);
       blurCloseTimerRef.current = null;
@@ -568,36 +586,56 @@ export default function AddVocabWordModal({
     normalizeDictionarySearch(cleanSearchQuery(query)).length >= MIN_QUERY_LEN;
 
   useLayoutEffect(() => {
-    if (!isOpen || !listOpen || mode !== "word") return;
+    if (!isOpen) return;
+    const dialog = dialogRef.current;
     const row = searchRowRef.current;
-    if (!row) return;
+    if (!dialog) return;
     const updatePosition = () => {
       const viewport = window.visualViewport;
-      const next = getSuggestionPosition(row.getBoundingClientRect(), {
+      const visibleArea = {
         top: viewport?.offsetTop ?? 0,
         left: viewport?.offsetLeft ?? 0,
         width: viewport?.width ?? window.innerWidth,
         height: viewport?.height ?? window.innerHeight,
-      });
+      };
+      dialog.style.setProperty("--vocab-viewport-top", `${visibleArea.top}px`);
+      dialog.style.setProperty("--vocab-viewport-left", `${visibleArea.left}px`);
+      dialog.style.setProperty("--vocab-viewport-width", `${visibleArea.width}px`);
+      dialog.style.setProperty("--vocab-viewport-height", `${visibleArea.height}px`);
+      const compact = visibleArea.width <= 768 || visibleArea.height <= 480
+        || window.matchMedia("(pointer: coarse)").matches;
+      dialog.dataset.compact = String(compact);
+      if (!row || !listOpen || mode !== "word") return;
+      const next = getSuggestionPosition(row.getBoundingClientRect(), visibleArea, compact);
       setPopupPosition((previous) => previous && Object.keys(next).every(
         (key) => previous[key as keyof typeof next] === next[key as keyof typeof next]
       ) ? previous : next);
     };
     updatePosition();
-    const observer = new ResizeObserver(updatePosition);
-    observer.observe(row);
-    window.addEventListener("resize", updatePosition);
-    window.addEventListener("scroll", updatePosition, true);
-    window.visualViewport?.addEventListener("resize", updatePosition);
-    window.visualViewport?.addEventListener("scroll", updatePosition);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", updatePosition);
-      window.removeEventListener("scroll", updatePosition, true);
-      window.visualViewport?.removeEventListener("resize", updatePosition);
-      window.visualViewport?.removeEventListener("scroll", updatePosition);
+    let frame = 0;
+    const schedulePosition = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        updatePosition();
+      });
     };
-  }, [isOpen, listOpen, mode]);
+    const observer = new ResizeObserver(schedulePosition);
+    if (row) observer.observe(row);
+    if (cardRef.current) observer.observe(cardRef.current);
+    window.addEventListener("resize", schedulePosition);
+    window.addEventListener("scroll", schedulePosition, true);
+    window.visualViewport?.addEventListener("resize", schedulePosition);
+    window.visualViewport?.addEventListener("scroll", schedulePosition);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener("resize", schedulePosition);
+      window.removeEventListener("scroll", schedulePosition, true);
+      window.visualViewport?.removeEventListener("resize", schedulePosition);
+      window.visualViewport?.removeEventListener("scroll", schedulePosition);
+    };
+  }, [dialogRef, isOpen, listOpen, mode]);
 
   if (!isOpen) return null;
 
@@ -608,11 +646,23 @@ export default function AddVocabWordModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
+      onPointerDownCapture={(event) => {
+        const target = event.target as Node;
+        popupInteractionRef.current = popupRef.current?.contains(target) ?? false;
+        if (popupInteractionRef.current && blurCloseTimerRef.current !== null) {
+          window.clearTimeout(blurCloseTimerRef.current);
+        }
+        if (!popupInteractionRef.current && !searchRowRef.current?.contains(target)) {
+          setShowSuggestions(false);
+          setActiveIndex(-1);
+        }
+      }}
       onClick={(e) => {
         if (e.target === e.currentTarget) closeModal();
       }}
     >
       <div
+        ref={cardRef}
         className="modal-content translation-modal add-vocab-modal"
       >
         <div className="modal-header">
@@ -636,7 +686,7 @@ export default function AddVocabWordModal({
                 suggestionSearch.cancel();
                 requestIdRef.current += 1;
                 setMode("word");
-                window.setTimeout(() => inputRef.current?.focus(), 0);
+                window.setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 0);
               }}
             >
               {t("addVocabModeWord")}
@@ -689,7 +739,7 @@ export default function AddVocabWordModal({
                     aria-label={t("clearSearch")}
                     onClick={() => {
                       handleQueryChange("");
-                      inputRef.current?.focus();
+                      inputRef.current?.focus({ preventScroll: true });
                     }}
                   >
                     <X size={16} />
@@ -851,7 +901,7 @@ export default function AddVocabWordModal({
         <div
           ref={popupRef}
           className="add-vocab-suggestions"
-          style={popupPosition ?? { visibility: "hidden" }}
+          style={{ ...popupPosition, visibility: popupPosition && popupPosition.maxHeight > 0 ? undefined : "hidden" }}
         >
           {isSuggesting && (
             <div className="add-vocab-suggestions-status" role="status" aria-live="polite">
@@ -860,31 +910,9 @@ export default function AddVocabWordModal({
             </div>
           )}
 
-          {isCompleting && (
-            <div className="add-vocab-suggestions-status" role="status" aria-live="polite">
-              <Loader2 className="spinner" size={14} />
-              <span>{t("completingDictionary")}</span>
-            </div>
-          )}
-
           {showEmptyHint && (
             <div className="add-vocab-suggestions-status" role="status" aria-live="polite">
               {t("noDictionaryMatches")}
-            </div>
-          )}
-
-          {suggestionStatus === "error" && !isSuggesting && (
-            <div className="add-vocab-suggestions-status add-vocab-search-error" role="status">
-              <span>{t(completionFailed ? "dictionaryCompletionFailed" : "dictionaryUnavailable")}</span>
-              <button type="button" onClick={retrySuggestions}>{t("tryAgain")}</button>
-            </div>
-          )}
-
-          {suggestionStatus === "rate_limited" && !isSuggesting && (
-            <div className="add-vocab-suggestions-status" role="status">
-              {retryAfterSeconds > 0
-                ? t("dictionaryRateLimited", { count: retryAfterSeconds })
-                : <><span>{t("dictionaryRateLimitReady")}</span><button type="button" onClick={retrySuggestions}>{t("tryAgain")}</button></>}
             </div>
           )}
 
@@ -900,7 +928,7 @@ export default function AddVocabWordModal({
                 index === activeIndex ? " is-active" : ""
               }`}
               onMouseDown={(e) => e.preventDefault()}
-              onClick={() => void handleSelectSuggestion(suggestion)}
+              onClick={(event) => void handleSelectSuggestion(suggestion, event.detail > 0)}
             >
               <span className="add-vocab-suggestion-main">
                 <span className="add-vocab-suggestion-hebrew font-serif" dir="rtl" lang="he">
@@ -933,6 +961,28 @@ export default function AddVocabWordModal({
             </button>
           ))}
           </div>
+
+          {isCompleting && (
+            <div className="add-vocab-suggestions-status" role="status" aria-live="polite">
+              <Loader2 className="spinner" size={14} />
+              <span>{t("completingDictionary")}</span>
+            </div>
+          )}
+
+          {suggestionStatus === "error" && !isSuggesting && (
+            <div className="add-vocab-suggestions-status add-vocab-search-error" role="status">
+              <span>{t(completionFailed ? "dictionaryCompletionFailed" : "dictionaryUnavailable")}</span>
+              <button type="button" onClick={retrySuggestions}>{t("tryAgain")}</button>
+            </div>
+          )}
+
+          {suggestionStatus === "rate_limited" && !isSuggesting && (
+            <div className="add-vocab-suggestions-status" role="status">
+              {retryAfterSeconds > 0
+                ? t("dictionaryRateLimited", { count: retryAfterSeconds })
+                : <><span>{t("dictionaryRateLimitReady")}</span><button type="button" onClick={retrySuggestions}>{t("tryAgain")}</button></>}
+            </div>
+          )}
         </div>
       )}
     </div>,
