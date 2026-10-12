@@ -121,7 +121,7 @@ function buildFlashcardSets(
 
 export type FlashcardDirectionState = ReturnType<typeof buildFlashcardSets>;
 
-export function useFlashcards(vocabWords: VocabWord[]) {
+export function useFlashcards(vocabWords: VocabWord[], refreshVocabulary?: () => Promise<void>) {
   const { user } = useUser();
   const userId = user?.id;
   const [progresses, setProgresses] = useState<FlashcardProgress[]>([]);
@@ -221,6 +221,8 @@ export function useFlashcards(vocabWords: VocabWord[]) {
 
         if (error) {
           console.error("Failed to save flashcard review progress:", error);
+          // A card deleted in another tab can still be in the local session.
+          if (error.code === "42501") await refreshVocabulary?.();
           loadProgress({ silent: true });
           return false;
         } else if (data) {
@@ -245,7 +247,7 @@ export function useFlashcards(vocabWords: VocabWord[]) {
         return false;
       }
     },
-    [userId, forward.flashcards, reverse.flashcards, loadProgress]
+    [userId, forward.flashcards, reverse.flashcards, loadProgress, refreshVocabulary]
   );
 
   const unlearnWord = useCallback(

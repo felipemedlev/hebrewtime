@@ -100,4 +100,28 @@ describe("flashcard progress persistence", () => {
     expect(await useFlashcards([word]).submitReview(word.id, 3)).toBe(false);
     expect(mocks.setProgresses).not.toHaveBeenCalled();
   });
+
+  it("refreshes vocabulary when a stale card fails the ownership check", async () => {
+    const refreshVocabulary = vi.fn().mockResolvedValue(undefined);
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    mocks.single.mockResolvedValue({ data: null, error: { code: "42501" } });
+    expect(await useFlashcards([word], refreshVocabulary).submitReview(word.id, 3)).toBe(false);
+    expect(refreshVocabulary).toHaveBeenCalledOnce();
+    expect(mocks.upsert).toHaveBeenCalledOnce();
+    log.mockRestore();
+  });
+
+  it("keeps ordinary connection failures retryable without refreshing vocabulary", async () => {
+    const refreshVocabulary = vi.fn();
+    mocks.single.mockRejectedValue(new Error("offline"));
+    expect(await useFlashcards([word], refreshVocabulary).submitReview(word.id, 3)).toBe(false);
+    expect(refreshVocabulary).not.toHaveBeenCalled();
+  });
+
+  it("saves a phrase with its vocabulary ID and the requested direction", async () => {
+    const phrase = { ...word, id: "phrase-a", entryKind: "phrase" as const };
+    mocks.single.mockResolvedValue({ data: { ...progress, vocab_id: phrase.id, direction: "reverse" }, error: null });
+    expect(await useFlashcards([phrase]).submitReview(phrase.id, 3, "reverse")).toBe(true);
+    expect(mocks.upsert.mock.calls[0][0]).toMatchObject({ vocab_id: phrase.id, direction: "reverse" });
+  });
 });

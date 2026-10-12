@@ -127,7 +127,7 @@ export default function AppShell({
   const accountScopeRef = useRef<string | null | undefined>(undefined);
   activeUserIdRef.current = user?.id ?? null;
   const { entitlements, isLoading: isLoadingEntitlements } = useEntitlements();
-  const { vocabWords, addWord, deleteWord, updateWord } = useVocabulary(entitlements.isPremium);
+  const { vocabWords, addWord, deleteWord, updateWord, refreshVocabulary } = useVocabulary(entitlements.isPremium);
   const {
     forward,
     reverse,
@@ -138,7 +138,7 @@ export default function AppShell({
     submitReview,
     unlearnWord,
     stats,
-  } = useFlashcards(vocabWords);
+  } = useFlashcards(vocabWords, refreshVocabulary);
   const { stats: practiceStats, recordAttempt, attemptTimestamps } = useReviewPracticeStats();
   const {
     shouldShow: shouldShowOnboarding,

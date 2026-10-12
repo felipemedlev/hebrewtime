@@ -1,0 +1,132 @@
+{
+  "checkedAt": "2026-10-11T21:09:25.939Z",
+  "origin": "http://127.0.0.1:3000",
+  "episodes": [
+    {
+      "episode": 14,
+      "metadataStatus": 200,
+      "ranges": [
+        {
+          "status": 206,
+          "contentRange": "bytes 0-1023/24235281",
+          "bytesMatch": true
+        },
+        {
+          "status": 206,
+          "contentRange": "bytes 12117640-12118663/24235281",
+          "bytesMatch": true
+        },
+        {
+          "status": 206,
+          "contentRange": "bytes 24234257-24235280/24235281",
+          "bytesMatch": true
+        }
+      ]
+    },
+    {
+      "episode": 15,
+      "metadataStatus": 200,
+      "ranges": [
+        {
+          "status": 206,
+          "contentRange": "bytes 0-1023/21903905",
+          "bytesMatch": true
+        },
+        {
+          "status": 206,
+          "contentRange": "bytes 10951952-10952975/21903905",
+          "bytesMatch": true
+        },
+        {
+          "status": 206,
+          "contentRange": "bytes 21902881-21903904/21903905",
+          "bytesMatch": true
+        }
+      ]
+    },
+    {
+      "episode": 16,
+      "metadataStatus": 200,
+      "ranges": [
+        {
+          "status": 206,
+          "contentRange": "bytes 0-1023/27515843",
+          "bytesMatch": true
+        },
+        {
+          "status": 206,
+          "contentRange": "bytes 13757921-13758944/27515843",
+          "bytesMatch": true
+        },
+        {
+          "status": 206,
+          "contentRange": "bytes 27514819-27515842/27515843",
+          "bytesMatch": true
+        }
+      ]
+    },
+    {
+      "episode": 17,
+      "metadataStatus": 200,
+      "ranges": [
+        {
+          "status": 206,
+          "contentRange": "bytes 0-1023/26785668",
+          "bytesMatch": true
+        },
+        {
+          "status": 206,
+          "contentRange": "bytes 13392834-13393857/26785668",
+          "bytesMatch": true
+        },
+        {
+          "status": 206,
+          "contentRange": "bytes 26784644-26785667/26785668",
+          "bytesMatch": true
+        }
+      ]
+    },
+    {
+      "episode": 18,
+      "metadataStatus": 200,
+      "ranges": [
+        {
+          "status": 206,
+          "contentRange": "bytes 0-1023/25256355",
+          "bytesMatch": true
+        },
+        {
+          "status": 206,
+          "contentRange": "bytes 12628177-12629200/25256355",
+          "bytesMatch": true
+        },
+        {
+          "status": 206,
+          "contentRange": "bytes 25255331-25256354/25256355",
+          "bytesMatch": true
+        }
+      ]
+    },
+    {
+      "episode": 19,
+      "metadataStatus": 200,
+      "ranges": [
+        {
+          "status": 206,
+          "contentRange": "bytes 0-1023/29869371",
+          "bytesMatch": true
+        },
+        {
+          "status": 206,
+          "contentRange": "bytes 14934685-14935708/29869371",
+          "bytesMatch": true
+        },
+        {
+          "status": 206,
+          "contentRange": "bytes 29868347-29869370/29869371",
+          "bytesMatch": true
+        }
+      ]
+    }
+  ]
+}

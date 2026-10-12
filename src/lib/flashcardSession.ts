@@ -17,6 +17,24 @@ export type FlashcardSessionSnapshot = {
   sessionLimit?: number;
 };
 
+/** Keep the next unreviewed card when vocabulary disappears from a session. */
+export function reconcileFlashcardSession(
+  cardIds: string[],
+  currentIndex: number,
+  allCards: FlashcardItem[]
+) {
+  const cardsById = new Map(allCards.map((card) => [card.vocabWord.id, card]));
+  const cards = cardIds
+    .map((id) => cardsById.get(id))
+    .filter((card): card is FlashcardItem => Boolean(card));
+  const nextIndex = cardIds.slice(0, currentIndex).filter((id) => cardsById.has(id)).length;
+  return {
+    cards,
+    currentIndex: nextIndex,
+    currentCardRemoved: !cardsById.has(cardIds[currentIndex]),
+  };
+}
+
 const SESSION_STORAGE_VERSION = 1;
 const SESSION_STORAGE_KEY = "hebrewtime-flashcard-session-v1";
 const ORDER_STORAGE_KEY = "hebrewtime-flashcard-order-v1";

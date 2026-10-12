@@ -35,6 +35,7 @@ import {
   clearFlashcardSession,
   readFlashcardOrder,
   readFlashcardSession,
+  reconcileFlashcardSession,
   writeFlashcardOrder,
   writeFlashcardSession,
   type FlashcardOrder,
@@ -126,25 +127,26 @@ export default function FlashcardsView({
   }, [sessionActive, currentIndex]);
 
   useEffect(() => {
-    if (!sessionActive) return;
-
-    const wordsById = new Map(vocabWords.map((word) => [word.id, word]));
-
-    setActiveSessionCards((prev) => {
-      let changed = false;
-      const next = prev.map((card) => {
-        const updatedWord = wordsById.get(card.vocabWord.id);
-        if (!updatedWord || updatedWord === card.vocabWord) {
-          return card;
-        }
-
-        changed = true;
-        return { ...card, vocabWord: updatedWord };
-      });
-
-      return changed ? next : prev;
-    });
-  }, [sessionActive, vocabWords]);
+    if (!sessionActive || isSubmitting) return;
+    const next = reconcileFlashcardSession(
+      activeSessionCards.map((card) => card.vocabWord.id), currentIndex, allCards
+    );
+    if (next.cards.some((card, index) => card !== activeSessionCards[index]) || next.cards.length !== activeSessionCards.length) {
+      setActiveSessionCards(next.cards);
+    }
+    if (next.currentIndex !== currentIndex) setCurrentIndex(next.currentIndex);
+    if (next.currentCardRemoved) {
+      setIsFlipped(false);
+      setShowExamples(false);
+      setDetailsPealimId(null);
+      setSaveError(false);
+    }
+    if (next.currentIndex >= next.cards.length) {
+      setSessionActive(false);
+      setSessionSummary("ended");
+      clearFlashcardSession("forward", userId);
+    }
+  }, [activeSessionCards, allCards, currentIndex, isSubmitting, sessionActive, setSaveError, userId]);
 
   const beginSession = (cards: FlashcardItem[], limit?: number, sessionOrder = order) => {
     const orderedCards = sessionOrder === "shuffled"
@@ -176,18 +178,15 @@ export default function FlashcardsView({
     restoredSessionRef.current = true;
     const saved = readFlashcardSession("forward", userId);
     if (!saved) return;
-    const cardsById = new Map(allCards.map((card) => [card.vocabWord.id, card]));
-    const restoredCards = saved.cardIds
-      .map((id) => cardsById.get(id))
-      .filter((card): card is FlashcardItem => Boolean(card));
-    if (restoredCards.length === 0) {
+    const restored = reconcileFlashcardSession(saved.cardIds, saved.currentIndex, allCards);
+    if (restored.currentIndex >= restored.cards.length) {
       clearFlashcardSession("forward", userId);
       return;
     }
-    setActiveSessionCards(restoredCards);
-    setCurrentIndex(Math.min(saved.currentIndex, restoredCards.length - 1));
-    setIsFlipped(saved.isFlipped);
-    setShowExamples(saved.showExamples);
+    setActiveSessionCards(restored.cards);
+    setCurrentIndex(restored.currentIndex);
+    setIsFlipped(!restored.currentCardRemoved && saved.isFlipped);
+    setShowExamples(!restored.currentCardRemoved && saved.showExamples);
     setOrder(saved.order);
     setSessionActive(true);
     setViewTab("session");
@@ -208,6 +207,8 @@ export default function FlashcardsView({
 
   useEffect(() => {
     if (isSubmitting || !sessionActive || activeSessionCards.length === 0 || !restoredSessionRef.current) return;
+    const currentIds = new Set(allCards.map((card) => card.vocabWord.id));
+    if (activeSessionCards.some((card) => !currentIds.has(card.vocabWord.id))) return;
     const snapshot: FlashcardSessionSnapshot = {
       version: 1,
       direction: "forward",
@@ -219,7 +220,7 @@ export default function FlashcardsView({
       sessionLimit,
     };
     writeFlashcardSession(snapshot, userId);
-  }, [activeSessionCards, currentIndex, isFlipped, isSubmitting, order, sessionActive, sessionLimit, showExamples, userId]);
+  }, [activeSessionCards, allCards, currentIndex, isFlipped, isSubmitting, order, sessionActive, sessionLimit, showExamples, userId]);
 
   const handleRate = async (rating: FlashcardRating) => {
     const card = reviewQueue[currentIndex];

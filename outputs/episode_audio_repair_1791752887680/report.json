@@ -1,0 +1,88 @@
+{
+  "createdAt": "2026-10-11T21:08:07.681Z",
+  "level": "intermediate",
+  "apply": false,
+  "sourceOfTruth": "Published Supabase episodes, supplied MP3 files, original Drive source for episode 19",
+  "rowCountBefore": 6,
+  "episodes": [
+    {
+      "episode": 14,
+      "file": "missing_audios/HT_14_final.mp3",
+      "objectPath": "intermediate/14.mp3",
+      "audioUrl": "https://mkfivlgfeqpvgietfqyg.supabase.co/storage/v1/object/public/episode-audio/intermediate/14.mp3",
+      "previousDatabaseUrl": "https://www.dropbox.com/s/m1q62v90x2xvzcz/HT_14_final.mp3?dl=0",
+      "previousCatalogUrl": "https://www.dropbox.com/s/m1q62v90x2xvzcz/HT_14_final.mp3?dl=0",
+      "byteCount": 24235281,
+      "sha256": "d422b7d45d976071744fe74cf3c35328d823bd9dbf61b17f29e70ff20338b2e7",
+      "durationSeconds": 1514.449063,
+      "exists": false,
+      "id": "1437f570-aaa9-4998-b847-07bd49937019"
+    },
+    {
+      "episode": 15,
+      "file": "missing_audios/HT_15 - FIN.mp3",
+      "objectPath": "intermediate/15.mp3",
+      "audioUrl": "https://mkfivlgfeqpvgietfqyg.supabase.co/storage/v1/object/public/episode-audio/intermediate/15.mp3",
+      "previousDatabaseUrl": "https://www.dropbox.com/s/wq0kti0an6ddujk/HT_15%20-%20FIN.mp3?dl=0",
+      "previousCatalogUrl": "https://www.dropbox.com/s/wq0kti0an6ddujk/HT_15%20-%20FIN.mp3?dl=0",
+      "byteCount": 21903905,
+      "sha256": "cc1fc98d113ff9f2ba43062c97fbdd5013748ba9266c02b0644099cec25f2685",
+      "durationSeconds": 1368.738063,
+      "exists": false,
+      "id": "e2c3c14a-d2ab-4f07-af73-647b83e0e5c9"
+    },
+    {
+      "episode": 16,
+      "file": "missing_audios/HT_16 Final.mp3",
+      "objectPath": "intermediate/16.mp3",
+      "audioUrl": "https://mkfivlgfeqpvgietfqyg.supabase.co/storage/v1/object/public/episode-audio/intermediate/16.mp3",
+      "previousDatabaseUrl": "https://www.dropbox.com/s/17cfrsusror2x2q/HT_16%20Final.mp3?dl=0",
+      "previousCatalogUrl": "https://www.dropbox.com/s/17cfrsusror2x2q/HT_16%20Final.mp3?dl=0",
+      "byteCount": 27515843,
+      "sha256": "a1bb7fe994d5e2f8916b9c7ae8bcabe3c4ce6f56e8b679e20b47658fce8550f3",
+      "durationSeconds": 1719.484188,
+      "exists": false,
+      "id": "f36595f6-d445-4b88-a4fa-7701efd3b852"
+    },
+    {
+      "episode": 17,
+      "file": "missing_audios/HT_17_FINAL.mp3",
+      "objectPath": "intermediate/17.mp3",
+      "audioUrl": "https://mkfivlgfeqpvgietfqyg.supabase.co/storage/v1/object/public/episode-audio/intermediate/17.mp3",
+      "previousDatabaseUrl": "https://www.dropbox.com/s/5j7lrqwhmxy0gmn/HT_17_FINAL.mp3?dl=0",
+      "previousCatalogUrl": "https://www.dropbox.com/s/5j7lrqwhmxy0gmn/HT_17_FINAL.mp3?dl=0",
+      "byteCount": 26785668,
+      "sha256": "a5aecc3a45aa3b79cc3acfb6065dce3ec6cc7f60dc760be8d6baccde14a61a66",
+      "durationSeconds": 1673.84825,
+      "exists": false,
+      "id": "f11b25e1-2374-43f1-b63a-b3241d7af5e1"
+    },
+    {
+      "episode": 18,
+      "file": "missing_audios/HT_18_full.mp3",
+      "objectPath": "intermediate/18.mp3",
+      "audioUrl": "https://mkfivlgfeqpvgietfqyg.supabase.co/storage/v1/object/public/episode-audio/intermediate/18.mp3",
+      "previousDatabaseUrl": "https://www.dropbox.com/s/loqbdv7spulsdgc/HT_18_full.mp3?dl=0",
+      "previousCatalogUrl": "https://www.dropbox.com/s/loqbdv7spulsdgc/HT_18_full.mp3?dl=0",
+      "byteCount": 25256355,
+      "sha256": "0ffc5c19d64769fb80d94c96cc9b9ce9cd4408121411ba6e9afea811aecd51d2",
+      "durationSeconds": 1578.266188,
+      "exists": false,
+      "id": "e931ddde-2904-41e1-a29c-010507846bea"
+    },
+    {
+      "episode": 19,
+      "file": "inputs/episode_audio_repair/HT_19_FULL.mp3",
+      "objectPath": "intermediate/19.mp3",
+      "audioUrl": "https://mkfivlgfeqpvgietfqyg.supabase.co/storage/v1/object/public/episode-audio/intermediate/19.mp3",
+      "previousDatabaseUrl": "https://drive.google.com/uc?export=download&id=1V9RouReFXHJJjBPpB2QA4N9qTKv88bHp",
+      "previousCatalogUrl": "https://drive.google.com/uc?export=download&id=1V9RouReFXHJJjBPpB2QA4N9qTKv88bHp",
+      "byteCount": 29869371,
+      "sha256": "4347c91a285abcd74fb19c507f60338d4aea2fba464752fd2483603500b08d05",
+      "durationSeconds": 1866.579688,
+      "exists": false,
+      "id": "246a15b0-b6d7-4e68-b74f-46843146dce2"
+    }
+  ],
+  "completedEpisodes": []
+}

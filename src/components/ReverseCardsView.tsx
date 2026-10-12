@@ -33,6 +33,7 @@ import {
   clearFlashcardSession,
   readFlashcardOrder,
   readFlashcardSession,
+  reconcileFlashcardSession,
   writeFlashcardOrder,
   writeFlashcardSession,
   type FlashcardOrder,
@@ -131,11 +132,8 @@ export default function ReverseCardsView({
       restoredSessionRef.current = true;
       return;
     }
-    const cardsById = new Map(allCards.map((card) => [card.vocabWord.id, card]));
-    const restoredCards = saved.cardIds
-      .map((id) => cardsById.get(id))
-      .filter((card): card is FlashcardItem => Boolean(card));
-    if (restoredCards.length === 0) {
+    const restored = reconcileFlashcardSession(saved.cardIds, saved.currentIndex, allCards);
+    if (restored.currentIndex >= restored.cards.length) {
       restoredSessionRef.current = true;
       clearFlashcardSession("reverse", userId);
       return;
@@ -143,10 +141,10 @@ export default function ReverseCardsView({
     const timer = window.setTimeout(() => {
       // Mark restored only when applied, so a cancelled effect can retry.
       restoredSessionRef.current = true;
-      setActiveSessionCards(restoredCards);
-      setCurrentIndex(Math.min(saved.currentIndex, restoredCards.length - 1));
-      setIsFlipped(saved.isFlipped);
-      setShowExamples(saved.showExamples);
+      setActiveSessionCards(restored.cards);
+      setCurrentIndex(restored.currentIndex);
+      setIsFlipped(!restored.currentCardRemoved && saved.isFlipped);
+      setShowExamples(!restored.currentCardRemoved && saved.showExamples);
       setOrder(saved.order);
       setSessionActive(true);
       setViewTab("session");
@@ -155,7 +153,33 @@ export default function ReverseCardsView({
   }, [allCards, isLoaded, userId]);
 
   useEffect(() => {
+    if (!sessionActive || isSubmitting) return;
+    const next = reconcileFlashcardSession(
+      activeSessionCards.map((card) => card.vocabWord.id), currentIndex, allCards
+    );
+    const cardsChanged = next.cards.some((card, index) => card !== activeSessionCards[index]) || next.cards.length !== activeSessionCards.length;
+    if (!cardsChanged && next.currentIndex < next.cards.length) return;
+    const timer = window.setTimeout(() => {
+      if (cardsChanged) setActiveSessionCards(next.cards);
+      if (next.currentIndex !== currentIndex) setCurrentIndex(next.currentIndex);
+      if (next.currentCardRemoved) {
+        setIsFlipped(false);
+        setShowExamples(false);
+        setDetailsPealimId(null);
+        setSaveError(false);
+      }
+      if (next.currentIndex >= next.cards.length) {
+        setSessionActive(false);
+        clearFlashcardSession("reverse", userId);
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [activeSessionCards, allCards, currentIndex, isSubmitting, sessionActive, setSaveError, userId]);
+
+  useEffect(() => {
     if (isSubmitting || !sessionActive || activeSessionCards.length === 0 || !restoredSessionRef.current) return;
+    const currentIds = new Set(allCards.map((card) => card.vocabWord.id));
+    if (activeSessionCards.some((card) => !currentIds.has(card.vocabWord.id))) return;
     const snapshot: FlashcardSessionSnapshot = {
       version: 1,
       direction: "reverse",
@@ -166,7 +190,7 @@ export default function ReverseCardsView({
       order,
     };
     writeFlashcardSession(snapshot, userId);
-  }, [activeSessionCards, currentIndex, isFlipped, isSubmitting, order, sessionActive, showExamples, userId]);
+  }, [activeSessionCards, allCards, currentIndex, isFlipped, isSubmitting, order, sessionActive, showExamples, userId]);
 
   const handleEndSession = () => {
     setSessionActive(false);

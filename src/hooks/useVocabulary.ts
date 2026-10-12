@@ -12,20 +12,20 @@ export function useVocabulary(isPremium = false) {
   const userId = user?.id;
   const loadIdRef = useRef(0);
 
-  // Load from Supabase on mount or when user changes
-  useEffect(() => {
+  const loadVocabulary = useCallback(async (silent = false) => {
     const loadId = ++loadIdRef.current;
     if (!userId) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setVocabWords([]);
       setIsLoaded(true);
       return;
     }
 
-    // Clear the previous account before loading this account's vocabulary.
-    setVocabWords([]);
-    setIsLoaded(false);
-    supabase
+    if (!silent) {
+      // Clear the previous account before loading this account's vocabulary.
+      setVocabWords([]);
+      setIsLoaded(false);
+    }
+    await supabase
       .from("vocabulary")
       .select("*")
       .eq("user_id", userId)
@@ -54,10 +54,17 @@ export function useVocabulary(isPremium = false) {
       }, (error: unknown) => {
         if (loadId !== loadIdRef.current) return;
         console.error("Unexpected error loading vocabulary:", error);
-        setVocabWords([]);
+        if (!silent) setVocabWords([]);
         setIsLoaded(true);
       });
   }, [userId]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- clear the previous account before loading vocabulary
+    void loadVocabulary();
+  }, [loadVocabulary]);
+
+  const refreshVocabulary = useCallback(() => loadVocabulary(true), [loadVocabulary]);
 
   const addWord = useCallback(
     async (word: Omit<VocabWord, "id" | "savedAt">): Promise<{ added: boolean; message: string; type?: "auth_required" | "duplicate" | "success" | "error" | "limit_reached" }> => {
@@ -214,5 +221,5 @@ export function useVocabulary(isPremium = false) {
     [user, vocabWords]
   );
 
-  return { vocabWords, isLoaded, addWord, deleteWord, updateWord };
+  return { vocabWords, isLoaded, addWord, deleteWord, updateWord, refreshVocabulary };
 }

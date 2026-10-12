@@ -58,3 +58,6 @@ gcp-service-account.json
 *-service-account*.json
 
 .cursor/
+
+# Audio recovered by the episode repair script
+/inputs/episode_audio_repair/*.mp3
